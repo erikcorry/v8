@@ -200,9 +200,6 @@ void V8::Initialize() {
   GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
 
-  IsolateGroup::current()->code_pointer_table()->Initialize();
-  IsolateGroup::current()->js_dispatch_table()->Initialize();
-
   // Enable sandbox testing mode if requested.
   //
   // This will install the sandbox crash filter to ignore all crashes that do
