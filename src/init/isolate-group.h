@@ -171,6 +171,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   MemoryChunkMetadata** metadata_pointer_table() {
     return metadata_pointer_table_;
   }
+  
+  Sandbox* sandbox() { return sandbox_; }
 #endif  // V8_ENABLE_SANDBOX
 
  private:
@@ -233,6 +235,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   MemoryChunkMetadata*
       metadata_pointer_table_[MemoryChunkConstants::kMetadataPointerTableSize] =
           {nullptr};
+          
+  Sandbox* sandbox_ = nullptr;
 #endif  // V8_ENABLE_SANDBOX
 };
 

@@ -101,6 +101,7 @@ void IsolateGroup::Initialize(bool process_wide, Sandbox* sandbox) {
   pointer_compression_cage_ = &reservation_;
   trusted_pointer_compression_cage_ =
       TrustedRange::EnsureProcessWideTrustedRange(kMaximalTrustedRangeSize);
+  sandbox_ = sandbox;
 }
 #elif defined(V8_COMPRESS_POINTERS)
 void IsolateGroup::Initialize(bool process_wide) {
@@ -130,7 +131,7 @@ void IsolateGroup::InitializeOncePerProcess() {
 
   DCHECK_NULL(group->page_allocator_);
 #ifdef V8_ENABLE_SANDBOX
-  group->Initialize(true, GetProcessWideSandbox());
+  group->Initialize(true, GetDefaultSandbox());
 #else
   group->Initialize(true);
 #endif
@@ -147,6 +148,7 @@ void IsolateGroup::InitializeOncePerProcess() {
 #endif  // V8_EXTERNAL_CODE_SPACE
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   IsolateGroup::set_current(group);
+  Sandbox::set_current(GetDefaultSandbox());
 #endif
 }
 

@@ -25,6 +25,16 @@ namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
 
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+thread_local Sandbox* Sandbox::current_ = nullptr;
+// static
+Sandbox* Sandbox::current_non_inlined() { return current_; }
+// static
+void Sandbox::set_current_non_inlined(Sandbox* sandbox) {
+  current_ = sandbox;
+}
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+
 // Best-effort function to determine the approximate size of the virtual
 // address space that can be addressed by this process. Used to determine
 // appropriate sandbox size and placement.
@@ -300,7 +310,11 @@ void Sandbox::TearDown() {
   }
 }
 
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(Sandbox, GetProcessWideSandbox)
+Sandbox* GetDefaultSandbox() {
+  static base::LeakyObject<Sandbox> default_sandbox_;
+  return default_sandbox_.get();
+}
+
 
 #endif  // V8_ENABLE_SANDBOX
 

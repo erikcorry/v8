@@ -41,14 +41,14 @@ namespace {
 void SandboxGetBase(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
-  double sandbox_base = GetProcessWideSandbox()->base();
+  double sandbox_base = Sandbox::current()->base();
   info.GetReturnValue().Set(v8::Number::New(isolate, sandbox_base));
 }
 // Sandbox.byteLength
 void SandboxGetByteLength(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(ValidateCallbackInfo(info));
   v8::Isolate* isolate = info.GetIsolate();
-  double sandbox_size = GetProcessWideSandbox()->size();
+  double sandbox_size = Sandbox::current()->size();
   info.GetReturnValue().Set(v8::Number::New(isolate, sandbox_size));
 }
 
@@ -70,7 +70,7 @@ void SandboxMemoryView(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  Sandbox* sandbox = GetProcessWideSandbox();
+  Sandbox* sandbox = Sandbox::current();
   CHECK_LE(sandbox->size(), kMaxSafeIntegerUint64);
 
   uint64_t offset = arg1->Value();
@@ -121,7 +121,7 @@ static bool GetArgumentObjectPassedAsReference(
 
 static bool GetArgumentObjectPassedAsAddress(
     const v8::FunctionCallbackInfo<v8::Value>& info, Tagged<HeapObject>* out) {
-  Sandbox* sandbox = GetProcessWideSandbox();
+  Sandbox* sandbox = Sandbox::current();
   v8::Isolate* isolate = info.GetIsolate();
   Local<v8::Context> context = isolate->GetCurrentContext();
 
@@ -476,7 +476,7 @@ void SandboxTesting::InstallMemoryCorruptionApiIfEnabled(Isolate* isolate) {
 
   if (!IsEnabled()) return;
 
-  CHECK(GetProcessWideSandbox()->is_initialized());
+  CHECK(Sandbox::current()->is_initialized());
 
   // Create the special Sandbox object that provides read/write access to the
   // sandbox address space alongside other miscellaneous functionality.
@@ -592,7 +592,7 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
 
   Address faultaddr = reinterpret_cast<Address>(info->si_addr);
 
-  if (GetProcessWideSandbox()->Contains(faultaddr)) {
+  if (Sandbox::current()->Contains(faultaddr)) {
     FilterCrash(
         "Caught harmless memory access violaton (inside sandbox address "
         "space). Exiting process...\n");
@@ -736,7 +736,7 @@ void AsanFaultHandler() {
         "check if it is a sandbox violation. Exiting process...\n");
   }
 
-  if (GetProcessWideSandbox()->Contains(faultaddr)) {
+  if (Sandbox::current()->Contains(faultaddr)) {
     FilterCrash(
         "Caught harmless ASan fault (inside sandbox address space). Exiting "
         "process...\n");
@@ -797,7 +797,7 @@ void InstallCrashFilter() {
 void SandboxTesting::Enable(Mode mode) {
   CHECK_EQ(mode_, Mode::kDisabled);
   CHECK_NE(mode, Mode::kDisabled);
-  CHECK(GetProcessWideSandbox()->is_initialized());
+  CHECK(Sandbox::current()->is_initialized());
 
   mode_ = mode;
 

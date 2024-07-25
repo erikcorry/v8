@@ -290,15 +290,15 @@ ExternalReference ExternalReference::handle_scope_implementer_address(
 
 #ifdef V8_ENABLE_SANDBOX
 ExternalReference ExternalReference::sandbox_base_address() {
-  return ExternalReference(GetProcessWideSandbox()->base_address());
+  return ExternalReference(Sandbox::current()->base_address());
 }
 
 ExternalReference ExternalReference::sandbox_end_address() {
-  return ExternalReference(GetProcessWideSandbox()->end_address());
+  return ExternalReference(Sandbox::current()->end_address());
 }
 
 ExternalReference ExternalReference::empty_backing_store_buffer() {
-  return ExternalReference(GetProcessWideSandbox()
+  return ExternalReference(Sandbox::current()
                                ->constants()
                                .empty_backing_store_buffer_address());
 }
