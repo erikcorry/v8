@@ -197,8 +197,10 @@ void V8::Initialize() {
 
 #ifdef V8_ENABLE_SANDBOX
   // If enabled, the sandbox must be initialized first.
-  GetDefaultSandbox()->Initialize(GetPlatformVirtualAddressSpace());
-  CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
+  Sandbox* sandbox = GetDefaultSandbox();
+  sandbox->Initialize(GetPlatformVirtualAddressSpace());
+  CHECK_EQ(kSandboxSize, sandbox->size());
+  Sandbox::set_current(sandbox);
 
   // Enable sandbox testing mode if requested.
   //

@@ -57,6 +57,13 @@ namespace trap_handler {
 #define V8_TRAP_HANDLER_SUPPORTED false
 #endif
 
+// We can't setup process wide globals to handle traps when
+// there are many cages per process.
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+#undef V8_TRAP_HANDLER_SUPPORTED
+#define V8_TRAP_HANDLER_SUPPORTED false
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+
 #if V8_OS_ANDROID && V8_TRAP_HANDLER_SUPPORTED
 // It would require some careful security review before the trap handler
 // can be enabled on Android.  Android may do unexpected things with signal

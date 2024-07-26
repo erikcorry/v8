@@ -90,10 +90,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   // Release a reference on an isolate group, possibly freeing any shared memory
   // resources.
-  void Release() {
-    DCHECK_LT(0, reference_count_.load());
-    if (--reference_count_ == 0) delete this;
-  }
+  void Release();
 
   int IncrementIsolateCount() { return ++isolate_count_; }
   int DecrementIsolateCount() { return --isolate_count_; }
@@ -171,7 +168,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   MemoryChunkMetadata** metadata_pointer_table() {
     return metadata_pointer_table_;
   }
-  
+
   Sandbox* sandbox() { return sandbox_; }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -235,7 +232,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   MemoryChunkMetadata*
       metadata_pointer_table_[MemoryChunkConstants::kMetadataPointerTableSize] =
           {nullptr};
-          
+
   Sandbox* sandbox_ = nullptr;
 #endif  // V8_ENABLE_SANDBOX
 };

@@ -298,9 +298,8 @@ ExternalReference ExternalReference::sandbox_end_address() {
 }
 
 ExternalReference ExternalReference::empty_backing_store_buffer() {
-  return ExternalReference(Sandbox::current()
-                               ->constants()
-                               .empty_backing_store_buffer_address());
+  return ExternalReference(
+      Sandbox::current()->constants().empty_backing_store_buffer_address());
 }
 
 ExternalReference ExternalReference::external_pointer_table_address(

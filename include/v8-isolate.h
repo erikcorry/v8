@@ -202,6 +202,25 @@ enum class MemoryPressureLevel { kNone, kModerate, kCritical };
 using StackState = cppgc::EmbedderStackState;
 
 /**
+ * Each isolate group has its own sandbox
+ * (if V8 was configured with support for the sandbox) and
+ * pointer-compression cage (if configured with pointer compression).
+ *
+ */
+class V8_EXPORT Sandbox {
+ public:
+  bool operator==(const Sandbox& other) const {
+    return sandbox_ == other.sandbox_;
+  }
+
+ private:
+  friend class IsolateGroup;
+  explicit Sandbox(internal::Sandbox* sandbox);
+
+  internal::Sandbox* sandbox_;
+};
+
+/**
  * The set of V8 isolates in a process is partitioned into groups.  Each group
  * has its own sandbox (if V8 was configured with support for the sandbox) and
  * pointer-compression cage (if configured with pointer compression).
@@ -218,9 +237,6 @@ using StackState = cppgc::EmbedderStackState;
  * group's memory mapping will be released when the last isolate in the group is
  * disposed, and there are no more live IsolateGroup objects that refer to it.
  *
- * Note that V8 does not currently support multiple sandboxes; isolate groups
- * are currently useful mainly in a configuration with pointer compression but
- * without the sandbox.
  */
 class V8_EXPORT IsolateGroup {
  public:
@@ -253,6 +269,10 @@ class V8_EXPORT IsolateGroup {
   IsolateGroup(const IsolateGroup&);
   IsolateGroup& operator=(const IsolateGroup&);
   ~IsolateGroup();
+
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox GetSandbox();
+#endif
 
   bool operator==(const IsolateGroup& other) const {
     return isolate_group_ == other.isolate_group_;

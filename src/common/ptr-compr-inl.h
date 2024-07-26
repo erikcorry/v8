@@ -343,14 +343,20 @@ PtrComprCageAccessScope::PtrComprCageAccessScope(Isolate* isolate)
 #ifdef V8_EXTERNAL_CODE_SPACE
       code_cage_base_(ExternalCodeCompressionScheme::base()),
 #endif  // V8_EXTERNAL_CODE_SPACE
-      saved_current_isolate_group_(IsolateGroup::current()),
-      saved_current_sandbox_(Sandbox::current()) {
+      saved_current_isolate_group_(IsolateGroup::current())
+#ifdef V8_ENABLE_SANDBOX
+      ,
+      saved_current_sandbox_(Sandbox::current())
+#endif
+{
   V8HeapCompressionScheme::InitBase(isolate->cage_base());
 #ifdef V8_EXTERNAL_CODE_SPACE
   ExternalCodeCompressionScheme::InitBase(isolate->code_cage_base());
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup::set_current(isolate->isolate_group());
+#ifdef V8_ENABLE_SANDBOX
   Sandbox::set_current(isolate->isolate_group()->sandbox());
+#endif  // V8_ENABLE_SANDBOX
 }
 
 PtrComprCageAccessScope::~PtrComprCageAccessScope() {
@@ -359,7 +365,9 @@ PtrComprCageAccessScope::~PtrComprCageAccessScope() {
   ExternalCodeCompressionScheme::InitBase(code_cage_base_);
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup::set_current(saved_current_isolate_group_);
+#ifdef V8_ENABLE_SANDBOX
   Sandbox::set_current(saved_current_sandbox_);
+#endif  // V8_ENABLE_SANDBOX
 }
 
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES

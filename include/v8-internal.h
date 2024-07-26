@@ -48,6 +48,8 @@ class LocalHeap;
 class Isolate;
 class IsolateGroup;
 class LocalIsolate;
+class IsolateGroup;
+class Sandbox;
 
 typedef uintptr_t Address;
 static constexpr Address kNullAddress = 0;

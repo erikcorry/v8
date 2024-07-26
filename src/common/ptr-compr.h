@@ -228,7 +228,9 @@ class PtrComprCageAccessScope final {
   const Address code_cage_base_;
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup* saved_current_isolate_group_;
+#ifdef V8_ENABLE_SANDBOX
   Sandbox* saved_current_sandbox_;
+#endif
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 };
 

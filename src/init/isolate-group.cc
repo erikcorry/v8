@@ -131,7 +131,7 @@ void IsolateGroup::InitializeOncePerProcess() {
 
   DCHECK_NULL(group->page_allocator_);
 #ifdef V8_ENABLE_SANDBOX
-  group->Initialize(true, GetDefaultSandbox());
+  group->Initialize(true, Sandbox::current());
 #else
   group->Initialize(true);
 #endif
@@ -148,8 +148,20 @@ void IsolateGroup::InitializeOncePerProcess() {
 #endif  // V8_EXTERNAL_CODE_SPACE
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   IsolateGroup::set_current(group);
-  Sandbox::set_current(GetDefaultSandbox());
 #endif
+}
+
+void IsolateGroup::Release() {
+  DCHECK_LT(0, reference_count_.load());
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox* sandbox = sandbox_;
+#endif
+  if (--reference_count_ == 0) {
+    delete this;
+#ifdef V8_ENABLE_SANDBOX
+    sandbox->TearDown();
+#endif
+  }
 }
 
 namespace {
@@ -203,16 +215,36 @@ IsolateGroup* IsolateGroup::New() {
         "multiple pointer compression cages at build-time");
   }
 
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  IsolateGroup* previous_group = IsolateGroup::current();
+#endif
   IsolateGroup* group = new IsolateGroup;
+
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  IsolateGroup::set_current(group);
+#endif
+
 #ifdef V8_ENABLE_SANDBOX
-  // TODO(42204573): Support creation of multiple sandboxes.
-  UNREACHABLE();
+  Sandbox* previous = Sandbox::current();
+  Sandbox* sandbox = Sandbox::New();
+  Sandbox::set_current(sandbox);
+  group->Initialize(false, sandbox);
+  V8HeapCompressionScheme::InitBase(group->GetPtrComprCageBase());
+  ExternalCodeCompressionScheme::InitBase(V8HeapCompressionScheme::base());
+  group->code_pointer_table()->Initialize();
+  group->js_dispatch_table()->Initialize();
 #else
   group->Initialize(false);
 #endif
   CHECK_NOT_NULL(group->page_allocator_);
   ExternalReferenceTable::InitializeOncePerIsolateGroup(
       group->external_ref_table());
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  IsolateGroup::set_current(previous_group);
+#endif
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox::set_current(previous);
+#endif
   return group;
 }
 

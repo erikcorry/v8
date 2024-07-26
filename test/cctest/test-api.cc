@@ -13401,7 +13401,6 @@ UNINITIALIZED_TEST(DefaultIsolateGroup) {
 
 UNINITIALIZED_TEST(MultipleIsolateGroups) {
   if (!v8::IsolateGroup::CanCreateNewGroups()) return;
-  
   v8::IsolateGroup group1 = v8::IsolateGroup::Create();
   v8::IsolateGroup group2 = v8::IsolateGroup::Create();
 
@@ -13445,6 +13444,34 @@ UNINITIALIZED_TEST(MultipleIsolateGroups) {
     isolate2->Dispose();
   }
 }
+
+#ifdef V8_ENABLE_SANDBOX
+UNINITIALIZED_TEST(MultipleSandboxes) {
+  if (!v8::IsolateGroup::CanCreateNewGroups()) return;
+  constexpr int num_isolate_groups = 100;
+
+  std::vector<v8::IsolateGroup> groups;
+  for (int i = 0; i < num_isolate_groups; ++i) {
+    groups.push_back(v8::IsolateGroup::Create());
+  }
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  for (auto& group : groups) {
+    v8::Isolate* isolate = v8::Isolate::New(group, create_params);
+    CHECK_EQ(group, isolate->GetGroup());
+    isolate->Dispose();
+  }
+
+  // Check that there is no any two equal sandboxes.
+  for (int i = 0; i < num_isolate_groups; ++i) {
+    for (int j = i + 1; j < num_isolate_groups; ++j) {
+      CHECK_NE(groups[i].GetSandbox(), groups[j].GetSandbox());
+    }
+  }
+}
+#endif
 
 unsigned ApiTestFuzzer::linear_congruential_generator;
 std::vector<std::unique_ptr<ApiTestFuzzer>> ApiTestFuzzer::fuzzers_;

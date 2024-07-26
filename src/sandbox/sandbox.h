@@ -198,6 +198,17 @@ class V8_EXPORT_PRIVATE Sandbox {
   Address end_address() const { return reinterpret_cast<Address>(&end_); }
   Address size_address() const { return reinterpret_cast<Address>(&size_); }
 
+  // Return true if we can create additional sandboxes: only the case if
+  // multiple pointer cages were configured in at build-time.
+  static constexpr bool CanCreateNewSandboxes() {
+    return COMPRESS_POINTERS_IN_MULTIPLE_CAGES_BOOL;
+  }
+
+  // Create a new sandbox allocating a fresh pointer cage.
+  // If new sandboxes cannot be created in this build configuration, abort.
+  //
+  static Sandbox* New();
+
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #ifdef USING_V8_SHARED_PRIVATE
   static Sandbox* current() { return current_non_inlined(); }
@@ -209,7 +220,8 @@ class V8_EXPORT_PRIVATE Sandbox {
   static void set_current(Sandbox* sandbox) { current_ = sandbox; }
 #endif  // !USING_V8_SHARED_PRIVATE
 #else   // !V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-  static Sandbox* current() { return GetDefaultSandbox(); }
+  static Sandbox* current() { return current_; }
+  static void set_current(Sandbox* sandbox) { current_ = sandbox; }
 #endif  // !V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
  private:
@@ -274,6 +286,8 @@ class V8_EXPORT_PRIVATE Sandbox {
 
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   thread_local static Sandbox* current_;
+#else
+  static Sandbox* current_;
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 };
 

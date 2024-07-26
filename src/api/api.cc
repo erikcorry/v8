@@ -9649,6 +9649,10 @@ void Isolate::HandleExternalMemoryInterrupt() {
   heap->HandleExternalMemoryInterrupt();
 }
 
+Sandbox::Sandbox(i::Sandbox* sandbox) : sandbox_(sandbox) {
+  DCHECK_NOT_NULL(sandbox_);
+}
+
 IsolateGroup::IsolateGroup(i::IsolateGroup* isolate_group)
     : isolate_group_(isolate_group) {
   DCHECK_NOT_NULL(isolate_group_);
@@ -9672,12 +9676,19 @@ IsolateGroup& IsolateGroup::operator=(const IsolateGroup& other) {
   return *this;
 }
 
+#ifdef V8_ENABLE_SANDBOX
+Sandbox IsolateGroup::GetSandbox() {
+  return Sandbox(isolate_group_->sandbox());
+}
+#endif
+
 // static
 IsolateGroup IsolateGroup::GetDefault() {
   return IsolateGroup(i::IsolateGroup::AcquireDefault());
 }
 
-static_assert(IsolateGroup::CanCreateNewGroups() == i::IsolateGroup::CanCreateNewGroups());
+static_assert(IsolateGroup::CanCreateNewGroups() ==
+              i::IsolateGroup::CanCreateNewGroups());
 
 // static
 IsolateGroup IsolateGroup::Create() {

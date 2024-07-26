@@ -30,9 +30,9 @@ thread_local Sandbox* Sandbox::current_ = nullptr;
 // static
 Sandbox* Sandbox::current_non_inlined() { return current_; }
 // static
-void Sandbox::set_current_non_inlined(Sandbox* sandbox) {
-  current_ = sandbox;
-}
+void Sandbox::set_current_non_inlined(Sandbox* sandbox) { current_ = sandbox; }
+#else
+Sandbox* Sandbox::current_ = nullptr;
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
 // Best-effort function to determine the approximate size of the virtual
@@ -310,11 +310,21 @@ void Sandbox::TearDown() {
   }
 }
 
-Sandbox* GetDefaultSandbox() {
-  static base::LeakyObject<Sandbox> default_sandbox_;
-  return default_sandbox_.get();
+// static
+Sandbox* Sandbox::New() {
+  if (!CanCreateNewSandboxes()) {
+    FATAL(
+        "Creation of new sandboxes requires enabling "
+        "multiple pointer compression cages at build-time");
+  }
+
+  Sandbox* sandbox = new Sandbox;
+  sandbox->Initialize(GetPlatformVirtualAddressSpace());
+  CHECK(!v8_flags.sandbox_testing && !v8_flags.sandbox_fuzzing);
+  return sandbox;
 }
 
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(Sandbox, GetDefaultSandbox)
 
 #endif  // V8_ENABLE_SANDBOX
 
