@@ -576,7 +576,7 @@ class CompilationStateImpl {
 
   // Call right after the constructor, after the {compilation_state_} field in
   // the {NativeModule} has been initialized.
-  void InitCompileJob();
+  void InitCompileJob(IsolateGroup* isolate_group);
 
   // {kCancelUnconditionally}: Cancel all compilation.
   // {kCancelInitialCompilation}: Cancel all compilation if initial (baseline)
@@ -869,7 +869,9 @@ bool BackgroundCompileScope::cancelled() const {
 
 CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
-void CompilationState::InitCompileJob() { Impl(this)->InitCompileJob(); }
+void CompilationState::InitCompileJob(IsolateGroup* isolate_group) {
+  Impl(this)->InitCompileJob(isolate_group);
+}
 
 void CompilationState::CancelCompilation() {
   Impl(this)->CancelCompilation(CompilationStateImpl::kCancelUnconditionally);
@@ -2283,19 +2285,35 @@ void CompileNativeModule(Isolate* isolate,
 
 class BackgroundCompileJob final : public JobTask {
  public:
-  explicit BackgroundCompileJob(std::weak_ptr<NativeModule> native_module,
+  explicit BackgroundCompileJob(IsolateGroup* isolate_group,
+                                std::weak_ptr<NativeModule> native_module,
                                 std::shared_ptr<Counters> async_counters,
                                 CompilationTier tier)
       : native_module_(std::move(native_module)),
         engine_barrier_(GetWasmEngine()->GetBarrierForBackgroundCompile()),
         async_counters_(std::move(async_counters)),
-        tier_(tier) {}
+        tier_(tier)
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+        ,
+        isolate_group_(isolate_group)
+#endif
+  {
+  }
 
   void Run(JobDelegate* delegate) override {
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+    // With Sandbox compilation uses isolate-group specific globals, like CPT
+    // during compilation.
+    auto* group = IsolateGroup::current();
+    IsolateGroup::set_current(isolate_group_);
+#endif
     auto engine_scope = engine_barrier_->TryLock();
     if (!engine_scope) return;
     ExecuteCompilationUnits(native_module_, async_counters_.get(), delegate,
                             tier_);
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+    IsolateGroup::set_current(group);
+#endif
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -2315,6 +2333,10 @@ class BackgroundCompileJob final : public JobTask {
   std::shared_ptr<OperationsBarrier> engine_barrier_;
   const std::shared_ptr<Counters> async_counters_;
   const CompilationTier tier_;
+
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  IsolateGroup* isolate_group_;
+#endif
 };
 
 std::shared_ptr<NativeModule> GetOrCompileNewNativeModule(
@@ -3531,19 +3553,21 @@ CompilationStateImpl::CompilationStateImpl(
       dynamic_tiering_(dynamic_tiering),
       detected_features_(detected_features) {}
 
-void CompilationStateImpl::InitCompileJob() {
+void CompilationStateImpl::InitCompileJob(IsolateGroup* isolate_group) {
   DCHECK_NULL(baseline_compile_job_);
   DCHECK_NULL(top_tier_compile_job_);
   // Create the job, but don't spawn workers yet. This will happen on
   // {NotifyConcurrencyIncrease}.
   baseline_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible,
-      std::make_unique<BackgroundCompileJob>(
-          native_module_weak_, async_counters_, CompilationTier::kBaseline));
+      std::make_unique<BackgroundCompileJob>(isolate_group, native_module_weak_,
+                                             async_counters_,
+                                             CompilationTier::kBaseline));
   top_tier_compile_job_ = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible,
-      std::make_unique<BackgroundCompileJob>(
-          native_module_weak_, async_counters_, CompilationTier::kTopTier));
+      std::make_unique<BackgroundCompileJob>(isolate_group, native_module_weak_,
+                                             async_counters_,
+                                             CompilationTier::kTopTier));
 }
 
 void CompilationStateImpl::CancelCompilation(

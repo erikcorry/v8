@@ -945,7 +945,8 @@ size_t WasmCodeAllocator::GetNumCodeSpaces() const {
   return owned_code_space_.size();
 }
 
-NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
+NativeModule::NativeModule(IsolateGroup* isolate_group,
+                           WasmEnabledFeatures enabled_features,
                            WasmDetectedFeatures detected_features,
                            CompileTimeImports compile_imports,
                            DynamicTiering dynamic_tiering,
@@ -973,7 +974,7 @@ NativeModule::NativeModule(WasmEnabledFeatures enabled_features,
   compilation_state_ =
       CompilationState::New(*shared_this, std::move(async_counters),
                             dynamic_tiering, detected_features);
-  compilation_state_->InitCompileJob();
+  compilation_state_->InitCompileJob(isolate_group);
   DCHECK_NOT_NULL(module_);
   if (module_->num_declared_functions > 0) {
     code_table_ =
@@ -2487,8 +2488,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  new NativeModule(enabled_features, detected_features,
-                   std::move(compile_imports),
+  new NativeModule(isolate->isolate_group(), enabled_features,
+                   detected_features, std::move(compile_imports),
                    DynamicTiering{v8_flags.wasm_dynamic_tiering.value()},
                    std::move(code_space), std::move(module),
                    isolate->async_counters(), &ret);

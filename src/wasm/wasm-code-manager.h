@@ -919,7 +919,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
-  NativeModule(WasmEnabledFeatures enabled_features,
+  NativeModule(IsolateGroup* isolate_group,
+               WasmEnabledFeatures enabled_features,
                WasmDetectedFeatures detected_features,
                CompileTimeImports compile_imports,
                DynamicTiering dynamic_tiering, VirtualMemory code_space,

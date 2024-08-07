@@ -148,7 +148,7 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   CompilationState() = delete;
 
-  void InitCompileJob();
+  void InitCompileJob(IsolateGroup* isolate_group);
 
   void CancelCompilation();
 
