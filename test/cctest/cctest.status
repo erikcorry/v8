@@ -289,6 +289,13 @@
 }],  # 'full_debug'
 
 ##############################################################################
+['pointer_compression and not pointer_compression_shared_cage', {
+  # These tests require enabled trap handler but it is disabled for
+  # the multi-cage mode.
+  'test-run-wasm-simd/*': [SKIP],
+}],  # pointer_compression and not pointer_compression_shared_cage'
+
+##############################################################################
 ['byteorder == big', {
   # BUG(v8:12505). Tests which share Wasm memory buffer with Js Typed arrays.
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
