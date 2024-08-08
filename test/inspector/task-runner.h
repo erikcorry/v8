@@ -36,7 +36,12 @@ class TaskRunner : public v8::base::Thread {
   TaskRunner(InspectorIsolateData::SetupGlobalTasks setup_global_tasks,
              CatchExceptions catch_exceptions,
              v8::base::Semaphore* ready_semaphore,
-             v8::StartupData* startup_data, WithInspector with_inspector);
+             v8::StartupData* startup_data, WithInspector with_inspector
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+             ,
+             Sandbox* sandbox
+#endif
+  );
   ~TaskRunner() override;
   TaskRunner(const TaskRunner&) = delete;
   TaskRunner& operator=(const TaskRunner&) = delete;
@@ -74,6 +79,9 @@ class TaskRunner : public v8::base::Thread {
 
   int nested_loop_count_;
   std::atomic<int> is_terminated_;
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  Sandbox* sandbox_;
+#endif
 };
 
 }  // namespace internal

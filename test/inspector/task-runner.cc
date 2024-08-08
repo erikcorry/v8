@@ -10,6 +10,7 @@
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
 #include "src/libplatform/default-platform.h"
+#include "src/sandbox/sandbox.h"
 #include "src/utils/locked-queue-inl.h"
 
 #if !defined(V8_OS_WIN)
@@ -43,7 +44,12 @@ void ReportUncaughtException(v8::Isolate* isolate,
 TaskRunner::TaskRunner(
     InspectorIsolateData::SetupGlobalTasks setup_global_tasks,
     CatchExceptions catch_exceptions, v8::base::Semaphore* ready_semaphore,
-    v8::StartupData* startup_data, WithInspector with_inspector)
+    v8::StartupData* startup_data, WithInspector with_inspector
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+    ,
+    Sandbox* sandbox
+#endif
+    )
     : Thread(Options("Task Runner")),
       setup_global_tasks_(std::move(setup_global_tasks)),
       startup_data_(startup_data),
@@ -53,17 +59,29 @@ TaskRunner::TaskRunner(
       data_(nullptr),
       process_queue_semaphore_(0),
       nested_loop_count_(0),
-      is_terminated_(0) {
+      is_terminated_(0)
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+      ,
+      sandbox_(sandbox)
+#endif
+{
   CHECK(Start());
 }
 
 TaskRunner::~TaskRunner() {}
 
 void TaskRunner::Run() {
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  Sandbox* previous = Sandbox::current();
+  Sandbox::set_current(sandbox_);
+#endif
   data_.reset(new InspectorIsolateData(this, std::move(setup_global_tasks_),
                                        startup_data_, with_inspector_));
   if (ready_semaphore_) ready_semaphore_->Signal();
   RunMessageLoop(false);
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  Sandbox::set_current(previous);
+#endif
 }
 
 void TaskRunner::RunMessageLoop(bool only_protocol) {

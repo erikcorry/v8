@@ -18,6 +18,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
+#include "src/sandbox/sandbox.h"
 #include "test/inspector/frontend-channel.h"
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
@@ -596,7 +597,12 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   frontend_extensions.emplace_back(new UtilsExtension());
   TaskRunner frontend_runner(std::move(frontend_extensions),
                              kSuppressUncaughtExceptions, &ready_semaphore,
-                             nullptr, kNoInspector);
+                             nullptr, kNoInspector
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+                             ,
+                             Sandbox::current()
+#endif
+  );
   ready_semaphore.Wait();
 
   int frontend_context_group_id = 0;
@@ -610,7 +616,12 @@ void FuzzInspector(const uint8_t* data, size_t size) {
   backend_extensions.emplace_back(new InspectorExtension());
   TaskRunner backend_runner(std::move(backend_extensions),
                             kSuppressUncaughtExceptions, &ready_semaphore,
-                            nullptr, kWithInspector);
+                            nullptr, kWithInspector
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+                            ,
+                            Sandbox::current()
+#endif
+  );
   ready_semaphore.Wait();
   UtilsExtension::set_backend_task_runner(&backend_runner);
 

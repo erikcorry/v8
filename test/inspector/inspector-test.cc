@@ -16,6 +16,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
 #include "src/flags/flags.h"
+#include "src/sandbox/sandbox.h"
 #include "src/utils/utils.h"
 #include "test/inspector/frontend-channel.h"
 #include "test/inspector/isolate-data.h"
@@ -874,7 +875,12 @@ int InspectorTestMain(int argc, char* argv[]) {
     TaskRunner frontend_runner(std::move(frontend_extensions),
                                kFailOnUncaughtExceptions, &ready_semaphore,
                                startup_data.data ? &startup_data : nullptr,
-                               kNoInspector);
+                               kNoInspector
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+                               ,
+                               Sandbox::current()
+#endif
+    );
     ready_semaphore.Wait();
 
     int frontend_context_group_id = 0;
@@ -890,7 +896,12 @@ int InspectorTestMain(int argc, char* argv[]) {
     TaskRunner backend_runner(
         std::move(backend_extensions), kStandardPropagateUncaughtExceptions,
         &ready_semaphore, startup_data.data ? &startup_data : nullptr,
-        kWithInspector);
+        kWithInspector
+#if V8_ENABLE_SANDBOX && V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+        ,
+        Sandbox::current()
+#endif
+    );
     ready_semaphore.Wait();
     UtilsExtension::set_backend_task_runner(&backend_runner);
 
