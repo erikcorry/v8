@@ -51,6 +51,7 @@
 #include "src/heap/marking-worklist.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/traced-handles-marking-visitor.h"
+#include "src/init/isolate-group.h"
 #include "src/init/v8.h"
 #include "src/profiler/heap-profiler.h"
 
@@ -200,14 +201,15 @@ class UnifiedHeapConcurrentMarker
     : public cppgc::internal::ConcurrentMarkerBase {
  public:
   UnifiedHeapConcurrentMarker(
-      cppgc::internal::HeapBase& heap, Heap* v8_heap,
-      cppgc::internal::MarkingWorklists& marking_worklists,
+      IsolateGroup* isolate_group, cppgc::internal::HeapBase& heap,
+      Heap* v8_heap, cppgc::internal::MarkingWorklists& marking_worklists,
       ::heap::base::IncrementalMarkingSchedule& incremental_marking_schedule,
       cppgc::Platform* platform,
       UnifiedHeapMarkingState& unified_heap_marking_state,
       CppHeap::CollectionType collection_type)
       : cppgc::internal::ConcurrentMarkerBase(
-            heap, marking_worklists, incremental_marking_schedule, platform),
+            v8::internal::IsolateGroup::current(), heap, marking_worklists,
+            incremental_marking_schedule, platform),
         v8_heap_(v8_heap),
         collection_type_(collection_type) {}
 
@@ -275,7 +277,8 @@ class UnifiedHeapConservativeMarkingVisitor final
 
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  public:
-  UnifiedHeapMarker(Heap* v8_heap, cppgc::internal::HeapBase& cpp_heap,
+  UnifiedHeapMarker(IsolateGroup* isolate_group, Heap* v8_heap,
+                    cppgc::internal::HeapBase& cpp_heap,
                     cppgc::Platform* platform,
                     cppgc::internal::MarkingConfig config);
 
@@ -310,7 +313,7 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
   UnifiedHeapConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
-UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
+UnifiedHeapMarker::UnifiedHeapMarker(IsolateGroup* isolate_group, Heap* v8_heap,
                                      cppgc::internal::HeapBase& heap,
                                      cppgc::Platform* platform,
                                      cppgc::internal::MarkingConfig config)
@@ -322,7 +325,7 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     *marking_visitor_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
-      heap_, v8_heap, marking_worklists_, *schedule_, platform_,
+      isolate_group, heap_, v8_heap, marking_worklists_, *schedule_, platform_,
       mutator_unified_heap_marking_state_, config.collection_type);
 }
 
@@ -762,6 +765,7 @@ void CppHeap::InitializeMarking(CollectionType collection_type,
                                          marking_config.stack_state);
   }
   marker_ = std::make_unique<UnifiedHeapMarker>(
+      isolate_ ? isolate()->isolate_group() : nullptr,
       isolate_ ? isolate()->heap() : nullptr, AsBase(), platform_.get(),
       marking_config);
 }

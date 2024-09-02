@@ -9,6 +9,7 @@
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/init/isolate-group.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -24,7 +25,8 @@ class WeakContainerTest : public testing::TestWithHeap {
     MarkingConfig config = {CollectionType::kMajor, StackState::kNoHeapPointers,
                             MarkingConfig::MarkingType::kIncremental};
     GetMarkerRef() = std::make_unique<Marker>(
-        Heap::From(GetHeap())->AsBase(), GetPlatformHandle().get(), config);
+        v8::internal::IsolateGroup::current(), Heap::From(GetHeap())->AsBase(),
+        GetPlatformHandle().get(), config);
     GetMarkerRef()->StartMarking();
   }
 

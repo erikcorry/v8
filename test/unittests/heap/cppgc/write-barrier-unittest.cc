@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
+#include "src/init/isolate-group.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -161,9 +162,9 @@ class WriteBarrierTest : public testing::TestWithHeap {
  public:
   WriteBarrierTest() : internal_heap_(Heap::From(GetHeap())) {
     DCHECK_NULL(GetMarkerRef().get());
-    GetMarkerRef() =
-        std::make_unique<Marker>(*internal_heap_, GetPlatformHandle().get(),
-                                 IncrementalMarkingScope::kIncrementalConfig);
+    GetMarkerRef() = std::make_unique<Marker>(
+        v8::internal::IsolateGroup::current(), *internal_heap_,
+        GetPlatformHandle().get(), IncrementalMarkingScope::kIncrementalConfig);
     marker_ = GetMarkerRef().get();
     marker_->StartMarking();
   }

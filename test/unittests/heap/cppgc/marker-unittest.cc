@@ -16,6 +16,7 @@
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/object-allocator.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/init/isolate-group.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -38,7 +39,8 @@ class MarkerTest : public testing::TestWithHeap {
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform,
                         MarkingConfig config) {
-    marker_ = std::make_unique<Marker>(heap, platform, config);
+    marker_ = std::make_unique<Marker>(v8::internal::IsolateGroup::current(),
+                                       heap, platform, config);
     marker_->StartMarking();
   }
 
@@ -410,7 +412,8 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform,
                         MarkingConfig config) {
-    GetMarkerRef() = std::make_unique<Marker>(heap, platform, config);
+    GetMarkerRef() = std::make_unique<Marker>(
+        v8::internal::IsolateGroup::current(), heap, platform, config);
     GetMarkerRef()->StartMarking();
   }
 

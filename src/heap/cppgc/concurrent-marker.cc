@@ -10,6 +10,7 @@
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/init/isolate-group.h"
 
 namespace cppgc {
 namespace internal {
@@ -54,7 +55,8 @@ bool HasWorkForConcurrentMarking(MarkingWorklists& marking_worklists) {
 
 class ConcurrentMarkingTask final : public v8::JobTask {
  public:
-  explicit ConcurrentMarkingTask(ConcurrentMarkerBase&);
+  explicit ConcurrentMarkingTask(ConcurrentMarkerBase&,
+                                 v8::internal::IsolateGroup*);
 
   void Run(JobDelegate* delegate) final;
 
@@ -64,13 +66,27 @@ class ConcurrentMarkingTask final : public v8::JobTask {
   void ProcessWorklists(JobDelegate*, ConcurrentMarkingState&, Visitor&);
 
   const ConcurrentMarkerBase& concurrent_marker_;
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  v8::internal::IsolateGroup* isolate_group_;
+#endif
 };
 
 ConcurrentMarkingTask::ConcurrentMarkingTask(
-    ConcurrentMarkerBase& concurrent_marker)
-    : concurrent_marker_(concurrent_marker) {}
+    ConcurrentMarkerBase& concurrent_marker,
+    v8::internal::IsolateGroup* isolate_group)
+    : concurrent_marker_(concurrent_marker)
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+      ,
+      isolate_group_(isolate_group)
+#endif
+{
+}
 
 void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  v8::internal::IsolateGroup* previous = v8::internal::IsolateGroup::current();
+  v8::internal::IsolateGroup::set_current(isolate_group_);
+#endif
   StatsCollector::EnabledConcurrentScope stats_scope(
       concurrent_marker_.heap().stats_collector(),
       StatsCollector::kConcurrentMark);
@@ -87,6 +103,9 @@ void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
   concurrent_marker_.incremental_marking_schedule().AddConcurrentlyMarkedBytes(
       concurrent_marking_state.RecentlyMarkedBytes());
   concurrent_marking_state.Publish();
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  v8::internal::IsolateGroup::set_current(previous);
+#endif
 }
 
 size_t ConcurrentMarkingTask::GetMaxConcurrency(
@@ -172,19 +191,21 @@ void ConcurrentMarkingTask::ProcessWorklists(
 }  // namespace
 
 ConcurrentMarkerBase::ConcurrentMarkerBase(
-    HeapBase& heap, MarkingWorklists& marking_worklists,
+    v8::internal::IsolateGroup* isolate_group, HeapBase& heap,
+    MarkingWorklists& marking_worklists,
     heap::base::IncrementalMarkingSchedule& incremental_marking_schedule,
     cppgc::Platform* platform)
-    : heap_(heap),
+    : isolate_group_(isolate_group),
+      heap_(heap),
       marking_worklists_(marking_worklists),
       incremental_marking_schedule_(incremental_marking_schedule),
       platform_(platform) {}
 
 void ConcurrentMarkerBase::Start() {
   DCHECK(platform_);
-  concurrent_marking_handle_ =
-      platform_->PostJob(v8::TaskPriority::kUserVisible,
-                         std::make_unique<ConcurrentMarkingTask>(*this));
+  concurrent_marking_handle_ = platform_->PostJob(
+      v8::TaskPriority::kUserVisible,
+      std::make_unique<ConcurrentMarkingTask>(*this, isolate_group_));
 }
 
 bool ConcurrentMarkerBase::Join() {

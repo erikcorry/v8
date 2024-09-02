@@ -25,6 +25,7 @@
 #include "src/heap/cppgc/process-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/write-barrier.h"
+#include "src/init/isolate-group.h"
 
 #if defined(CPPGC_CAGED_HEAP)
 #include "include/cppgc/internal/caged-heap-local-data.h"
@@ -775,13 +776,14 @@ MarkerBase::PauseConcurrentMarkingScope::~PauseConcurrentMarkingScope() {
   }
 }
 
-Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)
+Marker::Marker(v8::internal::IsolateGroup* isolate_group, HeapBase& heap,
+               cppgc::Platform* platform, MarkingConfig config)
     : MarkerBase(heap, platform, config),
       marking_visitor_(heap, mutator_marking_state_),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     marking_visitor_) {
   concurrent_marker_ = std::make_unique<ConcurrentMarker>(
-      heap_, marking_worklists_, *schedule_, platform_);
+      isolate_group, heap_, marking_worklists_, *schedule_, platform_);
 }
 
 }  // namespace internal

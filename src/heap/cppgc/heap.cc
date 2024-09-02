@@ -17,6 +17,7 @@
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
 #include "src/heap/cppgc/unmarker.h"
+#include "src/init/isolate-group.h"
 
 namespace cppgc {
 
@@ -163,7 +164,8 @@ void Heap::StartGarbageCollection(GCConfig config) {
 
   const MarkingConfig marking_config{config.collection_type, config.stack_state,
                                      config.marking_type, config.is_forced_gc};
-  marker_ = std::make_unique<Marker>(AsBase(), platform_.get(), marking_config);
+  marker_ = std::make_unique<Marker>(v8::internal::IsolateGroup::current(),
+                                     AsBase(), platform_.get(), marking_config);
   marker_->StartMarking();
 }
 

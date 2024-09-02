@@ -12,6 +12,7 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/marking-state.h"
+#include "src/init/isolate-group.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,7 +24,8 @@ namespace {
 class MarkingVisitorTest : public testing::TestWithHeap {
  public:
   MarkingVisitorTest()
-      : marker_(std::make_unique<Marker>(*Heap::From(GetHeap()),
+      : marker_(std::make_unique<Marker>(v8::internal::IsolateGroup::current(),
+                                         *Heap::From(GetHeap()),
                                          GetPlatformHandle().get())) {
     marker_->StartMarking();
   }

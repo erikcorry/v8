@@ -10,13 +10,15 @@
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/marking-worklists.h"
+#include "src/init/isolate-group.h"
 
 namespace cppgc {
 namespace internal {
 
 class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
  public:
-  ConcurrentMarkerBase(HeapBase&, MarkingWorklists&,
+  ConcurrentMarkerBase(v8::internal::IsolateGroup* isolate_group, HeapBase&,
+                       MarkingWorklists&,
                        heap::base::IncrementalMarkingSchedule&,
                        cppgc::Platform*);
   virtual ~ConcurrentMarkerBase();
@@ -48,6 +50,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
   void IncreaseMarkingPriorityIfNeeded();
 
  private:
+  v8::internal::IsolateGroup* isolate_group_ = nullptr;
   HeapBase& heap_;
   MarkingWorklists& marking_worklists_;
   heap::base::IncrementalMarkingSchedule& incremental_marking_schedule_;
@@ -64,10 +67,11 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
 class V8_EXPORT_PRIVATE ConcurrentMarker : public ConcurrentMarkerBase {
  public:
   ConcurrentMarker(
-      HeapBase& heap, MarkingWorklists& marking_worklists,
+      v8::internal::IsolateGroup* isolate_group, HeapBase& heap,
+      MarkingWorklists& marking_worklists,
       heap::base::IncrementalMarkingSchedule& incremental_marking_schedule,
       cppgc::Platform* platform)
-      : ConcurrentMarkerBase(heap, marking_worklists,
+      : ConcurrentMarkerBase(isolate_group, heap, marking_worklists,
                              incremental_marking_schedule, platform) {}
 
   std::unique_ptr<Visitor> CreateConcurrentMarkingVisitor(

@@ -10,6 +10,7 @@
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/init/isolate-group.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -68,8 +69,9 @@ class EphemeronPairTest : public testing::TestWithHeap {
   }
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform) {
-    marker_ = std::make_unique<Marker>(heap, platform,
-                                       IncrementalPreciseMarkingConfig);
+    marker_ =
+        std::make_unique<Marker>(v8::internal::IsolateGroup::current(), heap,
+                                 platform, IncrementalPreciseMarkingConfig);
     marker_->StartMarking();
   }
 

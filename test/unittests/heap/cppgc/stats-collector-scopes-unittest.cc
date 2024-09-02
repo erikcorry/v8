@@ -6,6 +6,7 @@
 
 #include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/stats-collector.h"
+#include "src/init/isolate-group.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -67,7 +68,8 @@ class V8_NODISCARD CppgcTracingScopesTest : public testing::TestWithHeap {
     MarkingConfig config = {CollectionType::kMajor, StackState::kNoHeapPointers,
                             GCConfig::MarkingType::kIncremental};
     GetMarkerRef() = std::make_unique<Marker>(
-        Heap::From(GetHeap())->AsBase(), GetPlatformHandle().get(), config);
+        v8::internal::IsolateGroup::current(), Heap::From(GetHeap())->AsBase(),
+        GetPlatformHandle().get(), config);
     GetMarkerRef()->StartMarking();
     DelegatingTracingControllerImpl::check_expectations = true;
   }

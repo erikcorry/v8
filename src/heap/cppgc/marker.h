@@ -199,7 +199,8 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
 class V8_EXPORT_PRIVATE Marker final : public MarkerBase {
  public:
-  Marker(HeapBase&, cppgc::Platform*, MarkingConfig = MarkingConfig::Default());
+  Marker(v8::internal::IsolateGroup*, HeapBase&, cppgc::Platform*,
+         MarkingConfig = MarkingConfig::Default());
 
  protected:
   cppgc::Visitor& visitor() final { return marking_visitor_; }
