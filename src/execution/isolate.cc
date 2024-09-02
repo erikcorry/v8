@@ -4535,7 +4535,7 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   V8HeapCompressionScheme::InitBase(isolate ? isolate->cage_base()
                                             : kNullAddress);
-  IsolateGroup::set_current(isolate ? isolate->isolate_group() : nullptr);
+  if (isolate) IsolateGroup::set_current(isolate->isolate_group());
 #ifdef V8_EXTERNAL_CODE_SPACE
   ExternalCodeCompressionScheme::InitBase(isolate ? isolate->code_cage_base()
                                                   : kNullAddress);
