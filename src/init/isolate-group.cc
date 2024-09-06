@@ -6,6 +6,7 @@
 
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/platform/memory.h"
+#include "src/codegen/external-reference-table.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
 #include "src/heap/code-range.h"
@@ -67,7 +68,11 @@ IsolateGroup* IsolateGroup::GetDefault() {
   return default_isolate_group_.get();
 }
 
-IsolateGroup::IsolateGroup() {}
+IsolateGroup::IsolateGroup() {
+  external_ref_table_ =
+      std::vector<Address>(ExternalReferenceTable::kSizeIsolateIndependent, 0);
+}
+
 IsolateGroup::~IsolateGroup() {
   DCHECK_EQ(reference_count_.load(), 0);
   DCHECK_EQ(isolate_count_.load(), 0);
@@ -188,6 +193,11 @@ CodeRange* IsolateGroup::EnsureCodeRange(size_t requested_size) {
   base::CallOnce(&init_code_range_, InitCodeRangeOnce, &code_range_,
                  page_allocator_, requested_size, process_wide_);
   return code_range_.get();
+}
+
+MemorySpan<Address> IsolateGroup::external_ref_table() {
+  return MemorySpan<Address>(external_ref_table_.begin(),
+                             external_ref_table_.end());
 }
 
 void IsolateGroup::ClearSharedSpaceIsolate() {

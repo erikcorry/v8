@@ -11,7 +11,6 @@
 #include "src/base/once.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/mutex.h"
-#include "src/codegen/external-reference-table.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/memory-chunk-constants.h"
@@ -127,7 +126,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static IsolateGroup* current() { return GetDefault(); }
 #endif  // !V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
-  MemorySpan<Address> external_ref_table() { return external_ref_table_; }
+  MemorySpan<Address> external_ref_table();
 
   bool has_shared_space_isolate() const {
     return shared_space_isolate_ != nullptr;
@@ -214,8 +213,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   base::OnceType init_code_range_ = V8_ONCE_INIT;
   std::unique_ptr<CodeRange> code_range_;
-  Address external_ref_table_[ExternalReferenceTable::kSizeIsolateIndependent] =
-      {0};
+  std::vector<Address> external_ref_table_;
 
   bool process_wide_;
 
