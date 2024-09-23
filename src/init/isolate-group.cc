@@ -12,6 +12,7 @@
 #include "src/heap/code-range.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/trusted-range.h"
+#include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/sandbox.h"
 #include "src/utils/memcopy.h"
 #include "src/utils/utils.h"
