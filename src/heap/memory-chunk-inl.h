@@ -9,6 +9,10 @@
 #include "src/heap/memory-chunk.h"
 #include "src/sandbox/check.h"
 
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+#include "src/init/isolate-group.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -16,9 +20,17 @@ MemoryChunkMetadata* MemoryChunk::Metadata() {
   // If this changes, we also need to update
   // CodeStubAssembler::PageMetadataFromMemoryChunk
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_LT(metadata_index_, kMetadataPointerTableSizeMask);
-  MemoryChunkMetadata* metadata =
-      metadata_pointer_table_[metadata_index_ & kMetadataPointerTableSizeMask];
+  DCHECK_LT(metadata_index_,
+            MemoryChunkConstants::kMetadataPointerTableSizeMask);
+#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  MemoryChunkMetadata* metadata = metadata_pointer_table_
+      [metadata_index_ & MemoryChunkConstants::kMetadataPointerTableSizeMask];
+#else
+  MemoryChunkMetadata** metadata_pointer_table =
+      IsolateGroup::current()->metadata_pointer_table();
+  MemoryChunkMetadata* metadata = metadata_pointer_table
+      [metadata_index_ & MemoryChunkConstants::kMetadataPointerTableSizeMask];
+#endif
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index.
   SBXCHECK_EQ(metadata->Chunk(), this);
