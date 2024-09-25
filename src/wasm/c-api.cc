@@ -942,9 +942,7 @@ class RefImpl {
   i::Isolate* isolate() const { return store()->i_isolate(); }
 
   i::Handle<JSType> v8_object() const {
-#ifdef DEBUG
     PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate());
-#endif  // DEBUG
     return i::Cast<JSType>(val_);
   }
 
