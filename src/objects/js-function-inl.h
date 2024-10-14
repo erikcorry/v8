@@ -133,7 +133,7 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
       canonical_handle != kNullJSDispatchHandle &&
       dispatch_handle() != canonical_handle;
   if (has_context_specialized_dispatch_entry) {
-    auto jdt = GetProcessWideJSDispatchTable();
+    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
     DCHECK_IMPLIES(jdt->GetCode(dispatch_handle())->kind() != CodeKind::BUILTIN,
                    jdt->GetCode(dispatch_handle())->is_context_specialized());
   }
@@ -159,7 +159,8 @@ void JSFunction::UpdateCode(Tagged<Code> value, WriteBarrierMode mode) {
 
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
 #ifdef V8_ENABLE_LEAPTIERING
-  return GetProcessWideJSDispatchTable()->GetCode(dispatch_handle());
+  return IsolateGroup::current()->js_dispatch_table()->GetCode(
+      dispatch_handle());
 #else
   return ReadCodePointerField(kCodeOffset, isolate);
 #endif
@@ -168,7 +169,8 @@ Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate,
                               AcquireLoadTag tag) const {
 #ifdef V8_ENABLE_LEAPTIERING
-  return GetProcessWideJSDispatchTable()->GetCode(dispatch_handle(tag));
+  return IsolateGroup::current()->js_dispatch_table()->GetCode(
+      dispatch_handle(tag));
 #else
   return ReadCodePointerField(kCodeOffset, isolate);
 #endif
@@ -178,7 +180,7 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate) const {
 #if V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return Smi::zero();
-  return GetProcessWideJSDispatchTable()->GetCode(handle);
+  return IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
 #elif V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Relaxed_Load(isolate);
@@ -192,7 +194,7 @@ Tagged<Object> JSFunction::raw_code(IsolateForSandbox isolate,
 #if V8_ENABLE_LEAPTIERING
   JSDispatchHandle handle = dispatch_handle(tag);
   if (handle == kNullJSDispatchHandle) return Smi::zero();
-  return GetProcessWideJSDispatchTable()->GetCode(handle);
+  return IsolateGroup::current()->js_dispatch_table()->GetCode(handle);
 #elif V8_ENABLE_SANDBOX
   return RawIndirectPointerField(kCodeOffset, kCodeIndirectPointerTag)
       .Acquire_Load(isolate);
@@ -221,7 +223,8 @@ void JSFunction::set_dispatch_handle(JSDispatchHandle handle,
 void JSFunction::UpdateDispatchEntry(Tagged<Code> new_code,
                                      WriteBarrierMode mode) {
   JSDispatchHandle handle = dispatch_handle();
-  GetProcessWideJSDispatchTable()->SetCodeNoWriteBarrier(handle, new_code);
+  IsolateGroup::current()->js_dispatch_table()->SetCodeNoWriteBarrier(handle,
+                                                                      new_code);
   CONDITIONAL_JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, handle, mode);
 }
 JSDispatchHandle JSFunction::dispatch_handle() const {

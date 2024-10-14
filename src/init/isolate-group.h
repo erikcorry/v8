@@ -16,6 +16,7 @@
 #include "src/flags/flags.h"
 #include "src/heap/memory-chunk-constants.h"
 #include "src/sandbox/code-pointer-table.h"
+#include "src/sandbox/js-dispatch-table.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -163,6 +164,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
 #ifdef V8_ENABLE_SANDBOX
   CodePointerTable* code_pointer_table() { return &code_pointer_table_; }
+  JSDispatchTable* js_dispatch_table() { return &js_dispatch_table_; }
 
   MemoryChunkMetadata** metadata_pointer_table() {
     return metadata_pointer_table_;
@@ -229,6 +231,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
 #ifdef V8_ENABLE_SANDBOX
   CodePointerTable code_pointer_table_;
+  JSDispatchTable js_dispatch_table_;
 
   MemoryChunkMetadata*
       metadata_pointer_table_[MemoryChunkConstants::kMetadataPointerTableSize] =

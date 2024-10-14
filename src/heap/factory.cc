@@ -4748,7 +4748,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(
     // if we would UpdateCode we would risk tiering down already existing
     // closures with optimized code installed.
     JSDispatchHandle handle = feedback_cell->dispatch_handle();
-    JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
     // TODO(olivf): We should go through the cases where this is still needed
     // and maybe find some alternative to initialize it correctly from the
     // beginning.

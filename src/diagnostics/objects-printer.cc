@@ -4143,7 +4143,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Dispatch_Handle(
     uint32_t handle) {
-  i::GetProcessWideJSDispatchTable()->PrintEntry(handle);
+  i::IsolateGroup::current()->js_dispatch_table()->PrintEntry(handle);
 }
 #endif  // V8_ENABLE_LEAPTIERING
 

@@ -133,7 +133,12 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
  public:
   // Size of a JSDispatchTable, for layout computation in IsolateData.
+#ifdef DEBUG
+  // 1 for std::atomic<bool> plus alignment.
+  static constexpr int kSize = (2 + 1) * kSystemPointerSize;
+#else
   static constexpr int kSize = 2 * kSystemPointerSize;
+#endif
 
   static_assert(kMaxJSDispatchEntries == kMaxCapacity);
   static_assert(!kSupportsCompaction);
@@ -224,13 +229,12 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 
-  static JSDispatchTable* instance() {
-    CheckInitialization(false);
-    return instance_nocheck();
-  }
-  static void Initialize() {
-    CheckInitialization(true);
-    instance_nocheck()->Base::Initialize();
+  void Initialize() {
+#ifdef DEBUG
+    DCHECK_NE(true, initialized_.load());
+    initialized_.store(true);
+#endif  // DEBUG
+    Base::Initialize();
   }
 
 #ifdef DEBUG
@@ -245,18 +249,8 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 
  private:
 #ifdef DEBUG
-  static std::atomic<bool> initialized_;
+  std::atomic<bool> initialized_ = false;
 #endif  // DEBUG
-
-  static void CheckInitialization(bool is_initializing) {
-#ifdef DEBUG
-    DCHECK_NE(is_initializing, initialized_.load());
-    initialized_.store(true);
-#endif  // DEBUG
-  }
-
-  static base::LeakyObject<JSDispatchTable> instance_;
-  static JSDispatchTable* instance_nocheck() { return instance_.get(); }
 
   static uint32_t HandleToIndex(JSDispatchHandle handle) {
     uint32_t index = handle >> kJSDispatchHandleShift;
@@ -271,13 +265,6 @@ class V8_EXPORT_PRIVATE JSDispatchTable
 };
 
 static_assert(sizeof(JSDispatchTable) == JSDispatchTable::kSize);
-
-// TODO(olivf): Remove this accessor and also unify implementation with
-// GetProcessWideCodePointerTable().
-V8_EXPORT_PRIVATE inline JSDispatchTable* GetProcessWideJSDispatchTable() {
-  return JSDispatchTable::instance();
-}
-
 }  // namespace internal
 }  // namespace v8
 

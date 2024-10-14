@@ -67,9 +67,6 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
 bool JSDispatchTable::IsMarked(JSDispatchHandle handle) {
   return at(HandleToIndex(handle)).IsMarked();
 }
-
-// Static
-std::atomic<bool> JSDispatchTable::initialized_ = false;
 #endif  // DEBUG
 
 void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
@@ -79,9 +76,6 @@ void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
   i::PrintF("* params %d\n", at(HandleToIndex(handle)).GetParameterCount());
   i::PrintF("* entrypoint 0x%lx\n", GetEntrypoint(handle));
 }
-
-// Static
-base::LeakyObject<JSDispatchTable> JSDispatchTable::instance_;
 
 }  // namespace internal
 }  // namespace v8

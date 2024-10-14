@@ -201,7 +201,7 @@ void V8::Initialize() {
   CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
 
   IsolateGroup::current()->code_pointer_table()->Initialize();
-  JSDispatchTable::Initialize();
+  IsolateGroup::current()->js_dispatch_table()->Initialize();
 
   // Enable sandbox testing mode if requested.
   //
@@ -241,6 +241,11 @@ void V8::Initialize() {
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::InitializeOncePerProcess();
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_ENABLE_SANDBOX
+  IsolateGroup::current()->code_pointer_table()->Initialize();
+  IsolateGroup::current()->js_dispatch_table()->Initialize();
+#endif  // V8_ENABLE_SANDBOX
 
 #ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   ExternalReferenceTable::InitializeOncePerIsolateGroup(

@@ -34,9 +34,9 @@ ReadOnlyHeap::~ReadOnlyHeap() {
       &code_pointer_space_);
 #endif
 #ifdef V8_ENABLE_LEAPTIERING
-  GetProcessWideJSDispatchTable()->DetachSpaceFromReadOnlySegment(
-      &js_dispatch_table_space_);
-  GetProcessWideJSDispatchTable()->TearDownSpace(&js_dispatch_table_space_);
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  jdt->DetachSpaceFromReadOnlySegment(&js_dispatch_table_space_);
+  jdt->TearDownSpace(&js_dispatch_table_space_);
 #endif
 }
 
@@ -215,16 +215,16 @@ ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
       &code_pointer_space_);
 #endif  // V8_ENABLE_SANDBOX
 #ifdef V8_ENABLE_LEAPTIERING
-  GetProcessWideJSDispatchTable()->InitializeSpace(&js_dispatch_table_space_);
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
+  jdt->InitializeSpace(&js_dispatch_table_space_);
   // To avoid marking trying to write to these read-only cells they are
   // allocated black. Target code objects in the read-only dispatch table are
   // read-only code objects.
   js_dispatch_table_space_.set_allocate_black(true);
-  GetProcessWideJSDispatchTable()->AttachSpaceToReadOnlySegment(
-      &js_dispatch_table_space_);
-  GetProcessWideJSDispatchTable()->PreAllocateEntries(
-      &js_dispatch_table_space_, JSBuiltinDispatchHandleRoot::kCount,
-      Isolate::kBuiltinDispatchHandlesAreStatic);
+  jdt->AttachSpaceToReadOnlySegment(&js_dispatch_table_space_);
+  jdt->PreAllocateEntries(&js_dispatch_table_space_,
+                          JSBuiltinDispatchHandleRoot::kCount,
+                          Isolate::kBuiltinDispatchHandlesAreStatic);
 #endif  // V8_ENABLE_LEAPTIERING
 }
 

@@ -3015,7 +3015,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 #ifdef V8_ENABLE_LEAPTIERING
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_JS_DISPATCH_TABLE);
-    JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+    JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
     Tagged<Code> compile_lazy = *BUILTIN_CODE(heap_->isolate(), CompileLazy);
     jdt->Sweep(heap_->js_dispatch_table_space(), isolate->counters(),
                [&](JSDispatchEntry& entry) {
@@ -5698,7 +5698,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* const jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* const jdt = IsolateGroup::current()->js_dispatch_table();
   jdt->IterateActiveEntriesIn(
       heap_->js_dispatch_table_space(), [&](JSDispatchHandle handle) {
         Address code_address = jdt->GetCodeAddress(handle);
