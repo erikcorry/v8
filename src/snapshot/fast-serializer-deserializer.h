@@ -8,8 +8,8 @@
 #include "src/common/globals.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
-#include "src/zone/zone.h"
 #include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +21,8 @@ class Isolate;
 // one 256k page. Often they will be much smaller.
 class LinearAllocationBuffer {
  public:
-  LinearAllocationBuffer(int index, AllocationSpace space, Address lowest, Address highest);
+  LinearAllocationBuffer(Zone* zone, int index, AllocationSpace space,
+                         Address lowest, Address highest);
 
   int index() const { return lab_index_; }
   AllocationSpace space() const { return space_; }
@@ -29,28 +30,32 @@ class LinearAllocationBuffer {
   Address lowest() const { return lowest_; }
   Address highest() const { return highest_; }
 
-  void expand(Address from, Address to) {
+  void Expand(Address from, Address to) {
     DCHECK(from >= start_);
     DCHECK(to <= start_ + kRegularPageSize);
     if (lowest_ > from) lowest_ = from;
     if (highest_ < to) highest_ = to;
   }
 
+  void SetPointsTo(int other);
+  bool PointsTo(int other) const;
+
  private:
-  int lab_index_;          // Unique in a given snapshot.
-  AllocationSpace space_;  // Enum of the space type.
-  Address start_;          // Location of start of 256k page.
-  Address lowest_;         // Address of lowest object in lab.
-  Address highest_;        // Address of end of highest object in lab.
+  int lab_index_;                   // Unique in a given snapshot.
+  ZoneVector<uint64_t> points_to_;  // Bitmap of other labs this one points at.
+  AllocationSpace space_;           // Enum of the space type.
+  Address start_;                   // Location of start of 256k page.
+  Address lowest_;                  // Address of lowest object in lab.
+  Address highest_;                 // Address of end of highest object in lab.
 };
 
 // Slots in objects that might need relocating after a deserialization.
 class Relocation {
  public:
   Relocation(int source_lab, int destination_lab, int offset_in_source)
-    : source_lab_(source_lab),
-      destination_lab_(destination_lab),
-      offset_(offset_in_source) {}
+      : source_lab_(source_lab),
+        destination_lab_(destination_lab),
+        offset_(offset_in_source) {}
 
   int source_lab() const { return source_lab_; }
   int destination_lab() const { return destination_lab_; }
@@ -79,8 +84,8 @@ class FastSnapshot {
   };
 
   AccountingAllocator allocator_;  // For the zone.
-  Zone zone_; 
-  ZoneAbslFlatHashMap<Address, LinearAllocationBuffer*> labs_; 
+  Zone zone_;
+  ZoneAbslFlatHashMap<Address, LinearAllocationBuffer*> labs_;
   SmallZoneVector<Relocation, 10> relocations_;
 };
 
