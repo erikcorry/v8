@@ -8,8 +8,8 @@
 #include "src/common/globals.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/references.h"
-#include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -62,33 +62,6 @@ class Relocation {
   int offset_;           // Location of the slot within the source, in bytes.
 };
 
-class LabMap
-    : public base::TemplateHashMapImpl<Address, LinearAllocationBuffer*,
-                                       base::KeyEqualityMatcher<Address>,
-                                       ZoneAllocationPolicy> {
- public:
-  LabMap(Zone* zone) : allocation_policy_(zone) {}
-
-  inline void Set(Address key, LinearAllocationBuffer* value) {
-    LookupOrInsert(key, Hash(key))->value = value;
-  }
-
-  /*
-  inline LinearAllocationBuffer* Get(Address key) const {
-    using Entry = base::TemplateHashMapEntry<uintptr_t, LinearAllocationBuffer*>;
-    Entry* entry = Lookup(key, Hash(key));
-    if (entry == nullptr) return nullptr;
-    return entry->value;
-  }
-  */
-
- private:
-  static uint32_t Hash(Address key) { return static_cast<uint32_t>(key ^ (key >> 32)); }
-
-  ZoneAllocationPolicy allocation_policy_;
-};
-
-
 // The FastSnapshot is an in-memory representation of a snapshot.  The
 // serialized snapshot format is not yet written.  FastSnapshot needs
 // GC to be paused while it deserializes.
@@ -107,7 +80,8 @@ class FastSnapshot {
 
   AccountingAllocator allocator_;  // For the zone.
   Zone zone_; 
-  LabMap labs_; 
+  ZoneAbslFlatHashMap<Address, LinearAllocationBuffer*> labs_; 
+  SmallZoneVector<Relocation, 10> relocations_;
 };
 
 }  // namespace internal
