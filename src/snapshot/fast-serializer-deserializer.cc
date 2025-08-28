@@ -18,7 +18,10 @@ LinearAllocationBuffer::LinearAllocationBuffer(int index, AllocationSpace space,
     lowest_(lowest),
     highest_(highest) {}
 
-FastSnapshot::FastSnapshot() : zone_(&allocator_, "FastSnapshot"), labs_(&zone_) {}
+FastSnapshot::FastSnapshot() :
+    zone_(&allocator_, "FastSnapshot"),
+    labs_(&zone_),
+    relocations_(&zone_) {}
 
 }  // namespace internal
 }  // namespace v8
