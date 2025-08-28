@@ -11,17 +11,32 @@
 namespace v8 {
 namespace internal {
 
-LinearAllocationBuffer::LinearAllocationBuffer(int index, AllocationSpace space, Address lowest, Address highest) :
-    lab_index_(index),
-    space_(space),
-    start_(RoundDown(lowest, kRegularPageSize)),
-    lowest_(lowest),
-    highest_(highest) {}
+LinearAllocationBuffer::LinearAllocationBuffer(Zone* zone, int index,
+                                               AllocationSpace space,
+                                               Address lowest, Address highest)
+    : lab_index_(index),
+      points_to_(zone),
+      space_(space),
+      start_(RoundDown(lowest, kRegularPageSize)),
+      lowest_(lowest),
+      highest_(highest) {}
 
-FastSnapshot::FastSnapshot() :
-    zone_(&allocator_, "FastSnapshot"),
-    labs_(&zone_),
-    relocations_(&zone_) {}
+void LinearAllocationBuffer::SetPointsTo(int lab) {
+  size_t index = lab >> 6;
+  while (points_to_.size() <= index) points_to_.push_back(0);
+  points_to_[index] |= uint64_t{1} << (lab & 0x3f);
+}
+
+bool LinearAllocationBuffer::PointsTo(int lab) const {
+  size_t index = lab >> 6;
+  DCHECK(index < points_to_.size());
+  return (points_to_[index] & (uint64_t{1} << (lab & 0x3f))) != 0;
+}
+
+FastSnapshot::FastSnapshot()
+    : zone_(&allocator_, "FastSnapshot"), labs_(&zone_), relocations_(&zone_) {}
+
+void foo() { FastSnapshot snapshot; }
 
 }  // namespace internal
 }  // namespace v8
