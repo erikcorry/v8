@@ -16,6 +16,9 @@ namespace internal {
 
 class Isolate;
 
+// LAB: An area that contains objects that are part of the snapshot.
+// A lab is always smaller than a 256k page, and always contained in
+// one 256k page. Often they will be much smaller.
 class LinearAllocationBuffer {
  public:
   LinearAllocationBuffer(int index, AllocationSpace space, Address lowest, Address highest);
@@ -36,11 +39,28 @@ class LinearAllocationBuffer {
  private:
   int lab_index_;          // Unique in a given snapshot.
   AllocationSpace space_;  // Enum of the space type.
-  Address start_;          // Location of start of 128k page.
+  Address start_;          // Location of start of 256k page.
   Address lowest_;         // Address of lowest object in lab.
   Address highest_;        // Address of end of highest object in lab.
 };
 
+// Slots in objects that might need relocating after a deserialization.
+class Relocation {
+ public:
+  Relocation(int source_lab, int destination_lab, int offset_in_source)
+    : source_lab_(source_lab),
+      destination_lab_(destination_lab),
+      offset_(offset_in_source) {}
+
+  int source_lab() const { return source_lab_; }
+  int destination_lab() const { return destination_lab_; }
+  int offset() const { return offset_; }
+
+ private:
+  int source_lab_;       // The lab containing the slot.
+  int destination_lab_;  // The lab the slot is pointing to.
+  int offset_;           // Location of the slot within the source, in bytes.
+};
 
 class LabMap
     : public base::TemplateHashMapImpl<Address, LinearAllocationBuffer*,
