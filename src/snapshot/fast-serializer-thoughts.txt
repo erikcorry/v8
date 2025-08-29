@@ -1,0 +1,111 @@
+Fast snapshots, thoughts.
+
+We can either create a zygote isolate for the purpose or use the original
+isolate. Perhaps easier to start with just using a frozen isolate, so we
+don't have to handle allocation and writing to newly allocated objects.
+
+Problem:  Can we somehow GC-compact the initial isolate to reduce the
+   number of labs and free gaps?  V8 doesn't have a sliding compactor, so
+   you would have to evacuate all.
+
+A fast snapshot consists of a zygote/frozen isolate and some metadata.
+
+We need to populate the zygote isolate with objects with the usual layout.
+OTOH if we are just using a frozen isolate, the pages are already populated.
+
+When serializing, we visit objects recursively, get their sizes, (allocate space
+in the zygote for them unless we are freezing the original data), then do a
+serializing visit, which gives us the other objects.  If we make a zygote,
+pretenure all allocations, make sure they are linear.
+
+We can do this intra-isolate.  For testing, developing.
+
+Maintain a map of old locations -> new locations.  For the frozen (as opposed to
+zygote) solution this isn't needed.
+
+Dynamic number of linear allocation buffers, 'labs', means we can just start a
+new lab if we run out of space on one page.  The bet is that we still have a
+small number of labs pointed to from a given lab.  A lab never spans more than
+one 128k page.
+
+We have an array of labs, built up during serialization.  Index of lab is
+its id.
+
+struct lab_t {
+  uint8_t space_type;  // Large, map, code, trusted, etc.
+  uint32_t lab_start;  // Location in frozen/zygote sandbox.
+                       // This is always rounded down to nearest 128k page.
+  uint32_t start;      // Location of lowest-address object in lab.
+  uint32_t end;        // Location of end of highest-address object in lab.
+};
+
+For each visited slot we add a fixup to an array, sorted later.
+
+struct fixup {
+  uint8_t source_lab;  // The lab in which the object is that needs fixing.
+  uint8_t dest_lab;    // The lab the slot is pointing to.
+  uint32_t offset;     // Location of the slot, in bytes, within the source lab.
+};
+
+The fixups are enough to reconstitute the data because we know the offset of
+the dest lab in the original vs the clone.
+
+The allocated objects have slots that are pre-populated for the
+locations of the dest labs.  On deserialization, if the labs are
+not in the same places, we will have to fix up the slots.
+
+  Problem: Most fixups are compressed-word-aligned, but relative branches in
+  x64 code are not.  Would be nice to restrict to a single page of code, or
+  consecutive code pages.
+
+Idea: We can treat tables like the trusted data tables as just another lab.
+But it has 64 values in it, which complicates things a tiny bit.  However
+if the trusted spaces are 4Gbyte aligned we can probably treat the halves
+as separate relocations. Indexes into the trusted data tables are just
+relocated in the same way.
+
+Time saving insight: The actual in-memory 'serialization format' doesn't
+initially have to have a serialized form.  It can just contain direct pointers
+to the lab pages.
+
+When deserializing:
+
+Read the lab array, and create linear areas in the destination that match
+as much as possible.  For example all labs that are in the same cage are
+attempted to be allocated in the same locations that they were originally.
+If that fails, they are attempted to be allocated in the same pattern
+relative to each other.  When that is done, we generate a fixup bitmap
+for each distinct offset.  Ideally, zero fixup bitmaps, but for in-isolate
+clones there will be at least two for the main cage.  These are cached
+from deserialization to deserialization.
+
+The deserializer for each lab takes a number of bitmaps, an offset for
+each bitmap, a source and a destination. For zero bitmaps, obviously
+there's nothing special to do, and we can use mmap. Specializations for
+1 and 2 bitmaps will use SIMD.  For larger numbers of bitmaps we can
+build a bytemap and use shuffle operations.  See
+https://builders.intel.com/docs/networkbuilders/intel-avx-512-permuting-data-within-and-between-avx-registers-technology-guide-1668169807.pdf
+
+For example this instruction can select one of 16 different 32 bit offsets
+from a register.  It can do this on a 256 bit wide register, so we are getting
+8 different offsets at a time to do an 8-wide 32 bit add on.  The input
+is a set of 32 bit indices, so we would have to expand the bytemap or
+make it into a word-map first.
+https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#techs=AVX_ALL,AVX_512&ig_expand=50,444,647,4986&text=_mm256_permutex2var_epi32
+See also
+https://claude.ai/public/artifacts/308826fe-7695-4981-8436-32fab8cf01bf
+
+Time saving insight: Initially we can just generate a byte map and use:
+
+void copy(uint32_t* source, uint32_t* destination, int count, uint8_t* byte_map, uint32_t* offsets) {
+  for (int i = 0; i < count; i++) {
+    destination[i] = source[i] + offsets[byte_map[i]];
+  }
+}
+
+This is probably already faster than normaly serialization/deserialization.
+
+Bet:
+  We have a limited number of labs.
+  If we play our cards right, many of the fixups disappear.
+  If we play our cards right, all of the fixups disappear.

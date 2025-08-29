@@ -18,7 +18,8 @@ class Isolate;
 
 // LAB: An area that contains objects that are part of the snapshot.
 // A lab is always smaller than a 256k page, and always contained in
-// one 256k page. Often they will be much smaller.
+// one 256k page (unless they are in a large object space). Often they
+// will hopefully be much smaller.
 class LinearAllocationBuffer {
  public:
   LinearAllocationBuffer(Zone* zone, int index, AllocationSpace space,
@@ -32,13 +33,13 @@ class LinearAllocationBuffer {
 
   void Expand(Address from, Address to) {
     DCHECK(from >= start_);
-    DCHECK(to <= start_ + kRegularPageSize);
     if (lowest_ > from) lowest_ = from;
     if (highest_ < to) highest_ = to;
   }
 
-  void SetPointsTo(int other);
-  bool PointsTo(int other) const;
+  // Set and get the set of labs this lab points at.
+  void SetPointsTo(int other_index);
+  bool PointsTo(int other_index) const;
 
  private:
   int lab_index_;                   // Unique in a given snapshot.
