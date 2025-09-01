@@ -134,8 +134,8 @@
 #include "src/sandbox/sandbox.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#include "src/snapshot/snapshot.h"
 #include "src/snapshot/fast-serializer-deserializer.h"
+#include "src/snapshot/snapshot.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-hasher.h"
 #include "src/strings/unicode-inl.h"
@@ -434,9 +434,9 @@ bool StartupData::CanBeRehashed() const {
 
 bool StartupData::IsValid() const { return i::Snapshot::VersionIsValid(this); }
 
-FastSnapshotCreator::FastSnapshotCreator(v8::Isolate* v8_isolate):
-    impl_(new i::FastSnapshotCreatorImpl(reinterpret_cast<i::Isolate*>(v8_isolate))) {
-}
+FastSnapshotCreator::FastSnapshotCreator(v8::Isolate* v8_isolate)
+    : impl_(new i::FastSnapshotCreatorImpl(
+          reinterpret_cast<i::Isolate*>(v8_isolate))) {}
 
 FastSnapshotCreator::~FastSnapshotCreator() {
   DCHECK_NOT_NULL(impl_);
