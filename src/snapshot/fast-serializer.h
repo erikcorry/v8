@@ -59,6 +59,7 @@ class FastSerializer {
   class ObjectSerializer;
 
   Isolate* isolate_;
+  AccountingAllocator allocator_;  // For the zone.
   // Used for things that live during serialization, but die once the snapshot
   // is created.
   Zone zone_;
@@ -80,8 +81,7 @@ class FastSerializer {
 class FastSerializer::ObjectSerializer : public ObjectVisitor {
  public:
   ObjectSerializer(FastSerializer* serializer)
-      : isolate_(serializer->isolate_),
-        serializer_(serializer) {}
+      : isolate_(serializer->isolate_), serializer_(serializer) {}
   void SerializeObject();
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
@@ -98,7 +98,9 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
   void VisitCodeTarget(Tagged<InstructionStream> host,
                        RelocInfo* target) override;
   void VisitOffHeapTarget(Tagged<InstructionStream> host,
-                          RelocInfo* target) override { UNREACHABLE(); }
+                          RelocInfo* target) override {
+    UNREACHABLE();
+  }
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override;
   void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
@@ -110,7 +112,9 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
   void VisitProtectedPointer(Tagged<TrustedObject> host,
                              ProtectedMaybeObjectSlot slot) override;
   void VisitCppHeapPointer(Tagged<HeapObject> host,
-                           CppHeapPointerSlot slot) override { UNREACHABLE(); }
+                           CppHeapPointerSlot slot) override {
+    UNREACHABLE();
+  }
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override;
 

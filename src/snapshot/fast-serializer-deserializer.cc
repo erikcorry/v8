@@ -37,7 +37,10 @@ bool LinearAllocationBuffer::PointsTo(int lab) const {
 }
 
 FastSnapshot::FastSnapshot()
-    : zone_(&allocator_, "FastSnapshot"), labs_(&zone_), relocations_(&zone_) {}
+    : zone_(&allocator_, "FastSnapshot"),
+      labs_(&zone_),
+      relocations_(&zone_),
+      roots_instructions_(&zone_) {}
 
 void foo() { FastSnapshot snapshot; }
 

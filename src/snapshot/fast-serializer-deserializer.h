@@ -88,6 +88,7 @@ class FastSnapshot {
   Zone zone_;
   ZoneAbslFlatHashMap<Address, LinearAllocationBuffer*> labs_;
   SmallZoneVector<Relocation, 10> relocations_;
+  SmallZoneVector<uint32_t, 10> roots_instructions_;
 };
 
 class FastSnapshotCreatorImpl final {

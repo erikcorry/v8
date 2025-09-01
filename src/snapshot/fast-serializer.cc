@@ -4,10 +4,21 @@
 
 #include "src/snapshot/fast-serializer.h"
 
+#include "src/common/ptr-compr-inl.h"
+
 namespace v8 {
 namespace internal {
 
 FastSerializer::~FastSerializer() {}
+
+FastSerializer::FastSerializer(Isolate* isolate,
+                               Snapshot::SerializerFlags flags)
+    : zone_(&allocator_, "FastSerializer"),
+      queue_(&zone_),
+      lab_liveness_map_(&zone_),
+      cage_base_(isolate),
+      external_reference_encoder_(isolate),
+      flags_(flags) {}
 
 bool FastSerializer::IsMarked(Tagged<HeapObject> object) {
   Address lab_start = RoundDown(object->address(), kRegularPageSize);
@@ -15,7 +26,8 @@ bool FastSerializer::IsMarked(Tagged<HeapObject> object) {
   if (bitmap == nullptr) {
     // We don't yet have a liveness map for this lab, so we allocate one.
     // Each 32 bit word is a bit in the map so we divide the size with 32.
-    bitmap = reinterpret_cast<uint64_t*>(zone_.Allocate<uint64_t>(kRegularPageSize / 32));
+    bitmap = reinterpret_cast<uint64_t*>(
+        zone_.Allocate<uint64_t>(kRegularPageSize / 32));
   }
   constexpr int kWordSize = sizeof(uint32_t);  // Words on a compressed heap.
   size_t byte_offset = object->address() - lab_start;
