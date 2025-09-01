@@ -42,46 +42,98 @@ class FastSerializer {
 #endif  // V8_COMPRESS_POINTERS
   }
 
+  FastSnapshot* SerializeContext(Handle<Context> context);
+  FastSnapshot* SerializeIsolate();
+
+  std::unique_ptr<FastSnapshot> Run();
+
+ private:
+  // Serialize the transitively reachable objects from the queue,
+  // until it is empty.
+  void ProcessQueue();
+
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end);
   void SerializeRootObject(FullObjectSlot slot);
 
   bool queue_empty() { return queue_.size() == 0; }
 
+  AddressSpace GetAddressSpace(Tagged<HeapObject> object);
+  AllocationSpace GetAllocationSpace(Tagged<HeapObject> object);
+
   bool IsMarked(Tagged<HeapObject> object);
   void Mark(Tagged<HeapObject> object, size_t size_in_bytes);
-
-  std::unique_ptr<FastSnapshot> Run();
 
  private:
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
+  template <typename Slot>
+  void VisitSlot(LinearAllocationBuffer* slot_dest_lab, size_t slot_dest_offset,
+                 Slot slot);
+
+  // Create a lab for an object that has a fixed location, ie the same location
+  // in the serializer and the deserializer.
+  LinearAllocationBuffer* GetOrCreateLabForFixedLocation(
+      Tagged<HeapObject> object);
+
+  // Find a lab in a given space that has space enough for an object.
+  LinearAllocationBuffer* GetOrCreatePackedLab(Tagged<HeapObject> object,
+                                               size_t size);
+
   class ObjectSerializer;
 
+  // For pseudo spaces like roots or tables that are not part of a heap space.
+  static constexpr AllocationSpace kIgnoreAllocationSpace = NEW_SPACE;
+
   Isolate* isolate_;
+  AccountingAllocator allocator_;  // For the zone.
   // Used for things that live during serialization, but die once the snapshot
   // is created.
   Zone zone_;
+  // The queue contains the gray objects, whose slots have not yet been visited.
+  // If it's a reallocating serializer the old location is used.
   SmallZoneVector<Tagged<HeapObject>, 10> queue_;
   // One bit per word used to mark objects as white (not yet part of the
   // snapshot) or black/gray (have been found).  Objects in the queue are grey,
   // those no longer in the queue are black.  We mark the whole object, so at
   // the end this map shows the words that are in the source lab, but not part
   // of the snapshot.  Manipulated by Mark() and IsMarked().
+  // If the location of the object varies between the serializer and the
+  // deserializer, this is map is always based on the serializer address.
   ZoneAbslFlatHashMap<Address, uint64_t*> lab_liveness_map_;
+  // For FixedLocation snapshots, this lets us find the lab for a given address.
+  ZoneAbslFlatHashMap<Address, LinearAllocationBuffer*> lab_map_;
+  // For reallocating snapshots this is the forwarding table.  Contains an entry
+  // for each object that is marked.
+  struct LabAndOffset {
+    LinearAllocationBuffer* lab;
+    size_t offset;
+  };
+  ZoneAbslFlatHashMap<Address, LabAndOffset> new_locations_;
+  // Virtual lab for the roots, in visiting order.
+  LinearAllocationBuffer* roots_lab_ = nullptr;
+  // For reallocating snapshots, the location of the end of the newest lab.
+  size_t address_space_fullnesses_[kNumberOfAddressSpaces];
+  LinearAllocationBuffer* lab_per_space_[LAST_SPACE + 1];
+  SmallZoneVector<LinearAllocationBuffer*, 10> all_labs_;
   const PtrComprCageBase cage_base_;
   ExternalReferenceEncoder external_reference_encoder_;
   const Snapshot::SerializerFlags flags_;
 
   std::unique_ptr<FastSnapshot> fast_snapshot_;
+  FastSnapshot* snapshot_;
   friend class ObjectSerializer;
 };
 
 class FastSerializer::ObjectSerializer : public ObjectVisitor {
  public:
-  ObjectSerializer(FastSerializer* serializer)
+  ObjectSerializer(FastSerializer* serializer, Tagged<HeapObject> object,
+                   LinearAllocationBuffer* dest_lab, size_t dest_offset)
       : isolate_(serializer->isolate_),
-        serializer_(serializer) {}
+        serializer_(serializer),
+        object_(object),
+        dest_lab_(dest_lab),
+        dest_offset_(dest_offset) {}
   void SerializeObject();
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
@@ -98,7 +150,9 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
   void VisitCodeTarget(Tagged<InstructionStream> host,
                        RelocInfo* target) override;
   void VisitOffHeapTarget(Tagged<InstructionStream> host,
-                          RelocInfo* target) override { UNREACHABLE(); }
+                          RelocInfo* target) override {
+    UNREACHABLE();
+  }
   void VisitExternalPointer(Tagged<HeapObject> host,
                             ExternalPointerSlot slot) override;
   void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
@@ -110,13 +164,18 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
   void VisitProtectedPointer(Tagged<TrustedObject> host,
                              ProtectedMaybeObjectSlot slot) override;
   void VisitCppHeapPointer(Tagged<HeapObject> host,
-                           CppHeapPointerSlot slot) override { UNREACHABLE(); }
+                           CppHeapPointerSlot slot) override {
+    UNREACHABLE();
+  }
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override;
 
  private:
   Isolate* isolate_;
   FastSerializer* serializer_;
+  Tagged<HeapObject> object_;
+  LinearAllocationBuffer* dest_lab_;
+  size_t dest_offset_;
 };
 
 }  // namespace internal
