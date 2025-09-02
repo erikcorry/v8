@@ -78,20 +78,41 @@ void FastSerializer::VisitRootPointers(
     size_t offset = lab->highest();
     lab->Expand(offset, offset + sizeof(Address));
     snapshot_->root_lab_data_.push_back((*current).ptr());
-    VisitUncompressedSlot(0, *current);
+    VisitUncompressedSlot(0, offset, *current);
   }
 }
 
-void FastSerializer::VisitUncompressedSlot(size_t source_lab,
-                                           Tagged<Object> slot_contents) {
-  if (slot_contents.IsSmi()) return;
-  Address address = Cast<HeapObject>(slot_contents).address();
-  GetOrCreateLab(address);
+void FastSerializer::VisitUncompressedSlot(
+    size_t source_lab,
+    size_t slot_offset,  // Position in source lab.
+    Tagged<Object> maybe_smi) {
+  if (maybe_smi.IsSmi()) return;
+  Tagged<HeapObject> slot_contents = Cast<HeapObject>(maybe_smi);
+  LinearAllocationBuffer* lab = GetOrCreateLab(slot_contents);
+  if (lab->index() != source_lab) {
+    snapshot_->AddRelocation(source_lab, lab->index(), slot_offset);
+  }
+  if (!IsMarked(slot_contents)) {
+    size_t size = slot_contents->Size();
+    Mark(slot_contents, size);
+    queue_.push_back(slot_contents);
+  }
 }
 
-LinearAllocationBuffer* FastSerializer::GetOrCreateLab(Address address) {
-  // Address start = RoundDown(address, kRegularPageSize);
-  return nullptr;
+LinearAllocationBuffer* FastSerializer::GetOrCreateLab(
+    Tagged<HeapObject> object) {
+  AllocationSpace heap_space;
+  if (ReadOnlyHeap::Contains(object)) {
+    heap_space = AllocationSpace::RO_SPACE;
+  } else {
+    heap_space = MutablePageMetadata::FromHeapObject(object)->owner_identity();
+  }
+  Address start = RoundDown(object.address(), kRegularPageSize);
+
+  constexpr bool is_compressed = true;
+  LinearAllocationBuffer* lab =
+      snapshot_->FindOrCreateLab(start, heap_space, is_compressed);
+  return lab;
 }
 
 >>>>>>> 492868d4aeb (Create pseudo-lab for roots)

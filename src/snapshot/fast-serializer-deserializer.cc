@@ -57,6 +57,13 @@ LinearAllocationBuffer* FastSnapshot::FindOrCreateLab(
   return lab;
 }
 
+void FastSnapshot::AddRelocation(size_t source_lab, size_t dest_lab,
+                                 size_t slot_offset) {
+  if (source_lab != dest_lab) {
+    relocations_.push_back(Relocation(source_lab, dest_lab, slot_offset));
+  }
+}
+
 void foo() { FastSnapshot snapshot; }
 
 

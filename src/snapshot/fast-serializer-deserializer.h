@@ -55,19 +55,19 @@ class LinearAllocationBuffer {
 // Slots in objects that might need relocating after a deserialization.
 class Relocation {
  public:
-  Relocation(int source_lab, int destination_lab, int offset_in_source)
+  Relocation(size_t source_lab, size_t destination_lab, size_t offset_in_source)
       : source_lab_(source_lab),
         destination_lab_(destination_lab),
         offset_(offset_in_source) {}
 
-  int source_lab() const { return source_lab_; }
-  int destination_lab() const { return destination_lab_; }
-  int offset() const { return offset_; }
+  size_t source_lab() const { return source_lab_; }
+  size_t destination_lab() const { return destination_lab_; }
+  size_t offset() const { return offset_; }
 
  private:
-  int source_lab_;       // The lab containing the slot.
-  int destination_lab_;  // The lab the slot is pointing to.
-  int offset_;           // Location of the slot within the source, in bytes.
+  size_t source_lab_;       // The lab containing the slot.
+  size_t destination_lab_;  // The lab the slot is pointing to.
+  size_t offset_;           // Location of the slot within the source, in bytes.
 };
 
 // The FastSnapshot is an in-memory representation of a snapshot.  The
@@ -81,6 +81,9 @@ class FastSnapshot {
   LinearAllocationBuffer* FindOrCreateLab(Address for_address,
                                           AllocationSpace space,
                                           bool is_compressed);
+
+  void AddRelocation(size_t source_lab, size_t destination_lab,
+                     size_t slot_offset);
 
   class AddressMatcher : public base::KeyEqualityMatcher<Address> {
    public:

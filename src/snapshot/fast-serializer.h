@@ -56,11 +56,13 @@ class FastSerializer {
  private:
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
-  void VisitUncompressedSlot(size_t source_lab, Tagged<Object> slot_contents);
+  void VisitUncompressedSlot(size_t source_lab,
+                             size_t slot_offset_within_source_lab,
+                             Tagged<Object> slot_contents);
   void VisitCompressedSlot(size_t source_lab, size_t destination_lab,
                            Address slot_address);
 
-  LinearAllocationBuffer* GetOrCreateLab(Address address);
+  LinearAllocationBuffer* GetOrCreateLab(Tagged<HeapObject> object);
 
   class ObjectSerializer;
 
