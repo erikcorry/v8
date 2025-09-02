@@ -5,6 +5,8 @@
 #include "src/snapshot/fast-serializer.h"
 
 #include "src/common/ptr-compr-inl.h"
+#include "src/objects/slots-inl.h"
+#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -18,7 +20,8 @@ FastSerializer::FastSerializer(Isolate* isolate,
       lab_liveness_map_(&zone_),
       cage_base_(isolate),
       external_reference_encoder_(isolate),
-      flags_(flags) {}
+      flags_(flags),
+      snapshot_(new FastSnapshot()) {}
 
 bool FastSerializer::IsMarked(Tagged<HeapObject> object) {
   Address lab_start = RoundDown(object->address(), kRegularPageSize);
@@ -59,5 +62,38 @@ std::unique_ptr<FastSnapshot> FastSerializer::Run() {
   return std::move(fast_snapshot_);
 }
 
+// The roots are conceptually in a synthetic lab that contains each root slot
+// in order.  We encode the roots in the same way as slots in other labs.
+void FastSerializer::VisitRootPointers(
+    Root root,  // An enum - see ROOT_ID_LIST.
+    const char* description,
+    FullObjectSlot start,  // From src/objects/slots.h.
+    FullObjectSlot end) {
+  // Nothing points at the roots, so the location is not important.  We use the
+  // zero location for this lab.
+  constexpr bool is_compressed = false;
+  LinearAllocationBuffer* lab = snapshot_->FindOrCreateLab(
+      0, AllocationSpace::ROOT_PSEUDO_SPACE, is_compressed);
+  for (FullObjectSlot current = start; current < end; ++current) {
+    size_t offset = lab->highest();
+    lab->Expand(offset, offset + sizeof(Address));
+    snapshot_->root_lab_data_.push_back((*current).ptr());
+    VisitUncompressedSlot(0, *current);
+  }
+}
+
+void FastSerializer::VisitUncompressedSlot(size_t source_lab,
+                                           Tagged<Object> slot_contents) {
+  if (slot_contents.IsSmi()) return;
+  Address address = Cast<HeapObject>(slot_contents).address();
+  GetOrCreateLab(address);
+}
+
+LinearAllocationBuffer* FastSerializer::GetOrCreateLab(Address address) {
+  // Address start = RoundDown(address, kRegularPageSize);
+  return nullptr;
+}
+
+>>>>>>> 492868d4aeb (Create pseudo-lab for roots)
 }  // namespace internal
 }  // namespace v8

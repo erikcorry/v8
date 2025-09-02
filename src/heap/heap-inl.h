@@ -343,6 +343,7 @@ bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
       return false;
 
     case RO_SPACE:
+    case ROOT_PSEUDO_SPACE:
       UNREACHABLE();
   }
 

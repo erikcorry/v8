@@ -902,6 +902,7 @@ SnapshotSpace GetSnapshotSpace(Tagged<HeapObject> object) {
         return SnapshotSpace::kTrusted;
       case CODE_LO_SPACE:
       case RO_SPACE:
+      case ROOT_PSEUDO_SPACE:
         UNREACHABLE();
     }
   }

@@ -22,11 +22,12 @@ class Isolate;
 // will hopefully be much smaller.
 class LinearAllocationBuffer {
  public:
-  LinearAllocationBuffer(Zone* zone, int index, AllocationSpace space,
-                         Address lowest, Address highest);
+  LinearAllocationBuffer(Zone* zone, size_t index, AllocationSpace space,
+                         bool is_compressed, Address lowest, Address highest);
 
-  int index() const { return lab_index_; }
+  size_t index() const { return lab_index_; }
   AllocationSpace space() const { return space_; }
+  bool is_compressed() const { return is_compressed_; }
   Address start() const { return start_; }
   Address lowest() const { return lowest_; }
   Address highest() const { return highest_; }
@@ -42,9 +43,10 @@ class LinearAllocationBuffer {
   bool PointsTo(int other_index) const;
 
  private:
-  int lab_index_;                   // Unique in a given snapshot.
+  size_t lab_index_;                // Unique in a given snapshot.
   ZoneVector<uint64_t> points_to_;  // Bitmap of other labs this one points at.
   AllocationSpace space_;           // Enum of the space type.
+  bool is_compressed_;              // If false, slots are pointer-sized.
   Address start_;                   // Location of start of 256k page.
   Address lowest_;                  // Address of lowest object in lab.
   Address highest_;                 // Address of end of highest object in lab.
@@ -76,6 +78,10 @@ class FastSnapshot {
   FastSnapshot();
 
  private:
+  LinearAllocationBuffer* FindOrCreateLab(Address for_address,
+                                          AllocationSpace space,
+                                          bool is_compressed);
+
   class AddressMatcher : public base::KeyEqualityMatcher<Address> {
    public:
     bool operator()(uint32_t hash1, uint32_t hash2, const Address& key1,
@@ -88,7 +94,15 @@ class FastSnapshot {
   Zone zone_;
   ZoneAbslFlatHashMap<Address, LinearAllocationBuffer*> labs_;
   SmallZoneVector<Relocation, 10> relocations_;
-  SmallZoneVector<uint32_t, 10> roots_instructions_;
+  // These are the special fixups that have to be done at the end because
+  // they don't fit in our normal way of copying and relocating.
+  // It's a vector of uint32_t's which probably will be based on some sort
+  // of bytecode system.
+  SmallZoneVector<uint32_t, 10> remaining_fixups_;
+  // The data in the pseudo-lab that backs the roots.
+  SmallZoneVector<Address, 10> root_lab_data_;
+
+  friend class FastSerializer;
 };
 
 class FastSnapshotCreatorImpl final {

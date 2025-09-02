@@ -476,6 +476,9 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
       visitor.Visit(object);
       break;
     }
+
+    case ROOT_PSEUDO_SPACE:
+      break;
   }
 }
 

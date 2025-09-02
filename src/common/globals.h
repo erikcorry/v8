@@ -1320,6 +1320,7 @@ enum AllocationSpace {
   SHARED_LO_SPACE,          // Space shared between multiple isolates. Optional.
   SHARED_TRUSTED_LO_SPACE,  // Like TRUSTED_SPACE but for shared large objects.
   TRUSTED_LO_SPACE,         // Like TRUSTED_SPACE but for large objects.
+  ROOT_PSEUDO_SPACE,        // Sentinel value, not a real space.
 
   FIRST_SPACE = RO_SPACE,
   LAST_SPACE = TRUSTED_LO_SPACE,
@@ -1380,6 +1381,8 @@ constexpr const char* ToString(AllocationSpace space) {
       return "shared_trusted_large_object_space";
     case AllocationSpace::TRUSTED_LO_SPACE:
       return "trusted_large_object_space";
+    case AllocationSpace::ROOT_PSEUDO_SPACE:
+      return "root_pseudo_space";
   }
 }
 

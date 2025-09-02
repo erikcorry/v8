@@ -14,12 +14,14 @@
 namespace v8 {
 namespace internal {
 
-LinearAllocationBuffer::LinearAllocationBuffer(Zone* zone, int index,
+LinearAllocationBuffer::LinearAllocationBuffer(Zone* zone, size_t index,
                                                AllocationSpace space,
+                                               bool is_compressed,
                                                Address lowest, Address highest)
     : lab_index_(index),
       points_to_(zone),
       space_(space),
+      is_compressed_(is_compressed),
       start_(RoundDown(lowest, kRegularPageSize)),
       lowest_(lowest),
       highest_(highest) {}
@@ -40,7 +42,20 @@ FastSnapshot::FastSnapshot()
     : zone_(&allocator_, "FastSnapshot"),
       labs_(&zone_),
       relocations_(&zone_),
-      roots_instructions_(&zone_) {}
+      remaining_fixups_(&zone_),
+      root_lab_data_(&zone_) {}
+
+LinearAllocationBuffer* FastSnapshot::FindOrCreateLab(
+    Address for_address, AllocationSpace space_enum, bool is_compressed) {
+  LinearAllocationBuffer*& lab = labs_[for_address];
+  if (lab == nullptr) {
+    // Updates collection because it's a reference.
+    lab = zone_.New<LinearAllocationBuffer>(&zone_, labs_.size(), space_enum,
+                                            is_compressed, Address{0},
+                                            Address{0});
+  }
+  return lab;
+}
 
 void foo() { FastSnapshot snapshot; }
 

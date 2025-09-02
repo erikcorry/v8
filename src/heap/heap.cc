@@ -4593,6 +4593,8 @@ bool Heap::InSpace(Tagged<HeapObject> value, AllocationSpace space) const {
       return trusted_lo_space_->Contains(value);
     case RO_SPACE:
       return ReadOnlyHeap::Contains(value);
+    case ROOT_PSEUDO_SPACE:
+      UNREACHABLE();
   }
   UNREACHABLE();
 }
@@ -4631,6 +4633,8 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
       return trusted_lo_space_->ContainsSlow(addr);
     case RO_SPACE:
       return read_only_space_->ContainsSlow(addr);
+    case ROOT_PSEUDO_SPACE:
+      UNREACHABLE();
   }
   UNREACHABLE();
 }
@@ -7345,6 +7349,8 @@ bool Heap::AllowedToBeMigrated(Tagged<Map> map, Tagged<HeapObject> object,
     case SHARED_TRUSTED_LO_SPACE:
     case RO_SPACE:
       return false;
+    case ROOT_PSEUDO_SPACE:
+      UNREACHABLE();
   }
   UNREACHABLE();
 }
