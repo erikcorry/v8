@@ -16,6 +16,7 @@ class Object;
 
 namespace internal {
 class SnapshotCreatorImpl;
+class FastSnapshotCreatorImpl;
 }  // namespace internal
 
 class V8_EXPORT StartupData {
@@ -296,6 +297,21 @@ template <class T>
 size_t SnapshotCreator::AddData(Local<T> object) {
   return AddData(internal::ValueHelper::ValueAsAddress(*object));
 }
+
+// TODO document
+class V8_EXPORT FastSnapshotCreator {
+ public:
+  explicit FastSnapshotCreator(v8::Isolate* isolate);
+
+  ~FastSnapshotCreator();
+  // Disallow copying and assigning.
+  FastSnapshotCreator(const FastSnapshotCreator&) = delete;
+  void operator=(const FastSnapshotCreator&) = delete;
+
+ private:
+  internal::FastSnapshotCreatorImpl* impl_;
+  friend class internal::FastSnapshotCreatorImpl;
+};
 
 }  // namespace v8
 
