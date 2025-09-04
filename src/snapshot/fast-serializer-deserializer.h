@@ -90,6 +90,20 @@ class FastSnapshot {
   SmallZoneVector<Relocation, 10> relocations_;
 };
 
+class FastSnapshotCreatorImpl final {
+ public:
+  FastSnapshotCreatorImpl(Isolate* isolate);
+
+  ~FastSnapshotCreatorImpl();
+
+  void TakeSnapshot();
+  void ApplySnapshot(Isolate* isolate);
+
+ private:
+  Isolate* const isolate_;
+  std::unique_ptr<FastSnapshot> snapshot_;
+};
+
 }  // namespace internal
 }  // namespace v8
 
