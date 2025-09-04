@@ -7,6 +7,8 @@
 namespace v8 {
 namespace internal {
 
+FastSerializer::~FastSerializer() {}
+
 bool FastSerializer::IsMarked(Tagged<HeapObject> object) {
   Address lab_start = RoundDown(object->address(), kRegularPageSize);
   uint64_t*& bitmap = lab_liveness_map_[lab_start];
@@ -39,6 +41,10 @@ void FastSerializer::Mark(Tagged<HeapObject> object, size_t size) {
     int bit_number = (o / kWordSize) & 63;
     bitmap[index] |= uint64_t{1} << bit_number;
   }
+}
+
+std::unique_ptr<FastSnapshot> FastSerializer::Run() {
+  return std::move(fast_snapshot_);
 }
 
 }  // namespace internal
