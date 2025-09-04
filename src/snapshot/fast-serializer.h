@@ -51,6 +51,8 @@ class FastSerializer {
   bool IsMarked(Tagged<HeapObject> object);
   void Mark(Tagged<HeapObject> object, size_t size_in_bytes);
 
+  std::unique_ptr<FastSnapshot> Run();
+
  private:
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
@@ -71,7 +73,7 @@ class FastSerializer {
   ExternalReferenceEncoder external_reference_encoder_;
   const Snapshot::SerializerFlags flags_;
 
-  FastSnapshot* fast_snapshot_;
+  std::unique_ptr<FastSnapshot> fast_snapshot_;
   friend class ObjectSerializer;
 };
 
