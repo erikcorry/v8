@@ -42,6 +42,14 @@ class FastSerializer {
 #endif  // V8_COMPRESS_POINTERS
   }
 
+  FastSnapshot* SerializeContext(Handle<Context> context);
+  FastSnapshot* SerializeIsolate();
+
+ private:
+  // Serialize the transitively reachable objects from the queue,
+  // until it is empty.
+  void ProcessQueue();
+
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end);
   void SerializeRootObject(FullObjectSlot slot);
@@ -60,7 +68,8 @@ class FastSerializer {
                              size_t slot_offset_within_source_lab,
                              Tagged<Object> slot_contents);
   void VisitCompressedSlot(size_t source_lab, size_t destination_lab,
-                           Address slot_address);
+                           size_t slot_offset_within_source_lab,
+                           Tagged<Object> slot_contents);
 
   LinearAllocationBuffer* GetOrCreateLab(Tagged<HeapObject> object);
 
@@ -89,8 +98,8 @@ class FastSerializer {
 
 class FastSerializer::ObjectSerializer : public ObjectVisitor {
  public:
-  ObjectSerializer(FastSerializer* serializer)
-      : isolate_(serializer->isolate_), serializer_(serializer) {}
+  ObjectSerializer(FastSerializer* serializer, Tagged<HeapObject> object)
+      : isolate_(serializer->isolate_), serializer_(serializer), object_(object) {}
   void SerializeObject();
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
@@ -130,6 +139,7 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
  private:
   Isolate* isolate_;
   FastSerializer* serializer_;
+  Tagged<HeapObject> object_;
 };
 
 }  // namespace internal

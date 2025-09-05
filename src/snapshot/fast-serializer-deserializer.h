@@ -53,6 +53,10 @@ class LinearAllocationBuffer {
 };
 
 // Slots in objects that might need relocating after a deserialization.
+// Whether the slot is 32 bit or 64 bit can be determined by the source lab.
+// TODO: Code relocs in x64 code have two complications: They are relative, and
+// they are unaligned.  Within one lab nothing needs to be done, but we can't
+// support inter-lab code relocs with this struct.
 class Relocation {
  public:
   Relocation(size_t source_lab, size_t destination_lab, size_t offset_in_source)

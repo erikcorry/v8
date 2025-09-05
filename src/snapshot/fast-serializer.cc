@@ -5,6 +5,7 @@
 #include "src/snapshot/fast-serializer.h"
 
 #include "src/common/ptr-compr-inl.h"
+#include "src/heap/visit-object.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 
@@ -115,6 +116,37 @@ LinearAllocationBuffer* FastSerializer::GetOrCreateLab(
   return lab;
 }
 
->>>>>>> 492868d4aeb (Create pseudo-lab for roots)
+FastSnapshot* SerializeIsolate() {
+  // TODO.
+  return nullptr;
+}
+
+void FastSerializer::ProcessQueue() {
+  while (!queue_empty()) {
+    Tagged<HeapObject> object = queue_.back();
+    queue_.pop_back();
+    ObjectSerializer serializer(this, object);
+    serializer.SerializeObject();
+  }
+}
+
+void FastSerializer::ObjectSerializer::SerializeObject() {
+  Tagged<Map> map = object_->map(serializer_->cage_base());
+  int size = object_->SizeFromMap(map);
+  // TODO: Do we need to avoid the visitors processing weakness.  Search for
+  // "Descriptor arrays have complex element weakness".
+  // Visit the map field.  The map is always in the main cage, so the base is given.
+  LinearAllocationBuffer* source_lab = serializer_->GetOrCreateLab(object_);
+  size_t offset = object_->address() - source_lab->start();
+  source_lab->Expand(offset, offset + size);
+  LinearAllocationBuffer* map_lab = serializer_->GetOrCreateLab(map);
+  serializer_->VisitCompressedSlot(source_lab->index(), map_lab->index(), offset, map);
+  // TODO: WTF UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), object_);
+  // Iterate references.
+  VisitObjectBody(serializer_->isolate(), map, object_, this);
+  // Nothing to do for the data payload.
+}
+
+>>>>>>> 6d043a32af1 (wip)
 }  // namespace internal
 }  // namespace v8
