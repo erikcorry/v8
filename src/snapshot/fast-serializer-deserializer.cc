@@ -4,6 +4,9 @@
 
 #include "src/snapshot/fast-serializer-deserializer.h"
 
+#include "src/snapshot/snapshot.h"
+#include "src/snapshot/fast-serializer.h"
+#include "include/v8-value-serializer.h"
 #include "src/base/build_config.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/objects-inl.h"
@@ -37,6 +40,22 @@ FastSnapshot::FastSnapshot()
     : zone_(&allocator_, "FastSnapshot"), labs_(&zone_), relocations_(&zone_) {}
 
 void foo() { FastSnapshot snapshot; }
+
+
+FastSnapshotCreatorImpl::FastSnapshotCreatorImpl(Isolate* isolate) : isolate_(isolate) {}
+
+FastSnapshotCreatorImpl::~FastSnapshotCreatorImpl() {
+
+}
+
+void FastSnapshotCreatorImpl::TakeSnapshot() {
+  FastSerializer serializer(this->isolate_, Snapshot::kDefaultSerializerFlags);
+  this->snapshot_ = serializer.Run();
+}
+
+void FastSnapshotCreatorImpl::ApplySnapshot(Isolate* isolate) {
+
+}
 
 }  // namespace internal
 }  // namespace v8
