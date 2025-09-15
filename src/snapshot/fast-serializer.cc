@@ -18,15 +18,53 @@ FastSerializer::FastSerializer(Isolate* isolate,
                                Snapshot::SerializerFlags flags)
     : zone_(&allocator_, "FastSerializer"),
       queue_(&zone_),
-      lab_liveness_map_(&zone_),
+      lab_liveness_maps_{
+          // Note: If the compiler complains that there are zero args when
+          // there should be 1 that probably just means there are not enough
+          // lines here.
+          ZoneAbslFlatHashMap<Address, uint64_t*>{&zone_},
+          ZoneAbslFlatHashMap<Address, uint64_t*>{&zone_},
+          ZoneAbslFlatHashMap<Address, uint64_t*>{&zone_},
+          ZoneAbslFlatHashMap<Address, uint64_t*>{&zone_},
+          ZoneAbslFlatHashMap<Address, uint64_t*>{&zone_},
+          ZoneAbslFlatHashMap<Address, uint64_t*>{&zone_},
+          ZoneAbslFlatHashMap<Address, uint64_t*>{&zone_}
+      },
       cage_base_(isolate),
       external_reference_encoder_(isolate),
       flags_(flags),
       snapshot_(new FastSnapshot()) {}
 
+AddressSpace FastSerializer::GetAddressSpace(Tagged<HeapObject> object) {
+  if (flags_ & Snapshot::kAllInOneSpace) {
+    return kSharedSpace;
+  }
+#ifndef V8_COMPRESS_POINTERS
+  return kUncompressed;
+#else
+  // Map is always in the regular cage.
+  Tagged<Map> map = object->map(cage_base());
+  if (object.IsInMainCageBase()) {
+    return kMainCage;
+  } else if (InstanceTypeChecker::IsTrustedObject(map)) {
+    return kTrustedCage;
+  } else if (InstanceTypeChecker::IsInstructionStream(map)) {
+    return kCodeSpace;
+  } else {
+    UNREACHABLE();
+  }
+#endif
+}
+
+AllocationSpace FastSerializer::GetAllocationSpace(Tagged<HeapObject> object) {
+  MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(object);
+  return metadata->owner()->identity();
+}
+
 bool FastSerializer::IsMarked(Tagged<HeapObject> object) {
+  AddressSpace address_space = GetAddressSpace(object);
   Address lab_start = RoundDown(object->address(), kRegularPageSize);
-  uint64_t*& bitmap = lab_liveness_map_[lab_start];
+  uint64_t*& bitmap = lab_liveness_maps_[address_space][lab_start];
   if (bitmap == nullptr) {
     // We don't yet have a liveness map for this lab, so we allocate one.
     // Each 32 bit word is a bit in the map so we divide the size with 32.
@@ -42,8 +80,9 @@ bool FastSerializer::IsMarked(Tagged<HeapObject> object) {
 
 void FastSerializer::Mark(Tagged<HeapObject> object, size_t size) {
   Address lab_start = RoundDown(object->address(), kRegularPageSize);
-  auto it = lab_liveness_map_.find(lab_start);
-  uint64_t* bitmap = (it == lab_liveness_map_.end()) ? nullptr : it->second;
+  AddressSpace address_space = GetAddressSpace(object);
+  auto it = lab_liveness_maps_[address_space].find(lab_start);
+  uint64_t* bitmap = (it == lab_liveness_maps_[address_space].end()) ? nullptr : it->second;
   // We already called IsMarked so the bitmap must exist.
   DCHECK(bitmap != nullptr);
 
@@ -72,9 +111,8 @@ void FastSerializer::VisitRootPointers(
     FullObjectSlot end) {
   // Nothing points at the roots, so the location is not important.  We use the
   // zero location for this lab.
-  constexpr bool is_compressed = false;
-  LinearAllocationBuffer* lab = snapshot_->FindOrCreateLab(
-      0, AllocationSpace::ROOT_PSEUDO_SPACE, is_compressed);
+  LinearAllocationBuffer* lab = snapshot_->FindOrCreateFixedLocationLab(
+      0, kIgnoreAllocationSpace, AddressSpace::kRoots);
   for (FullObjectSlot current = start; current < end; ++current) {
     size_t offset = lab->highest();
     lab->Expand(offset, offset + sizeof(Address));
@@ -84,9 +122,9 @@ void FastSerializer::VisitRootPointers(
 }
 
 void FastSerializer::VisitUncompressedSlot(
-    size_t source_lab,
-    size_t slot_offset,  // Position in source lab.
-    Tagged<Object> maybe_smi) {
+    size_t source_lab,   // Lab that contains slot.
+    size_t slot_offset,  // Position of slot in source lab.
+    Tagged<Object> maybe_smi) {  // Object pointed to by slot.
   if (maybe_smi.IsSmi()) return;
   Tagged<HeapObject> slot_contents = Cast<HeapObject>(maybe_smi);
   LinearAllocationBuffer* lab = GetOrCreateLab(slot_contents);
@@ -100,19 +138,19 @@ void FastSerializer::VisitUncompressedSlot(
   }
 }
 
-LinearAllocationBuffer* FastSerializer::GetOrCreateLab(
+LinearAllocationBuffer* FastSerializer::GetOrCreateLabForFixedLocation(
     Tagged<HeapObject> object) {
-  AllocationSpace heap_space;
-  if (ReadOnlyHeap::Contains(object)) {
-    heap_space = AllocationSpace::RO_SPACE;
-  } else {
-    heap_space = MutablePageMetadata::FromHeapObject(object)->owner_identity();
-  }
+  DCHECK((flags_ & Snapshot::kUseIsolateMemory) != 0);
+  DCHECK((flags_ & Snapshot::kAllInOneSpace) == 0);
+  AddressSpace heap_space = GetAddressSpace(object);
   Address start = RoundDown(object.address(), kRegularPageSize);
+  Tagged<Map> map = object->map(cage_base());
+  int size = object->SizeFromMap(map);
 
   constexpr bool is_compressed = true;
+  AllocationSpace space = GetAllocationSpace(object);
   LinearAllocationBuffer* lab =
-      snapshot_->FindOrCreateLab(start, heap_space, is_compressed);
+      snapshot_->FindOrCreateFixedLocationLab(start, space, heap_space);
   return lab;
 }
 

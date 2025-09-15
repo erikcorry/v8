@@ -56,6 +56,9 @@ class FastSerializer {
 
   bool queue_empty() { return queue_.size() == 0; }
 
+  AddressSpace GetAddressSpace(Tagged<HeapObject> object);
+  AllocationSpace GetAllocationSpace(Tagged<HeapObject> object);
+
   bool IsMarked(Tagged<HeapObject> object);
   void Mark(Tagged<HeapObject> object, size_t size_in_bytes);
 
@@ -71,9 +74,14 @@ class FastSerializer {
                            size_t slot_offset_within_source_lab,
                            Tagged<Object> slot_contents);
 
-  LinearAllocationBuffer* GetOrCreateLab(Tagged<HeapObject> object);
+  // Create a lab for an object that has a fixed location, ie the same location
+  // in the serializer and the deserializer.
+  LinearAllocationBuffer* GetOrCreateLabForFixedLocation(Tagged<HeapObject> object);
 
   class ObjectSerializer;
+
+  // For pseudo spaces like roots or tables that are not part of a heap space.
+  static constexpr AllocationSpace kIgnoreAllocationSpace = NEW_SPACE;
 
   Isolate* isolate_;
   AccountingAllocator allocator_;  // For the zone.
@@ -86,7 +94,7 @@ class FastSerializer {
   // those no longer in the queue are black.  We mark the whole object, so at
   // the end this map shows the words that are in the source lab, but not part
   // of the snapshot.  Manipulated by Mark() and IsMarked().
-  ZoneAbslFlatHashMap<Address, uint64_t*> lab_liveness_map_;
+  std::array<ZoneAbslFlatHashMap<Address, uint64_t*>, kNumberOfAddressSpaces> lab_liveness_maps_;
   const PtrComprCageBase cage_base_;
   ExternalReferenceEncoder external_reference_encoder_;
   const Snapshot::SerializerFlags flags_;

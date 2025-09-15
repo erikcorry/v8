@@ -14,17 +14,36 @@
 namespace v8 {
 namespace internal {
 
+// Constructor that makes a lab backed by the old heap, which means it's in a
+// fixed place and has no backing store of its own.
 LinearAllocationBuffer::LinearAllocationBuffer(Zone* zone, size_t index,
                                                AllocationSpace space,
-                                               bool is_compressed,
+                                               AddressSpace address_space,
                                                Address lowest, Address highest)
     : lab_index_(index),
       points_to_(zone),
       space_(space),
-      is_compressed_(is_compressed),
+      address_space_(address_space),
+      own_backing_(false),
+      backing_(zone),
       start_(RoundDown(lowest, kRegularPageSize)),
       lowest_(lowest),
       highest_(highest) {}
+
+// Constructor that makes an empty lab with its own backing.
+LinearAllocationBuffer::LinearAllocationBuffer(Zone* zone, size_t index,
+                                               AllocationSpace space,
+                                               AddressSpace address_space,
+                                               Address rounded_address)
+    : lab_index_(index),
+      points_to_(zone),
+      space_(space),
+      address_space_(address_space),
+      own_backing_(true),
+      backing_(zone),
+      start_(rounded_address),
+      lowest_(rounded_address),
+      highest_(rounded_address) {}
 
 void LinearAllocationBuffer::SetPointsTo(int lab) {
   size_t index = lab >> 6;
@@ -45,14 +64,14 @@ FastSnapshot::FastSnapshot()
       remaining_fixups_(&zone_),
       root_lab_data_(&zone_) {}
 
-LinearAllocationBuffer* FastSnapshot::FindOrCreateLab(
-    Address for_address, AllocationSpace space_enum, bool is_compressed) {
-  LinearAllocationBuffer*& lab = labs_[for_address];
+LinearAllocationBuffer* FastSnapshot::FindOrCreateFixedLocationLab(
+    Address start, AllocationSpace space_enum, AddressSpace address_space) {
+  Address rounded_address = RoundDown(start, kRegularPageSize);
+  LinearAllocationBuffer*& lab = labs_[rounded_address];
   if (lab == nullptr) {
     // Updates collection because it's a reference.
     lab = zone_.New<LinearAllocationBuffer>(&zone_, labs_.size(), space_enum,
-                                            is_compressed, Address{0},
-                                            Address{0});
+                                            address_space, start, start);
   }
   return lab;
 }

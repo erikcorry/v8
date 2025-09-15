@@ -16,18 +16,44 @@ namespace internal {
 
 class Isolate;
 
+// Address spaces are mappings from integers to objects and slots within
+// objects.
+enum AddressSpace {
+  kUncompressed, // The uncaged 64 bit address space.
+  kMainCage,     // The first 4Gbytes of the sandbox.
+                 // This is a 32 bit space.
+  kTrustedCage,  // Trusted objects in their own compression cage.
+                 // Maybe a mixture of 32 bit and 64 bit :-/.
+  kCodeSpace,    // Executable machine code.
+                 // This may require custom relocation due to unaligned relative
+                 // pointers on x64.
+  kSharedSpace,  // The read-only shared space for immortal objects.
+  kRoots,        // The roots and global handles in the order they are visited.
+                 // This is a 64 bit space.
+  kExternalPointerTable,  // Entries in the external pointer table.  64 bit.
+  // Other tables ha.ve their own address spaces.
+  // Oilpan perhaps?
+  kNumberOfAddressSpaces
+};
+
 // LAB: An area that contains objects that are part of the snapshot.
 // A lab is always smaller than a 256k page, and always contained in
 // one 256k page (unless they are in a large object space). Often they
 // will hopefully be much smaller.
 class LinearAllocationBuffer {
  public:
+  // Constructor that makes a lab backed by the old heap, which means it's
+  // in a fixed place and has no backing store of its own.
   LinearAllocationBuffer(Zone* zone, size_t index, AllocationSpace space,
-                         bool is_compressed, Address lowest, Address highest);
+                         AddressSpace address_space, Address lowest, Address highest);
+  // Constructor that makes an empty lab with its own backing.
+  LinearAllocationBuffer(Zone* zone, size_t index, AllocationSpace space,
+                         AddressSpace address_space, Address rounded_address);
 
   size_t index() const { return lab_index_; }
   AllocationSpace space() const { return space_; }
-  bool is_compressed() const { return is_compressed_; }
+  AddressSpace address_space() const { return address_space_; }
+  bool is_compressed() const;
   Address start() const { return start_; }
   Address lowest() const { return lowest_; }
   Address highest() const { return highest_; }
@@ -45,11 +71,13 @@ class LinearAllocationBuffer {
  private:
   size_t lab_index_;                // Unique in a given snapshot.
   ZoneVector<uint64_t> points_to_;  // Bitmap of other labs this one points at.
-  AllocationSpace space_;           // Enum of the space type.
-  bool is_compressed_;              // If false, slots are pointer-sized.
+  AllocationSpace space_;           // Enum of which heap space we are in.
+  AddressSpace address_space_;      // Enum of which cage or table we are in.
+  bool own_backing_;                // Do we have a backing array, or are we just using the old heap.
+  ZoneVector<uint8_t> backing_;     // The actual bytes of the lab if it is not backed by the old heap.
   Address start_;                   // Location of start of 256k page.
-  Address lowest_;                  // Address of lowest object in lab.
-  Address highest_;                 // Address of end of highest object in lab.
+  Address lowest_;                  // Address of lowest object in lab.  Mutable.
+  Address highest_;                 // Address of end of highest object in lab.  Mutable.
 };
 
 // Slots in objects that might need relocating after a deserialization.
@@ -82,9 +110,9 @@ class FastSnapshot {
   FastSnapshot();
 
  private:
-  LinearAllocationBuffer* FindOrCreateLab(Address for_address,
-                                          AllocationSpace space,
-                                          bool is_compressed);
+  LinearAllocationBuffer* FindOrCreateFixedLocationLab(Address start_of_first_object,
+                                                       AllocationSpace space,
+                                                       AddressSpace address_space);
 
   void AddRelocation(size_t source_lab, size_t destination_lab,
                      size_t slot_offset);
