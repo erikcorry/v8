@@ -19,14 +19,14 @@ class Isolate;
 // Address spaces are mappings from integers to objects and slots within
 // objects.
 enum AddressSpace {
-  kUncompressed, // The uncaged 64 bit address space.
-  kMainCage,     // The first 4Gbytes of the sandbox.
-                 // This is a 32 bit space.
-  kTrustedCage,  // Trusted objects in their own compression cage.
-                 // Maybe a mixture of 32 bit and 64 bit :-/.
-  kCodeSpace,    // Executable machine code.
-                 // This may require custom relocation due to unaligned relative
-                 // pointers on x64.
+  kUncompressed,  // The uncaged 64 bit address space.
+  kMainCage,      // The first 4Gbytes of the sandbox.
+                  // This is a 32 bit space.
+  kTrustedCage,   // Trusted objects in their own compression cage.
+                  // Maybe a mixture of 32 bit and 64 bit :-/.
+  kCodeSpace,     // Executable machine code.
+               // This may require custom relocation due to unaligned relative
+               // pointers on x64.
   kSharedSpace,  // The read-only shared space for immortal objects.
   kRoots,        // The roots and global handles in the order they are visited.
                  // This is a 64 bit space.
@@ -45,7 +45,8 @@ class LinearAllocationBuffer {
   // Constructor that makes a lab backed by the old heap, which means it's
   // in a fixed place and has no backing store of its own.
   LinearAllocationBuffer(Zone* zone, size_t index, AllocationSpace space,
-                         AddressSpace address_space, Address lowest, Address highest);
+                         AddressSpace address_space, Address lowest,
+                         Address highest);
   // Constructor that makes an empty lab with its own backing.
   LinearAllocationBuffer(Zone* zone, size_t index, AllocationSpace space,
                          AddressSpace address_space, Address rounded_address);
@@ -58,11 +59,11 @@ class LinearAllocationBuffer {
   Address lowest() const { return lowest_; }
   Address highest() const { return highest_; }
 
-  void Expand(Address from, Address to) {
-    DCHECK(from >= start_);
-    if (lowest_ > from) lowest_ = from;
-    if (highest_ < to) highest_ = to;
-  }
+  // Set highest/lowest and extend the backing if there is one.
+  void Expand(Address from, Address to);
+
+  // A short-lived pointer into the backing.
+  uint8_t* BackingAt(size_t offset);
 
   // Set and get the set of labs this lab points at.
   void SetPointsTo(int other_index);
@@ -73,11 +74,13 @@ class LinearAllocationBuffer {
   ZoneVector<uint64_t> points_to_;  // Bitmap of other labs this one points at.
   AllocationSpace space_;           // Enum of which heap space we are in.
   AddressSpace address_space_;      // Enum of which cage or table we are in.
-  bool own_backing_;                // Do we have a backing array, or are we just using the old heap.
-  ZoneVector<uint8_t> backing_;     // The actual bytes of the lab if it is not backed by the old heap.
-  Address start_;                   // Location of start of 256k page.
-  Address lowest_;                  // Address of lowest object in lab.  Mutable.
-  Address highest_;                 // Address of end of highest object in lab.  Mutable.
+  bool own_backing_;  // Do we have a backing array, or are we just using the
+                      // old heap.
+  ZoneVector<uint8_t> backing_;  // The actual bytes of the lab if it is not
+                                 // backed by the old heap.
+  Address start_;                // Location of start of 256k page.
+  Address lowest_;               // Address of lowest object in lab.  Mutable.
+  Address highest_;  // Address of end of highest object in lab.  Mutable.
 };
 
 // Slots in objects that might need relocating after a deserialization.
@@ -87,19 +90,23 @@ class LinearAllocationBuffer {
 // support inter-lab code relocs with this struct.
 class Relocation {
  public:
-  Relocation(size_t source_lab, size_t destination_lab, size_t offset_in_source)
+  Relocation(size_t source_lab, size_t destination_lab, size_t offset_in_source,
+             bool compressed)
       : source_lab_(source_lab),
         destination_lab_(destination_lab),
-        offset_(offset_in_source) {}
+        offset_(offset_in_source),
+        compressed_(compressed) {}
 
   size_t source_lab() const { return source_lab_; }
   size_t destination_lab() const { return destination_lab_; }
   size_t offset() const { return offset_; }
+  bool compressed() const { return compressed_; }
 
  private:
   size_t source_lab_;       // The lab containing the slot.
   size_t destination_lab_;  // The lab the slot is pointing to.
   size_t offset_;           // Location of the slot within the source, in bytes.
+  bool compressed_;         // 32 bit or 64 bit field.
 };
 
 // The FastSnapshot is an in-memory representation of a snapshot.  The
@@ -110,12 +117,8 @@ class FastSnapshot {
   FastSnapshot();
 
  private:
-  LinearAllocationBuffer* FindOrCreateFixedLocationLab(Address start_of_first_object,
-                                                       AllocationSpace space,
-                                                       AddressSpace address_space);
-
   void AddRelocation(size_t source_lab, size_t destination_lab,
-                     size_t slot_offset);
+                     size_t slot_offset, bool compressed);
 
   class AddressMatcher : public base::KeyEqualityMatcher<Address> {
    public:
@@ -127,7 +130,6 @@ class FastSnapshot {
 
   AccountingAllocator allocator_;  // For the zone.
   Zone zone_;
-  ZoneAbslFlatHashMap<Address, LinearAllocationBuffer*> labs_;
   SmallZoneVector<Relocation, 10> relocations_;
   // These are the special fixups that have to be done at the end because
   // they don't fit in our normal way of copying and relocating.

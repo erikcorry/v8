@@ -57,29 +57,34 @@ bool LinearAllocationBuffer::PointsTo(int lab) const {
   return (points_to_[index] & (uint64_t{1} << (lab & 0x3f))) != 0;
 }
 
+void LinearAllocationBuffer::Expand(Address from, Address to) {
+  DCHECK(from >= start_);
+  if (lowest_ > from) lowest_ = from;
+  if (highest_ < to) highest_ = to;
+  if (own_backing_) {
+    while (backing_.size() < to) {
+      backing_.push_back(0);
+    }
+  }
+}
+
+uint8_t* LinearAllocationBuffer::BackingAt(size_t offset) {
+  CHECK(own_backing_);
+  // Return a short-lived pointer into backing_.
+  return &backing_[offset];
+}
+
 FastSnapshot::FastSnapshot()
     : zone_(&allocator_, "FastSnapshot"),
-      labs_(&zone_),
       relocations_(&zone_),
       remaining_fixups_(&zone_),
       root_lab_data_(&zone_) {}
 
-LinearAllocationBuffer* FastSnapshot::FindOrCreateFixedLocationLab(
-    Address start, AllocationSpace space_enum, AddressSpace address_space) {
-  Address rounded_address = RoundDown(start, kRegularPageSize);
-  LinearAllocationBuffer*& lab = labs_[rounded_address];
-  if (lab == nullptr) {
-    // Updates collection because it's a reference.
-    lab = zone_.New<LinearAllocationBuffer>(&zone_, labs_.size(), space_enum,
-                                            address_space, start, start);
-  }
-  return lab;
-}
-
 void FastSnapshot::AddRelocation(size_t source_lab, size_t dest_lab,
-                                 size_t slot_offset) {
+                                 size_t slot_offset, bool compressed) {
   if (source_lab != dest_lab) {
-    relocations_.push_back(Relocation(source_lab, dest_lab, slot_offset));
+    relocations_.push_back(
+        Relocation(source_lab, dest_lab, slot_offset, compressed));
   }
 }
 
