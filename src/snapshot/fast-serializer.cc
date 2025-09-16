@@ -122,6 +122,15 @@ void FastSerializer::VisitRootPointers(
   }
 }
 
+// Called on slots.
+// Marks and queues any new objects discovered that are part of the snapshot.
+// The caller has already used cage bases etc. to determine the real location
+// of any compressed slots, and the uncompressed pointed-to Address is passed
+// to us.
+// If we are reallocating the objects in a new location then it is called on
+// the location of the new slot.
+// In this case it will rewrite any slots that point to HeapObjects to point to
+// the new location.
 void FastSerializer::VisitSlot(
     LinearAllocationBuffer* slot_lab,  // Lab containing slot.
     size_t slot_offset,                // Position of slot in slot_lab.
@@ -265,7 +274,8 @@ void FastSerializer::ObjectSerializer::SerializeObject() {
   constexpr bool compressed = true;
   serializer_->VisitSlot(dest_lab_, dest_offset_, map, compressed);
   // TODO: WTF UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), object_);
-  // Iterate references.
+  // Iterate references.  This will call some of the virtuals on the
+  // ObjectSerializer.
   VisitObjectBody(serializer_->isolate(), map, object_, this);
   // Nothing to do for the data payload.
 }
