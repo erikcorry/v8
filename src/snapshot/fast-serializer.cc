@@ -117,8 +117,7 @@ void FastSerializer::VisitRootPointers(
     size_t offset = roots_lab_->highest();
     roots_lab_->Expand(offset, offset + sizeof(Address));
     snapshot_->root_lab_data_.push_back((*current).ptr());
-    constexpr bool compressed = false;
-    VisitSlot(roots_lab_, offset, *current, compressed);
+    VisitSlot(roots_lab_, offset, current);
   }
 }
 
@@ -131,52 +130,67 @@ void FastSerializer::VisitRootPointers(
 // the location of the new slot.
 // In this case it will rewrite any slots that point to HeapObjects to point to
 // the new location.
+template <typename Slot>
 void FastSerializer::VisitSlot(
     LinearAllocationBuffer* slot_lab,  // Lab containing slot.
     size_t slot_offset,                // Position of slot in slot_lab.
-    Tagged<Object> maybe_smi,          // Object pointed to by slot.
-    bool compressed_slot) {
-  if (maybe_smi.IsSmi()) return;
-  Tagged<HeapObject> slot_contents = Cast<HeapObject>(maybe_smi);
-  Address start = slot_contents.address();
-  size_t size = slot_contents->Size();
+    Slot maybe_smi) {
+  typename Slot::TObject slot_contents = *maybe_smi;
+  Tagged<HeapObject> heap_object;
+  // We don't need to do anything for Smis.  GetHeapObject returns true for
+  // both weak and strong heap object slots.
+  if (!slot_contents.GetHeapObject(&heap_object)) return;
+  // If the slot is a cleared weak slot then we don't need to do anything.
+  // TODO: What if it's a 64 bit slot and only the bottom 32 bits are cleared?
+  if (Slot::kCanBeWeak && heap_object.IsCleared()) return;
+  Address start = heap_object.address();
   if ((flags_ & Snapshot::kUseIsolateMemory) != 0) {
     // The labs just record the real location of the objects.
-    LinearAllocationBuffer* lab = GetOrCreateLabForFixedLocation(slot_contents);
+    LinearAllocationBuffer* lab = GetOrCreateLabForFixedLocation(heap_object);
     if (lab->index() != slot_lab->index()) {
       snapshot_->AddRelocation(slot_lab->index(), lab->index(), slot_offset,
-                               compressed_slot);
+                               true);
     }
+    size_t size = heap_object->Size();
     lab->Expand(start, start + size);
-    if (!IsMarked(slot_contents)) {
-      Mark(slot_contents, size);
-      queue_.push_back(slot_contents);
+    if (!IsMarked(heap_object)) {
+      Mark(heap_object, size);
+      queue_.push_back(heap_object);
     }
   } else {
-    if (!IsMarked(slot_contents)) {
-      Mark(slot_contents, size);
-      queue_.push_back(slot_contents);
+    if (!IsMarked(heap_object)) {
+      size_t size = heap_object->Size();
+      Mark(heap_object, size);
+      queue_.push_back(heap_object);
       // The objects are reallocated in tightly packed labs that we create
       // in the serializer for use by the deserializer.
-      LinearAllocationBuffer* lab = GetOrCreatePackedLab(slot_contents, size);
+      LinearAllocationBuffer* lab = GetOrCreatePackedLab(heap_object, size);
       size_t offset = lab->highest();
       lab->Expand(offset, offset + size);
-      // We may overwrite parts of the object later, but for now we copy
-      // everything into the allocation.
+      // We may overwrite slots in the object later, but for now we copy
+      // everything in the newly discovered object into the allocation.
       memcpy(lab->BackingAt(offset), reinterpret_cast<void*>(start), size);
-      if (compressed_slot) {
+      // Update the slot to point to the new location.  We do this update
+      // in the new location in the lab.
+      Slot::TObject new_slot(
+
+
+      // TODO: This is wrong, doesn't tag the fixed pointer correctly.
+      /*if (compressed_slot) {
         CHECK(offset - lab->start() < 0x10000000ULL);
         uint32_t offset_in_lab = static_cast<uint32_t>(offset - lab->start());
         *reinterpret_cast<uint32_t*>(slot_lab->BackingAt(slot_offset)) =
             offset_in_lab;
       } else {
         *reinterpret_cast<Address*>(slot_lab->BackingAt(slot_offset)) = offset;
-      }
+      }*/
       snapshot_->AddRelocation(slot_lab->index(), lab->index(), slot_offset,
-                               compressed_slot);
+                               true);
       new_locations_[start] = {lab, offset};
     } else {
       LabAndOffset lao = new_locations_[start];
+      // TODO: This is wrong, doesn't tag the fixed pointer correctly.
+      /*
       if (compressed_slot) {
         CHECK(lao.offset < 0x10000000ULL);
         uint32_t offset_in_lab = static_cast<uint32_t>(lao.offset);
@@ -186,8 +200,9 @@ void FastSerializer::VisitSlot(
         *reinterpret_cast<Address*>(slot_lab->BackingAt(slot_offset)) =
             lao.offset;
       }
+      */
       snapshot_->AddRelocation(slot_lab->index(), lao.lab->index(), lao.offset,
-                               compressed_slot);
+                               true);
     }
   }
 }
@@ -266,20 +281,30 @@ void FastSerializer::ProcessQueue() {
 
 void FastSerializer::ObjectSerializer::SerializeObject() {
   CHECK(serializer_->IsMarked(object_));
-  Tagged<Map> map = object_->map(serializer_->cage_base());
   // TODO: Do we need to avoid the visitors processing weakness.  Search for
   // "Descriptor arrays have complex element weakness".
-  // Visit the map field.  The map is always in the main cage, so the base is
-  // given.
-  constexpr bool compressed = true;
-  serializer_->VisitSlot(dest_lab_, dest_offset_, map, compressed);
   // TODO: WTF UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), object_);
   // Iterate references.  This will call some of the virtuals on the
   // ObjectSerializer.
-  VisitObjectBody(serializer_->isolate(), map, object_, this);
+  VisitObject(serializer_->isolate(), object_, this);
   // Nothing to do for the data payload.
 }
 
->>>>>>> 6d043a32af1 (wip)
+void FastSerializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
+                                                     CompressedObjectSlot start,
+                                                     CompressedObjectSlot end) {
+  VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
+}
+
+void FastSerializer::ObjectSerializer::VisitPointers(
+    Tagged<HeapObject> host, CompressedMaybeObjectSlot start,
+    CompressedMaybeObjectSlot end) {
+  Address base_address = object_.address();
+  for (CompressedMaybeObjectSlot slot = start; slot <= end; slot++) {
+    size_t offset = slot.address() - base_address;
+    serializer_->VisitSlot(dest_lab_, offset, slot);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

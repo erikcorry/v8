@@ -45,6 +45,8 @@ class FastSerializer {
   FastSnapshot* SerializeContext(Handle<Context> context);
   FastSnapshot* SerializeIsolate();
 
+  std::unique_ptr<FastSnapshot> Run();
+
  private:
   // Serialize the transitively reachable objects from the queue,
   // until it is empty.
@@ -62,13 +64,13 @@ class FastSerializer {
   bool IsMarked(Tagged<HeapObject> object);
   void Mark(Tagged<HeapObject> object, size_t size_in_bytes);
 
-  std::unique_ptr<FastSnapshot> Run();
-
  private:
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
-  void VisitSlot(LinearAllocationBuffer* slot_lab, size_t slot_offset,
-                 Tagged<Object> slot_contents, bool compressed_slot);
+  template <typename Slot>
+  void VisitSlot(LinearAllocationBuffer* slot_dest_lab,
+                 size_t slot_dest_offset,
+                 Slot slot);
 
   // Create a lab for an object that has a fixed location, ie the same location
   // in the serializer and the deserializer.
