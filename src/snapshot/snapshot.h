@@ -52,6 +52,14 @@ class Snapshot : public AllStatic {
     // objects are serialized, and the shared heap object cache is populated as
     // shared heap objects are serialized.
     kReconstructReadOnlyAndSharedObjectCachesForTesting = 1 << 2,
+    // Should all objects from each cage be pushed into the same labs, which
+    // will become the read-only (shared) heap.  Only used by the fast
+    // snapshots.  This can't be set at the same time as kUseIsolateMemory.
+    kAllInOneSpace = 1 << 3,
+    // Should the snapshot use the old isolate memory as part of its backing
+    // memory, as opposed to being self-contained.  Only used by the fast
+    // snapshots.  This can't be set at the same time as kAllInOneSpace.
+    kUseIsolateMemory = 1 << 4,
   };
   using SerializerFlags = base::Flags<SerializerFlag>;
   V8_EXPORT_PRIVATE static constexpr SerializerFlags kDefaultSerializerFlags =
