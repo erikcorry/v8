@@ -5,20 +5,27 @@
 #ifndef V8_SNAPSHOT_READ_ONLY_SERIALIZER_H_
 #define V8_SNAPSHOT_READ_ONLY_SERIALIZER_H_
 
+#include "src/snapshot/fast-serializer.h"
 #include "src/snapshot/roots-serializer.h"
 
 namespace v8 {
 namespace internal {
+
+class V8_EXPORT_PRIVATE ReadOnlySerializer : public FastSerializer {
+ public:
+  ReadOnlySerializer(Isolate* isolate, Snapshot::SerializerFlags flags)
+      : FastSerializer(isolate, flags) {}
+};
 
 // TODO(jgruber): Now that this does a memcpy-style serialization, there is no
 // longer a fundamental reason to inherit from RootsSerializer. It's still
 // convenient though because callers expect parts of the Serializer interface
 // (e.g.: rehashability, serialization statistics, blob creation).
 // Consider removing this inheritance.
-class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
+class V8_EXPORT_PRIVATE OldReadOnlySerializer : public RootsSerializer {
  public:
-  ReadOnlySerializer(Isolate* isolate, Snapshot::SerializerFlags flags);
-  ~ReadOnlySerializer() override;
+  OldReadOnlySerializer(Isolate* isolate, Snapshot::SerializerFlags flags);
+  ~OldReadOnlySerializer() override;
 
   // Serializes the entire ReadOnlySpace as well as the ReadOnlyRoots table.
   void Serialize();
@@ -28,8 +35,8 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
     UNREACHABLE();
   }
 
-  ReadOnlySerializer(const ReadOnlySerializer&) = delete;
-  ReadOnlySerializer& operator=(const ReadOnlySerializer&) = delete;
+  OldReadOnlySerializer(const OldReadOnlySerializer&) = delete;
+  OldReadOnlySerializer& operator=(const OldReadOnlySerializer&) = delete;
 };
 
 }  // namespace internal

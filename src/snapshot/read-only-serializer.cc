@@ -471,15 +471,15 @@ std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
 
 }  // namespace
 
-ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
-                                       Snapshot::SerializerFlags flags)
+OldReadOnlySerializer::OldReadOnlySerializer(Isolate* isolate,
+                                             Snapshot::SerializerFlags flags)
     : RootsSerializer(isolate, flags, RootIndex::kFirstReadOnlyRoot) {}
 
-ReadOnlySerializer::~ReadOnlySerializer() {
-  OutputStatistics("ReadOnlySerializer");
+OldReadOnlySerializer::~OldReadOnlySerializer() {
+  OutputStatistics("OldReadOnlySerializer");
 }
 
-void ReadOnlySerializer::Serialize() {
+void OldReadOnlySerializer::Serialize() {
   DisallowGarbageCollection no_gc;
   ReadOnlyHeapImageSerializer::Serialize(isolate(), &sink_,
                                          GetUnmappedRegions(isolate()));
