@@ -14,6 +14,7 @@
 #include "src/objects/bytecode-array.h"
 #include "src/objects/instruction-stream.h"
 #include "src/objects/objects.h"
+#include "src/objects/visitors.h"
 #include "src/snapshot/fast-serializer-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/identity-map.h"
@@ -23,7 +24,7 @@ namespace internal {
 
 // The 'fast' refers to the speed of deserialization.  The serializer
 // itself is not particularly fast.
-class FastSerializer {
+class FastSerializer : public RootVisitor {
  public:
   FastSerializer(Isolate* isolate, Snapshot::SerializerFlags flags);
   ~FastSerializer();
@@ -42,19 +43,25 @@ class FastSerializer {
 #endif  // V8_COMPRESS_POINTERS
   }
 
+  void Serialize();
   FastSnapshot* SerializeContext(Handle<Context> context);
   FastSnapshot* SerializeIsolate();
 
   std::unique_ptr<FastSnapshot> Run();
 
- private:
   // Serialize the transitively reachable objects from the queue,
-  // until it is empty.
+  // until it is empty.  TODO: Should be private.
   void ProcessQueue();
 
+  FastSnapshot* snapshot() { return snapshot_; }
+
+  bool can_be_rehashed() const { return false; }
+
+  int TotalAllocationSize() const { return snapshot_->TotalAllocationSize(); }
+
+ private:
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end);
-  void SerializeRootObject(FullObjectSlot slot);
 
   bool queue_empty() { return queue_.size() == 0; }
 
@@ -64,7 +71,6 @@ class FastSerializer {
   bool IsMarked(Tagged<HeapObject> object);
   void Mark(Tagged<HeapObject> object, size_t size_in_bytes);
 
- private:
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 
   template <typename Slot>
@@ -129,16 +135,12 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
  public:
   ObjectSerializer(FastSerializer* serializer, Tagged<HeapObject> object,
                    LinearAllocationBuffer* dest_lab, size_t dest_offset)
-      : isolate_(serializer->isolate_),
-        serializer_(serializer),
-        object_(object),
-        dest_lab_(dest_lab),
-        dest_offset_(dest_offset) {}
+      : serializer_(serializer), object_(object), dest_lab_(dest_lab) {}
   void SerializeObject();
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
-  void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) override;
+  void VisitPointers(Tagged<HeapObject> host, CompressedMaybeObjectSlot start,
+                     CompressedMaybeObjectSlot end) override;
   void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override;
   void VisitEmbeddedPointer(Tagged<InstructionStream> host,
@@ -171,11 +173,9 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
                                  JSDispatchHandle handle) override;
 
  private:
-  Isolate* isolate_;
   FastSerializer* serializer_;
   Tagged<HeapObject> object_;
   LinearAllocationBuffer* dest_lab_;
-  size_t dest_offset_;
 };
 
 }  // namespace internal

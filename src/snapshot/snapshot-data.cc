@@ -20,6 +20,8 @@ void SerializedData::AllocateData(uint32_t size) {
 // static
 constexpr uint32_t SerializedData::kMagicNumber;
 
+SnapshotData::SnapshotData(const FastSerializer* serializer) {}
+
 SnapshotData::SnapshotData(const Serializer* serializer) {
   DisallowGarbageCollection no_gc;
   const std::vector<uint8_t>* payload = serializer->Payload();
