@@ -15,6 +15,7 @@ namespace v8 {
 namespace internal {
 
 class BigInt;
+class FastSerializer;
 class FieldType;
 class HeapObject;
 class HeapNumber;
@@ -539,6 +540,7 @@ class Tagged<HeapObject> : public StrongTaggedBase {
 
  private:
   friend class HeapObject;
+  friend class FastSerializer;
   // Handles of the same type are allowed to access the Address constructor.
   friend class Handle<HeapObject>;
 #ifdef V8_ENABLE_DIRECT_HANDLE
