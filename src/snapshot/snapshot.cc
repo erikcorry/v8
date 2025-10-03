@@ -20,6 +20,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/snapshot/context-deserializer.h"
 #include "src/snapshot/context-serializer.h"
+#include "src/snapshot/fast-serializer.h"
 #include "src/snapshot/read-only-serializer.h"
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/snapshot/snapshot-utils.h"

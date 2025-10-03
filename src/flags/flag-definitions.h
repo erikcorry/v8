@@ -3427,6 +3427,7 @@ DEFINE_BOOL(cet_compatible, V8_CET_SHADOW_STACK_BOOL,
             "Generate Intel CET compatible code")
 
 // mksnapshot.cc
+DEFINE_BOOL(fast_snapshot, false, "Generate a fast snapshot. (mksnapshot only)")
 DEFINE_STRING(embedded_src, nullptr,
               "Path for the generated embedded data file. (mksnapshot only)")
 DEFINE_STRING(

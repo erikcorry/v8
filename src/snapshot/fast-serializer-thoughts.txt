@@ -109,3 +109,14 @@ Bet:
   We have a limited number of labs.
   If we play our cards right, many of the fixups disappear.
   If we play our cards right, all of the fixups disappear.
+
+ReadOnlySnapshot
+
+To start with we will try to replace the ReadOnlySnapshot.
+Currently this is deserialized with a memcpy and some fixups.
+Probably only has very few labs.  The roots (32 bit and 64 bit)
+and the single page of read-only objects.
+
+We have to do this in the mode where we reuse the original isolate's memory
+because the exact layout is very critical due to static roots.
+https://v8.dev/blog/static-roots
