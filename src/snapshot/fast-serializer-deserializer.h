@@ -116,6 +116,16 @@ class FastSnapshot {
  public:
   FastSnapshot();
 
+  base::Vector<const uint8_t> RawData() {
+    // TODO: return a serialized version.
+    UNREACHABLE();
+  }
+
+  int TotalAllocationSize() {
+    // TODO:
+    return 1;
+  }
+
  private:
   void AddRelocation(size_t source_lab, size_t destination_lab,
                      size_t slot_offset, bool compressed);
