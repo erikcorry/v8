@@ -81,7 +81,7 @@ AddressSpace FastSerializer::GetAddressSpace(Tagged<HeapObject> object) {
 }
 
 AllocationSpace FastSerializer::GetAllocationSpace(Tagged<HeapObject> object) {
-  MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(object);
+  MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(isolate_, object);
   return metadata->owner()->identity();
 }
 
