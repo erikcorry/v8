@@ -25,13 +25,13 @@ FastSerializer::FastSerializer(Isolate* isolate,
       cage_base_(isolate),
       external_reference_encoder_(isolate),
       flags_(flags),
+      previous_serializers_(&zone_),
       snapshot_(new FastSnapshot()) {
   // Nothing points at the roots, so the location is not important.  We use the
   // zero location for this lab.
   Address location = 0;
-  int lab_index = 0;
   roots_lab_ = zone_.New<LinearAllocationBuffer>(
-      &zone_, lab_index++, kIgnoreAllocationSpace, AddressSpace::kRoots,
+      &zone_, next_lab_index_++, kIgnoreAllocationSpace, AddressSpace::kRoots,
       location, location);
   for (int space = 0; space < kNumberOfAddressSpaces; space++) {
     address_space_fullnesses_[space] = 0;
@@ -40,6 +40,8 @@ FastSerializer::FastSerializer(Isolate* isolate,
     lab_per_space_[space] = nullptr;
   }
 }
+
+int FastSerializer::next_lab_index_ = 0;
 
 void FastSerializer::Serialize() {
   DisallowGarbageCollection no_gc;
@@ -81,19 +83,23 @@ AddressSpace FastSerializer::GetAddressSpace(Tagged<HeapObject> object) {
 }
 
 AllocationSpace FastSerializer::GetAllocationSpace(Tagged<HeapObject> object) {
-  MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(isolate_, object);
+  MemoryChunkMetadata* metadata =
+      MemoryChunkMetadata::FromHeapObject(isolate_, object);
   return metadata->owner()->identity();
 }
 
 bool FastSerializer::IsMarked(Tagged<HeapObject> object) {
+  if (LocalIsMarked(object)) return true;
+  for (auto it : previous_serializers_) {
+    if (it->LocalIsMarked(object)) return true;
+  }
+  return false;
+}
+
+bool FastSerializer::LocalIsMarked(Tagged<HeapObject> object) {
   Address lab_start = RoundDown(object->address(), kRegularPageSize);
   uint64_t*& bitmap = lab_liveness_map_[lab_start];
-  if (bitmap == nullptr) {
-    // We don't yet have a liveness map for this lab, so we allocate one.
-    // Each 32 bit word is a bit in the map so we divide the size with 32.
-    bitmap = reinterpret_cast<uint64_t*>(
-        zone_.Allocate<uint64_t>(kRegularPageSize / 32));
-  }
+  if (bitmap == nullptr) return false;
   constexpr int kWordSize = sizeof(uint32_t);  // Words on a compressed heap.
   size_t byte_offset = object->address() - lab_start;
   size_t index = byte_offset / (64 * kWordSize);
@@ -105,9 +111,12 @@ void FastSerializer::Mark(Tagged<HeapObject> object, size_t size) {
   Address lab_start = RoundDown(object->address(), kRegularPageSize);
   auto it = lab_liveness_map_.find(lab_start);
   uint64_t* bitmap = (it == lab_liveness_map_.end()) ? nullptr : it->second;
-  // We already called IsMarked so the bitmap must exist.
-  DCHECK(bitmap != nullptr);
-
+  if (bitmap == nullptr) {
+    // We don't yet have a liveness map for this lab, so we allocate one.
+    // Each 32 bit word is a bit in the map so we divide the size with 32.
+    bitmap = reinterpret_cast<uint64_t*>(
+        zone_.Allocate<uint64_t>(kRegularPageSize / 32));
+  }
   size_t start_offset = object->address() - lab_start;
   size_t end_offset = object->address() + size - lab_start;
   end_offset = std::max(end_offset, size_t{kRegularPageSize});
@@ -139,6 +148,20 @@ void FastSerializer::VisitRootPointers(
   }
 }
 
+FastSerializer::LabAndOffset FastSerializer::NewLocation(Address start) {
+  auto it = new_locations_.find(start);
+  if (it != new_locations_.end()) {
+    return it->second;
+  }
+  for (auto prev : previous_serializers_) {
+    auto it2 = prev->new_locations_.find(start);
+    if (it2 != prev->new_locations_.end()) {
+      return it2->second;
+    }
+  }
+  UNREACHABLE();
+}
+
 // Called on slots.
 // Marks and queues any new objects discovered that are part of the snapshot.
 // The caller has already used cage bases etc. to determine the real location
@@ -168,18 +191,30 @@ void FastSerializer::VisitSlot(
   if (Slot::kCanBeWeak && heap_object.IsCleared()) return;
   Address start = heap_object.address();
   if ((flags_ & Snapshot::kUseIsolateMemory) != 0) {
-    // The labs just record the real location of the objects.
-    LinearAllocationBuffer* lab = GetOrCreateLabForFixedLocation(heap_object);
-    if (lab->index() != slot_lab->index()) {
-      snapshot_->AddRelocation(slot_lab->index(), lab->index(), slot_offset,
-                               true);
-    }
     size_t size = heap_object->Size();
-    lab->Expand(start, start + size);
     if (!IsMarked(heap_object)) {
       Mark(heap_object, size);
       queue_.push_back(heap_object);
     }
+    LinearAllocationBuffer* lab;
+    if (LocalIsMarked(heap_object)) {
+      // The object belongs to the current serializer.
+      // The labs just record the real location of the objects.
+      lab = GetOrCreateLabForFixedLocation(heap_object);
+      // TODO: We need to check whether the same fixed-location lab is in more
+      // than one stacked serializer - we probably can't handle that.
+    } else {
+      // The object is part of a previous serializer, so it's allocated in one
+      // of that serializer's labs.
+      lab = GetLabForFixedLocation(heap_object);
+    }
+    if (lab->index() != slot_lab->index()) {
+      snapshot_->AddRelocation(slot_lab->index(), lab->index(), slot_offset,
+                               true);
+    }
+    // Mark this object's range as part of the lab - may be a no-op if that
+    // already happened.
+    lab->Expand(start, start + size);
   } else {
     // We are constructing artificial labs for the snapshot.
     // Check if the slot points at an object that wasn't until now
@@ -206,7 +241,7 @@ void FastSerializer::VisitSlot(
           reinterpret_cast<Address>(lab->BackingAt(offset)));
       queue_.push_back(new_location);
     } else {
-      auto location = new_locations_[start];
+      auto location = NewLocation(start);
       lab = location.lab;
       offset = location.offset;
     }
@@ -241,6 +276,21 @@ void FastSerializer::VisitSlot(
   }
 }
 
+LinearAllocationBuffer* FastSerializer::GetLabForFixedLocation(
+    Tagged<HeapObject> object) {
+  DCHECK((flags_ & Snapshot::kUseIsolateMemory) != 0);
+  DCHECK((flags_ & Snapshot::kAllInOneSpace) == 0);
+  Address rounded_address = RoundDown(object.address(), kRegularPageSize);
+
+  LinearAllocationBuffer*& lab = lab_map_[rounded_address];
+  if (lab != nullptr) return lab;
+  for (auto it : previous_serializers_) {
+    lab = it->lab_map_[rounded_address];
+    if (lab != nullptr) return lab;
+  }
+  UNREACHABLE();
+}
+
 LinearAllocationBuffer* FastSerializer::GetOrCreateLabForFixedLocation(
     Tagged<HeapObject> object) {
   DCHECK((flags_ & Snapshot::kUseIsolateMemory) != 0);
@@ -253,7 +303,7 @@ LinearAllocationBuffer* FastSerializer::GetOrCreateLabForFixedLocation(
   LinearAllocationBuffer*& lab = lab_map_[rounded_address];
   if (lab == nullptr) {
     // Updates lab_map_ because it's a reference.
-    lab = zone_.New<LinearAllocationBuffer>(&zone_, all_labs_.size(), space,
+    lab = zone_.New<LinearAllocationBuffer>(&zone_, next_lab_index_++, space,
                                             address_space, object.address(),
                                             object.address());
     all_labs_.push_back(lab);
@@ -271,7 +321,7 @@ LinearAllocationBuffer* FastSerializer::GetOrCreatePackedLab(
       size_t fullness = address_space_fullnesses_[address_space];
       address_space_fullnesses_[address_space] += kRegularPageSize;
       lab = zone_.New<LinearAllocationBuffer>(
-          &zone_, all_labs_.size(), allocation_space, address_space, fullness);
+          &zone_, next_lab_index_++, allocation_space, address_space, fullness);
       lab_per_space_[allocation_space] = lab;
       all_labs_.push_back(lab);
     }
