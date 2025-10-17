@@ -59,6 +59,10 @@ class FastSerializer : public RootVisitor {
 
   int TotalAllocationSize() const { return snapshot_->TotalAllocationSize(); }
 
+  void AddPreviousSerializer(FastSerializer* previous) {
+    previous_serializers_.push_back(previous);
+  }
+
  private:
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end);
@@ -68,7 +72,11 @@ class FastSerializer : public RootVisitor {
   AddressSpace GetAddressSpace(Tagged<HeapObject> object);
   AllocationSpace GetAllocationSpace(Tagged<HeapObject> object);
 
+  // Is the object marked in this or a previous serializer.
   bool IsMarked(Tagged<HeapObject> object);
+  // Only ask the current serializer, not previous ones.
+  bool LocalIsMarked(Tagged<HeapObject> object);
+  // Mark live in this serializer.
   void Mark(Tagged<HeapObject> object, size_t size_in_bytes);
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
@@ -82,9 +90,21 @@ class FastSerializer : public RootVisitor {
   LinearAllocationBuffer* GetOrCreateLabForFixedLocation(
       Tagged<HeapObject> object);
 
+  // Searches this and previous serializers to get the lab for an object.
+  LinearAllocationBuffer* GetLabForFixedLocation(Tagged<HeapObject> object);
+
   // Find a lab in a given space that has space enough for an object.
   LinearAllocationBuffer* GetOrCreatePackedLab(Tagged<HeapObject> object,
                                                size_t size);
+
+  struct LabAndOffset {
+    LinearAllocationBuffer* lab;
+    size_t offset;
+  };
+
+  // Looks up in this serializer and the others to find the destination for the
+  // object at this address.
+  LabAndOffset NewLocation(Address start);
 
   class ObjectSerializer;
 
@@ -98,7 +118,7 @@ class FastSerializer : public RootVisitor {
   Zone zone_;
   // The queue contains the gray objects, whose slots have not yet been visited.
   // If it's a reallocating serializer the old location is used.
-  SmallZoneVector<Tagged<HeapObject>, 10> queue_;
+  ZoneVector<Tagged<HeapObject>> queue_;
   // One bit per word used to mark objects as white (not yet part of the
   // snapshot) or black/gray (have been found).  Objects in the queue are grey,
   // those no longer in the queue are black.  We mark the whole object, so at
@@ -111,20 +131,19 @@ class FastSerializer : public RootVisitor {
   ZoneAbslFlatHashMap<Address, LinearAllocationBuffer*> lab_map_;
   // For reallocating snapshots this is the forwarding table.  Contains an entry
   // for each object that is marked.
-  struct LabAndOffset {
-    LinearAllocationBuffer* lab;
-    size_t offset;
-  };
   ZoneAbslFlatHashMap<Address, LabAndOffset> new_locations_;
   // Virtual lab for the roots, in visiting order.
   LinearAllocationBuffer* roots_lab_ = nullptr;
   // For reallocating snapshots, the location of the end of the newest lab.
   size_t address_space_fullnesses_[kNumberOfAddressSpaces];
   LinearAllocationBuffer* lab_per_space_[LAST_SPACE + 1];
-  SmallZoneVector<LinearAllocationBuffer*, 10> all_labs_;
+  ZoneVector<LinearAllocationBuffer*> all_labs_;
   const PtrComprCageBase cage_base_;
   ExternalReferenceEncoder external_reference_encoder_;
   const Snapshot::SerializerFlags flags_;
+  ZoneVector<FastSerializer*> previous_serializers_;
+
+  static int next_lab_index_;
 
   std::unique_ptr<FastSnapshot> fast_snapshot_;
   FastSnapshot* snapshot_;
