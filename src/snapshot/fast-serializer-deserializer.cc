@@ -102,5 +102,10 @@ void FastSnapshotCreatorImpl::TakeSnapshot() {
 
 void FastSnapshotCreatorImpl::ApplySnapshot(Isolate* isolate) {}
 
+const std::vector<uint8_t>* FastSnapshot::Payload() const {
+  UNREACHABLE();
+  // TODO.
+}
+
 }  // namespace internal
 }  // namespace v8
