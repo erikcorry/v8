@@ -557,6 +557,22 @@ OldReadOnlySerializer::~OldReadOnlySerializer() {
   OutputStatistics("OldReadOnlySerializer");
 }
 
+void ReadOnlySerializer::Serialize() {
+  DisallowGarbageCollection no_gc;
+
+  ReadOnlyRoots read_only_roots(isolate());
+  read_only_roots.Iterate(this);
+
+  ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
+  for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+    CheckRehashability(o);
+  }
+}
+
+void ReadOnlySerializer::CheckRehashability(Tagged<HeapObject> o) {
+  // TODO.
+}
+
 void OldReadOnlySerializer::Serialize() {
   DisallowGarbageCollection no_gc;
   ReadOnlyHeapImageSerializer::Serialize(isolate(), &sink_);
