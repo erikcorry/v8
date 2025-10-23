@@ -16,7 +16,8 @@ FastSerializer::~FastSerializer() {}
 
 FastSerializer::FastSerializer(Isolate* isolate,
                                Snapshot::SerializerFlags flags)
-    : zone_(&allocator_, "FastSerializer"),
+    : isolate_(isolate),
+      zone_(&allocator_, "FastSerializer"),
       queue_(&zone_),
       lab_liveness_map_(&zone_),
       lab_map_(&zone_),
@@ -85,7 +86,9 @@ AddressSpace FastSerializer::GetAddressSpace(Tagged<HeapObject> object) {
 AllocationSpace FastSerializer::GetAllocationSpace(Tagged<HeapObject> object) {
   MemoryChunkMetadata* metadata =
       MemoryChunkMetadata::FromHeapObject(isolate_, object);
-  return metadata->owner()->identity();
+  BaseSpace* owner = metadata->owner();
+  if (!owner) return RO_SPACE;
+  return owner->identity();
 }
 
 bool FastSerializer::IsMarked(Tagged<HeapObject> object) {
@@ -332,11 +335,6 @@ LinearAllocationBuffer* FastSerializer::GetOrCreatePackedLab(
     }
     lab = nullptr;
   }
-}
-
-FastSnapshot* SerializeIsolate() {
-  // TODO.
-  return nullptr;
 }
 
 void FastSerializer::ProcessQueue() {

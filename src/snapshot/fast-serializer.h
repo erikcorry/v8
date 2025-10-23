@@ -45,7 +45,6 @@ class FastSerializer : public RootVisitor {
 
   void Serialize();
   FastSnapshot* SerializeContext(Handle<Context> context);
-  FastSnapshot* SerializeIsolate();
 
   std::unique_ptr<FastSnapshot> Run();
 

@@ -126,6 +126,8 @@ class FastSnapshot {
     return 1;
   }
 
+  const std::vector<uint8_t>* Payload() const;
+
  private:
   void AddRelocation(size_t source_lab, size_t destination_lab,
                      size_t slot_offset, bool compressed);
