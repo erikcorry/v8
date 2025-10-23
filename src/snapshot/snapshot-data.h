@@ -74,7 +74,7 @@ class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
   explicit SnapshotData(const Serializer* serializer);
 
   // TODO
-  explicit SnapshotData(const FastSerializer* serializer);
+  explicit SnapshotData(FastSerializer* serializer);
 
   // Used when consuming.
   explicit SnapshotData(const base::Vector<const uint8_t> snapshot)

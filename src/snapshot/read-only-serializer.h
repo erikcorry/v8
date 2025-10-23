@@ -15,6 +15,11 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public FastSerializer {
  public:
   ReadOnlySerializer(Isolate* isolate, Snapshot::SerializerFlags flags)
       : FastSerializer(isolate, flags) {}
+
+  // Serializes the entire ReadOnlySpace as well as the ReadOnlyRoots table.
+  void Serialize();
+
+  void CheckRehashability(Tagged<HeapObject> o);
 };
 
 // TODO(jgruber): Now that this does a memcpy-style serialization, there is no
