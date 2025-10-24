@@ -5,8 +5,8 @@
 #include "src/snapshot/snapshot-data.h"
 
 #include "src/common/assert-scope.h"
-#include "src/snapshot/fast-serializer.h"
 #include "src/snapshot/fast-serializer-deserializer.h"
+#include "src/snapshot/fast-serializer.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {

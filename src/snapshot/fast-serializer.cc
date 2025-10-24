@@ -240,9 +240,7 @@ void FastSerializer::VisitSlot(
       new_locations_[start] = {lab, offset};
 
       // Make the object gray and queue for processing.
-      Tagged<HeapObject> new_location(
-          reinterpret_cast<Address>(lab->BackingAt(offset)));
-      queue_.push_back(new_location);
+      queue_.push_back(heap_object);
     } else {
       auto location = NewLocation(start);
       lab = location.lab;
@@ -352,7 +350,8 @@ void FastSerializer::ProcessQueue() {
       dest_offset = lab_and_offset.offset;
       // Point at the new location of the object so the visitor can rewrite
       // slots.
-      object = Tagged<HeapObject>(dest_lab->start() + dest_offset);
+      object = Tagged<HeapObject>(reinterpret_cast<Address>(
+          dest_lab->BackingAt(dest_offset) + kHeapObjectTag));
     } else {
       // Using isolate memory for the lab, so the object doesn't move.
       Address dest_address = object.address();
@@ -366,7 +365,9 @@ void FastSerializer::ProcessQueue() {
 }
 
 void FastSerializer::ObjectSerializer::SerializeObject() {
-  CHECK(serializer_->IsMarked(object_));
+  // We get the object in its new location if we are relocating objects to
+  // synthetic labs.
+
   // TODO: Do we need to avoid the visitors processing weakness.  Search for
   // "Descriptor arrays have complex element weakness".
   // TODO: WTF UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), object_);

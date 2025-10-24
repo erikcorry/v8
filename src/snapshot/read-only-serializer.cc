@@ -560,6 +560,8 @@ void ReadOnlySerializer::Serialize() {
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
     CheckRehashability(o);
   }
+
+  ProcessQueue();  // Close transitivity.
 }
 
 void ReadOnlySerializer::CheckRehashability(Tagged<HeapObject> o) {
