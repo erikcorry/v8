@@ -82,7 +82,7 @@ class FastSerializer : public RootVisitor {
 
   template <typename Slot>
   void VisitSlot(LinearAllocationBuffer* slot_dest_lab, size_t slot_dest_offset,
-                 Slot slot);
+                 Slot old_slot, Slot new_slot);
 
   // Create a lab for an object that has a fixed location, ie the same location
   // in the serializer and the deserializer.
@@ -151,9 +151,13 @@ class FastSerializer : public RootVisitor {
 
 class FastSerializer::ObjectSerializer : public ObjectVisitor {
  public:
-  ObjectSerializer(FastSerializer* serializer, Tagged<HeapObject> object,
+  ObjectSerializer(FastSerializer* serializer, Tagged<HeapObject> old_object,
+                   Tagged<HeapObject> new_object,
                    LinearAllocationBuffer* dest_lab, size_t dest_offset)
-      : serializer_(serializer), object_(object), dest_lab_(dest_lab) {}
+      : serializer_(serializer),
+        old_object_(old_object),
+        new_object_(new_object),
+        dest_lab_(dest_lab) {}
   void SerializeObject();
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
@@ -193,7 +197,8 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
 
  private:
   FastSerializer* serializer_;
-  Tagged<HeapObject> object_;
+  Tagged<HeapObject> old_object_;  // The object in its original location.
+  Tagged<HeapObject> new_object_;  // The object copied into the snapshot.
   LinearAllocationBuffer* dest_lab_;
 };
 

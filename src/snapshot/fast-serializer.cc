@@ -6,8 +6,8 @@
 
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/visit-object.h"
-#include "src/objects/compressed-slots.h"
 #include "src/objects/compressed-slots-inl.h"
+#include "src/objects/compressed-slots.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 
@@ -119,16 +119,18 @@ void FastSerializer::Mark(Tagged<HeapObject> object, size_t size) {
   if (bitmap == nullptr) {
     // We don't yet have a liveness map for this lab, so we allocate one.
     // Each 32 bit word is a bit in the map so we divide the size with 32.
-    bitmap = reinterpret_cast<uint64_t*>(
-        zone_.Allocate<uint64_t>(kRegularPageSize / 32));
+    auto length = kRegularPageSize / 32;
+    bitmap = reinterpret_cast<uint64_t*>(zone_.Allocate<uint64_t>(length));
+    lab_liveness_map_[lab_start] = bitmap;
+    memset(bitmap, 0, length);
   }
   size_t start_offset = object->address() - lab_start;
   size_t end_offset = object->address() + size - lab_start;
-  end_offset = std::max(end_offset, size_t{kRegularPageSize});
+  end_offset = std::min(end_offset, size_t{kRegularPageSize});
   constexpr int kWordSize = sizeof(uint32_t);  // Words on a compressed heap.
   // Mark all words in the object. TODO(erikcorry): Do this more efficiently.
-  for (size_t o = start_offset; o < end_offset; o += sizeof(uint32_t)) {
-    size_t index = o / (64 * kWordSize);
+  for (size_t o = start_offset; o < end_offset; o += kWordSize) {
+    size_t index = (o / kWordSize) / 64;
     int bit_number = (o / kWordSize) & 63;
     bitmap[index] |= uint64_t{1} << bit_number;
   }
@@ -149,7 +151,7 @@ void FastSerializer::VisitRootPointers(
     size_t offset = roots_lab_->highest();
     roots_lab_->Expand(offset, offset + sizeof(Address));
     snapshot_->root_lab_data_.push_back((*current).ptr());
-    VisitSlot(roots_lab_, offset, current);
+    VisitSlot(roots_lab_, offset, current, current);
   }
 }
 
@@ -180,13 +182,14 @@ template <typename Slot>
 void FastSerializer::VisitSlot(
     LinearAllocationBuffer* slot_lab,  // Lab containing slot.
     size_t slot_offset,                // Position of slot in slot_lab.
-    Slot maybe_smi) {
+    Slot old_slot,                     // Slot in original object.
+    Slot new_slot) {                   // Slot in object in lab.
   // Don't use operator * here because it will use the location of the slot
   // to determine the cage base, but we might have memcpyed the object to a
   // lab by this time.  The load method uses the exact templated type of Slot
   // to work out which cage, if any, the contents should be interpreted
   // relative to.
-  typename Slot::TObject slot_contents = maybe_smi.load(isolate_);
+  typename Slot::TObject slot_contents = old_slot.load(isolate_);
   Tagged<HeapObject> heap_object;
   // We don't need to do anything for Smis.  GetHeapObject returns true for
   // both weak and strong heap object slots.
@@ -240,7 +243,6 @@ void FastSerializer::VisitSlot(
       // everything in the newly discovered object into the allocation.
       memcpy(lab->BackingAt(offset), reinterpret_cast<void*>(start), size);
       new_locations_[start] = {lab, offset};
-
       // Make the object gray and queue for processing.
       queue_.push_back(heap_object);
     } else {
@@ -257,19 +259,19 @@ void FastSerializer::VisitSlot(
       // We just want to store the new offset to the compressed 32 bit slot.
       // We make a fake pointer, which is at a given offset in the cage of the
       // slot.
-      Tagged<Object> new_location(
-          Slot::TCompressionScheme::DecompressTagged(static_cast<uint32_t>(offset) + kHeapObjectTag));
+      Tagged<Object> new_location(Slot::TCompressionScheme::DecompressTagged(
+          static_cast<uint32_t>(offset) + kHeapObjectTag));
       // This compressing store just writes the last 32 bits of the fake
       // pointer, ie the offset.  The store can assert that the location is in
       // the current cage, which is why we have to add the correct top 32 bits
       // above.
-      maybe_smi.store(new_location);
+      new_slot.store(new_location);
     } else {
       // Make a fake pointer to an object at a 32 bit offset that corresponds
       // to the offset.  The high 32 bits are zero, but that will be fixed by
       // the relocation.
       Tagged<Object> new_location(offset + kHeapObjectTag);
-      maybe_smi.store(new_location);
+      new_slot.store(new_location);
       is_compressed = false;
     }
     // Store a relocation that (if necessary) will change the pointer to the
@@ -340,6 +342,7 @@ LinearAllocationBuffer* FastSerializer::GetOrCreatePackedLab(
 void FastSerializer::ProcessQueue() {
   while (!queue_empty()) {
     Tagged<HeapObject> object = queue_.back();
+    Tagged<HeapObject> new_object = object;
     queue_.pop_back();
     size_t dest_offset;
     LinearAllocationBuffer* dest_lab;
@@ -352,7 +355,7 @@ void FastSerializer::ProcessQueue() {
       dest_offset = lab_and_offset.offset;
       // Point at the new location of the object so the visitor can rewrite
       // slots.
-      object = Tagged<HeapObject>(reinterpret_cast<Address>(
+      new_object = Tagged<HeapObject>(reinterpret_cast<Address>(
           dest_lab->BackingAt(dest_offset) + kHeapObjectTag));
     } else {
       // Using isolate memory for the lab, so the object doesn't move.
@@ -361,7 +364,8 @@ void FastSerializer::ProcessQueue() {
       dest_lab = lab_map_[rounded_address];
       dest_offset = dest_address - rounded_address;
     }
-    ObjectSerializer serializer(this, object, dest_lab, dest_offset);
+    ObjectSerializer serializer(this, object, new_object, dest_lab,
+                                dest_offset);
     serializer.SerializeObject();
   }
 }
@@ -375,7 +379,7 @@ void FastSerializer::ObjectSerializer::SerializeObject() {
   // TODO: WTF UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), object_);
   // Iterate references.  This will call some of the virtuals on the
   // ObjectSerializer.
-  VisitObject(serializer_->isolate(), object_, this);
+  VisitObject(serializer_->isolate(), old_object_, this);
   // Nothing to do for the data payload.
 }
 
@@ -388,16 +392,22 @@ void FastSerializer::ObjectSerializer::VisitPointers(Tagged<HeapObject> host,
 void FastSerializer::ObjectSerializer::VisitPointers(
     Tagged<HeapObject> host, CompressedMaybeObjectSlot start,
     CompressedMaybeObjectSlot end) {
-  Address base_address = object_.address();
+  Address base_address = old_object_.address();
   for (CompressedMaybeObjectSlot slot = start; slot <= end; slot++) {
-    size_t offset = slot.address() - base_address;
-    serializer_->VisitSlot(dest_lab_, offset, slot);
+    size_t in_object_offset = slot.address() - base_address;
+    size_t in_lab_offset = new_object_->address() -
+                           reinterpret_cast<Address>(dest_lab_->BackingAt(0));
+    CompressedMaybeObjectSlot new_slot(new_object_.address() +
+                                       in_object_offset);
+    serializer_->VisitSlot(dest_lab_, in_lab_offset + in_object_offset, slot,
+                           new_slot);
   }
 }
 
-void FastSerializer::ObjectSerializer::VisitMapPointer(Tagged<HeapObject> host) {
+void FastSerializer::ObjectSerializer::VisitMapPointer(
+    Tagged<HeapObject> host) {
   // Nothing special about the map for us.
-  VisitPointers(host, host->map_slot(), host->map_slot() + 1);
+  VisitPointers(host, host->map_slot(), host->map_slot());
 }
 
 void FastSerializer::ObjectSerializer::VisitInstructionStreamPointer(
