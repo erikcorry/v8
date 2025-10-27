@@ -142,14 +142,14 @@ class FastSnapshot {
 
   AccountingAllocator allocator_;  // For the zone.
   Zone zone_;
-  SmallZoneVector<Relocation, 10> relocations_;
+  ZoneVector<Relocation> relocations_;
   // These are the special fixups that have to be done at the end because
   // they don't fit in our normal way of copying and relocating.
   // It's a vector of uint32_t's which probably will be based on some sort
   // of bytecode system.
-  SmallZoneVector<uint32_t, 10> remaining_fixups_;
+  ZoneVector<uint32_t> remaining_fixups_;
   // The data in the pseudo-lab that backs the roots.
-  SmallZoneVector<Address, 10> root_lab_data_;
+  ZoneVector<Address> root_lab_data_;
 
   friend class FastSerializer;
 };
