@@ -6,6 +6,8 @@
 
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/visit-object.h"
+#include "src/objects/compressed-slots.h"
+#include "src/objects/compressed-slots-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 
@@ -250,13 +252,13 @@ void FastSerializer::VisitSlot(
     // Update the slot to point to the new location.  The object has already
     // been memcpy'ed into the lab, so we are doing the relocation there.
     bool is_compressed;
-    if constexpr (requires { Slot::TCompressionScheme; }) {
+    if constexpr (requires { typename Slot::TCompressionScheme; }) {
       is_compressed = true;
       // We just want to store the new offset to the compressed 32 bit slot.
       // We make a fake pointer, which is at a given offset in the cage of the
       // slot.
       Tagged<Object> new_location(
-          Slot::TCompressionScheme::DecompressTagged::base() + offset);
+          Slot::TCompressionScheme::DecompressTagged(static_cast<uint32_t>(offset) + kHeapObjectTag));
       // This compressing store just writes the last 32 bits of the fake
       // pointer, ie the offset.  The store can assert that the location is in
       // the current cage, which is why we have to add the correct top 32 bits
@@ -266,7 +268,7 @@ void FastSerializer::VisitSlot(
       // Make a fake pointer to an object at a 32 bit offset that corresponds
       // to the offset.  The high 32 bits are zero, but that will be fixed by
       // the relocation.
-      Tagged<Object> new_location(offset);
+      Tagged<Object> new_location(offset + kHeapObjectTag);
       maybe_smi.store(new_location);
       is_compressed = false;
     }
@@ -391,6 +393,11 @@ void FastSerializer::ObjectSerializer::VisitPointers(
     size_t offset = slot.address() - base_address;
     serializer_->VisitSlot(dest_lab_, offset, slot);
   }
+}
+
+void FastSerializer::ObjectSerializer::VisitMapPointer(Tagged<HeapObject> host) {
+  // Nothing special about the map for us.
+  VisitPointers(host, host->map_slot(), host->map_slot() + 1);
 }
 
 void FastSerializer::ObjectSerializer::VisitInstructionStreamPointer(

@@ -189,6 +189,7 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
   }
   void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
                                  JSDispatchHandle handle) override;
+  virtual void VisitMapPointer(Tagged<HeapObject> host) override;
 
  private:
   FastSerializer* serializer_;
