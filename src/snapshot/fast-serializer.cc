@@ -436,8 +436,27 @@ void FastSerializer::ObjectSerializer::VisitInternalReference(
 }
 
 void FastSerializer::ObjectSerializer::VisitExternalPointer(
-    Tagged<HeapObject>, ExternalPointerSlot) {
-  UNREACHABLE();
+    Tagged<HeapObject> host, ExternalPointerSlot slot) {
+  ExternalPointerTagRange tag_range = slot.tag_range();
+  CHECK(!tag_range.IsEmpty());
+  CHECK(!IsSharedExternalPointerType(tag_range));
+  if (serializer_->is_read_only()) {
+    CHECK(IsMaybeReadOnlyExternalPointerType(tag_range));
+    /*
+    ExternalPointerTable& table =
+        serializer_->isolate()->external_pointer_table();
+    ExternalPointerTable::Space* space =
+        serializer_->isolate()->heap()->read_only_external_pointer_space();
+    */
+
+    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+    // The handle is a uint32_t which is shifted left so that no corruption can
+    // exceed the reserved area of the external pointer table.
+    CHECK_EQ(handle, kNullExternalPointerHandle);
+  } else {
+    // TODO: Handle external pointers outside the read-only snapshot.
+    UNREACHABLE();
+  }
 }
 
 void FastSerializer::ObjectSerializer::VisitIndirectPointer(
