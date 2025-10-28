@@ -62,6 +62,9 @@ class FastSerializer : public RootVisitor {
     previous_serializers_.push_back(previous);
   }
 
+ protected:
+  virtual bool is_read_only() { return false; }
+
  private:
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end);
