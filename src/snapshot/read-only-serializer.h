@@ -20,6 +20,9 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public FastSerializer {
   void Serialize();
 
   void CheckRehashability(Tagged<HeapObject> o);
+
+ protected:
+  virtual bool is_read_only() { return true; }
 };
 
 // TODO(jgruber): Now that this does a memcpy-style serialization, there is no
