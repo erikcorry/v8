@@ -367,6 +367,10 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   //      them to be checked with a single less-than if we know we have a map.
   //   4. The symbol map is with the string maps, for similarly fast Name
   //      checks.
+  //
+  // Note that the ReadOnly serializer knows that the undefined object is the
+  // first and the Boolean map is the last one with a fixed location, so if
+  // that changes, update read-only-serializer.cc.
 
   Tagged<HeapObject> obj;
   {

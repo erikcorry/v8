@@ -557,16 +557,70 @@ OldReadOnlySerializer::~OldReadOnlySerializer() {
   OutputStatistics("OldReadOnlySerializer");
 }
 
+// Helper to make sure we discover the first objects in the correct order so
+// they have the right layout in the read-only page.
+class SpecialOrderVisitor : public RootVisitor {
+ public:
+  SpecialOrderVisitor(ReadOnlySerializer* serializer,
+                      Tagged<HeapObject> first_object,
+                      Tagged<HeapObject> last_object)
+      : serializer_(serializer),
+        first_object_(first_object),
+        last_object_(last_object) {}
+
+  virtual void VisitRootPointers(Root root, const char* description,
+                                 FullObjectSlot start,
+                                 FullObjectSlot end) override {
+    // All the objects with a defined order are in the roots, so we will see
+    // them all here at some point.
+    for (FullObjectSlot current = start; current < end; ++current) {
+      Tagged<HeapObject> obj = Cast<HeapObject>(*current);
+      if (first_object_.address() <= obj.address() &&
+          obj.address() <= last_object_.address()) {
+        CHECK(list_fullness_ < kListSize);
+        list_[list_fullness_++] = obj;
+      }
+    }
+  }
+
+  void AllocateFoundObjects() {
+    // They were created in the right layout by setup-heap-internal.cc
+    // so if we sort by address we will get the correct order.
+    std::sort(list_, list_ + list_fullness_,
+              [](Tagged<HeapObject>& a, Tagged<HeapObject>& b) {
+                return a.address() < b.address();
+              });
+
+    // Now that we have them, allocate their locations in the snapshot.
+    for (int i = 0; i < list_fullness_; i++) serializer_->FoundObject(list_[i]);
+  }
+
+ private:
+  static constexpr int kListSize = 100;
+  ReadOnlySerializer* serializer_;
+  Tagged<HeapObject> first_object_;
+  Tagged<HeapObject> last_object_;
+  Tagged<HeapObject> list_[kListSize];
+  int list_fullness_ = 0;
+};
+
 void ReadOnlySerializer::Serialize() {
   DisallowGarbageCollection no_gc;
 
-  ReadOnlyRoots read_only_roots(isolate());
-  read_only_roots.Iterate(this);
+  // We need to start with the objects that are in fixed positions for
+  // static roots optimizations.  This is all the objects up to and including
+  // the boolean map.  See comment in setup-heap-internal.cc. By processing
+  // them up here, they will be placed first in the linear allocation buffer.
+  Tagged<HeapObject> first_fixed =
+      ReadOnlyRoots(isolate()->heap()).undefined_value();
+  Tagged<HeapObject> last_fixed =
+      ReadOnlyRoots(isolate()->heap()).boolean_map();
+  SpecialOrderVisitor special_orderer(this, first_fixed, last_fixed);
 
-  ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
-  for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-    CheckRehashability(o);
-  }
+  ReadOnlyRoots read_only_roots(isolate());
+  read_only_roots.Iterate(&special_orderer);
+  special_orderer.AllocateFoundObjects();
+  read_only_roots.Iterate(this);
 
   ProcessQueue();  // Close transitivity.
 }
