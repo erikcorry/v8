@@ -65,6 +65,15 @@ class FastSerializer : public RootVisitor {
  protected:
   virtual bool is_read_only() { return false; }
 
+  void AddToSnapshot(Tagged<HeapObject> heap_object);
+
+  struct LabAndOffset {
+    LinearAllocationBuffer* lab;
+    size_t offset;
+  };
+
+  LabAndOffset FoundObject(Tagged<HeapObject> heap_object);
+
  private:
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end);
@@ -98,11 +107,6 @@ class FastSerializer : public RootVisitor {
   // Find a lab in a given space that has space enough for an object.
   LinearAllocationBuffer* GetOrCreatePackedLab(Tagged<HeapObject> object,
                                                size_t size);
-
-  struct LabAndOffset {
-    LinearAllocationBuffer* lab;
-    size_t offset;
-  };
 
   // Looks up in this serializer and the others to find the destination for the
   // object at this address.

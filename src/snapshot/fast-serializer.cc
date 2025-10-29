@@ -199,6 +199,39 @@ void FastSerializer::VisitSlot(
   // If the slot is a cleared weak slot then we don't need to do anything.
   // TODO: What if it's a 64 bit slot and only the bottom 32 bits are cleared?
   if (Slot::kCanBeWeak && heap_object.IsCleared()) return;
+  LabAndOffset location = FoundObject(heap_object);
+  bool is_compressed = true;
+  if ((flags_ & Snapshot::kUseIsolateMemory) == 0) {
+    // Update the slot to point to the new location.  The object has already
+    // been memcpy'ed into the lab, so we are doing the relocation there.
+    if constexpr (requires { typename Slot::TCompressionScheme; }) {
+      // We just want to store the new offset to the compressed 32 bit slot.
+      // We make a fake pointer, which is at a given offset in the cage of the
+      // slot.
+      Tagged<Object> new_location(Slot::TCompressionScheme::DecompressTagged(
+          static_cast<uint32_t>(location.offset) + kHeapObjectTag));
+      // This compressing store just writes the last 32 bits of the fake
+      // pointer, ie the offset.  The store can assert that the location is in
+      // the current cage, which is why we have to add the correct top 32 bits
+      // above.
+      new_slot.store(new_location);
+    } else {
+      // Make a fake pointer to an object at a 32 bit offset that corresponds
+      // to the offset.  The high 32 bits are zero, but that will be fixed by
+      // the relocation.
+      Tagged<Object> new_location(location.offset + kHeapObjectTag);
+      new_slot.store(new_location);
+      is_compressed = false;
+    }
+  }
+  // Store a relocation that (if necessary) will change the pointer to the
+  // correct location on deserialization.
+  snapshot_->AddRelocation(slot_lab->index(), location.lab->index(),
+                           slot_offset, is_compressed);
+}
+
+FastSerializer::LabAndOffset FastSerializer::FoundObject(
+    Tagged<HeapObject> heap_object) {
   Address start = heap_object.address();
   if ((flags_ & Snapshot::kUseIsolateMemory) != 0) {
     size_t size = heap_object->Size();
@@ -218,19 +251,14 @@ void FastSerializer::VisitSlot(
       // of that serializer's labs.
       lab = GetLabForFixedLocation(heap_object);
     }
-    if (lab->index() != slot_lab->index()) {
-      snapshot_->AddRelocation(slot_lab->index(), lab->index(), slot_offset,
-                               true);
-    }
     // Mark this object's range as part of the lab - may be a no-op if that
     // already happened.
     lab->Expand(start, start + size);
+    return {lab, start};
   } else {
     // We are constructing artificial labs for the snapshot.
     // Check if the slot points at an object that wasn't until now
     // part of the snapshot.
-    LinearAllocationBuffer* lab = nullptr;
-    size_t offset = 0;
     if (!IsMarked(heap_object)) {
       // We need to find a lab
       size_t size = heap_object->Size();
@@ -238,8 +266,8 @@ void FastSerializer::VisitSlot(
       Mark(heap_object, size);
       // The objects are reallocated in tightly packed labs that we create
       // in the serializer for use by the deserializer.
-      lab = GetOrCreatePackedLab(heap_object, size);
-      offset = lab->highest();
+      LinearAllocationBuffer* lab = GetOrCreatePackedLab(heap_object, size);
+      size_t offset = lab->highest();
       lab->Expand(offset, offset + size);
       // We may overwrite slots in the object later, but for now we copy
       // everything in the newly discovered object into the allocation.
@@ -247,39 +275,8 @@ void FastSerializer::VisitSlot(
       new_locations_[start] = {lab, offset};
       // Make the object gray and queue for processing.
       queue_.push_back(heap_object);
-    } else {
-      auto location = NewLocation(start);
-      lab = location.lab;
-      offset = location.offset;
     }
-
-    // Update the slot to point to the new location.  The object has already
-    // been memcpy'ed into the lab, so we are doing the relocation there.
-    bool is_compressed;
-    if constexpr (requires { typename Slot::TCompressionScheme; }) {
-      is_compressed = true;
-      // We just want to store the new offset to the compressed 32 bit slot.
-      // We make a fake pointer, which is at a given offset in the cage of the
-      // slot.
-      Tagged<Object> new_location(Slot::TCompressionScheme::DecompressTagged(
-          static_cast<uint32_t>(offset) + kHeapObjectTag));
-      // This compressing store just writes the last 32 bits of the fake
-      // pointer, ie the offset.  The store can assert that the location is in
-      // the current cage, which is why we have to add the correct top 32 bits
-      // above.
-      new_slot.store(new_location);
-    } else {
-      // Make a fake pointer to an object at a 32 bit offset that corresponds
-      // to the offset.  The high 32 bits are zero, but that will be fixed by
-      // the relocation.
-      Tagged<Object> new_location(offset + kHeapObjectTag);
-      new_slot.store(new_location);
-      is_compressed = false;
-    }
-    // Store a relocation that (if necessary) will change the pointer to the
-    // correct location on deserialization.
-    snapshot_->AddRelocation(slot_lab->index(), lab->index(), slot_offset,
-                             is_compressed);
+    return NewLocation(start);
   }
 }
 
