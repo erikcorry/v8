@@ -482,9 +482,15 @@ void FastSerializer::ObjectSerializer::VisitTrustedPointerTableEntry(
 }
 
 void FastSerializer::ObjectSerializer::VisitJSDispatchTableEntry(
-    Tagged<HeapObject>,
-    v8::base::StrongAlias<JSDispatchHandleAliasTag, unsigned int>) {
-  UNREACHABLE();
+    Tagged<HeapObject>, JSDispatchHandle handle) {
+  if (serializer_->is_read_only()) {
+    // There is a read-only root which is the singleton many_closures_cell
+    // which contains an unused index into the JSDispatchTable.
+    CHECK_EQ(handle, kNullJSDispatchHandle);
+  } else {
+    // TODO: Handle JSDispatchTable indices.
+    UNREACHABLE();
+  }
 }
 
 }  // namespace internal
