@@ -35,7 +35,7 @@ FastSerializer::FastSerializer(Isolate* isolate,
   Address location = 0;
   roots_lab_ = zone_.New<LinearAllocationBuffer>(
       &zone_, next_lab_index_++, kIgnoreAllocationSpace, AddressSpace::kRoots,
-      location, location);
+      location);
   for (int space = 0; space < kNumberOfAddressSpaces; space++) {
     address_space_fullnesses_[space] = 0;
   }
@@ -151,7 +151,9 @@ void FastSerializer::VisitRootPointers(
     size_t offset = roots_lab_->highest();
     roots_lab_->Expand(offset, offset + sizeof(Address));
     snapshot_->root_lab_data_.push_back((*current).ptr());
-    VisitSlot(roots_lab_, offset, current, current);
+    FullObjectSlot new_slot(
+        reinterpret_cast<Address>(roots_lab_->BackingAt(offset)));
+    VisitSlot(roots_lab_, offset, current, new_slot);
   }
 }
 
