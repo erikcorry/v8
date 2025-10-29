@@ -23,6 +23,8 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public FastSerializer {
 
  protected:
   virtual bool is_read_only() { return true; }
+
+  friend class SpecialOrderVisitor;
 };
 
 // TODO(jgruber): Now that this does a memcpy-style serialization, there is no
