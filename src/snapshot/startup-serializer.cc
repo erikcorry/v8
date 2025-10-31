@@ -62,8 +62,10 @@ class V8_NODISCARD SanitizeIsolateScope final {
 
 StartupSerializer::StartupSerializer(
     Isolate* isolate, Snapshot::SerializerFlags flags,
+    ReadOnlySerializer* read_only_serializer,
     SharedHeapSerializer* shared_heap_serializer)
     : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot),
+      read_only_serializer_(read_only_serializer),
       shared_heap_serializer_(shared_heap_serializer),
       accessor_infos_(isolate->heap()),
       interceptor_infos_(isolate->heap()),
@@ -125,7 +127,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
 
-  if (SerializeReadOnlyObjectReference(*obj, &sink_)) return;
+  if (SerializeReadOnlyObject(*obj, &sink_)) return;
   if (SerializeUsingSharedHeapObjectCache(&sink_, obj)) return;
   if (SerializeBackReference(*obj)) return;
 
@@ -163,6 +165,17 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   DCHECK(!ReadOnlyHeap::Contains(*obj));
   ObjectSerializer object_serializer(this, obj, &sink_);
   object_serializer.Serialize(slot_type);
+}
+
+// If an object is in the read-only space and reachable from the startup
+// serializer then it needs to be added to the startup serializer, which
+// is running interleaved with the startup serializer.  This way we can
+// use reachability-based serialization for the read-only snapshot.
+bool StartupSerializer::SerializeReadOnlyObject(Tagged<HeapObject> obj,
+                                                SnapshotByteSink* sink) {
+  if (!ReadOnlyHeap::Contains(obj)) return false;
+  read_only_serializer_->FoundObject(obj);
+  return SerializeReadOnlyObjectReference(obj, sink);
 }
 
 void StartupSerializer::SerializeWeakReferencesAndDeferred() {

@@ -49,8 +49,8 @@ class FastSerializer : public RootVisitor {
   std::unique_ptr<FastSnapshot> Run();
 
   // Serialize the transitively reachable objects from the queue,
-  // until it is empty.  TODO: Should be private.
-  void ProcessQueue();
+  // until it is empty.
+  void FinalizeSerialization();
 
   FastSnapshot* snapshot() { return snapshot_; }
 
@@ -62,17 +62,17 @@ class FastSerializer : public RootVisitor {
     previous_serializers_.push_back(previous);
   }
 
- protected:
-  virtual bool is_read_only() { return false; }
-
-  void AddToSnapshot(Tagged<HeapObject> heap_object);
-
   struct LabAndOffset {
     LinearAllocationBuffer* lab;
     size_t offset;
   };
 
   LabAndOffset FoundObject(Tagged<HeapObject> heap_object);
+
+ protected:
+  virtual bool is_read_only() { return false; }
+
+  void AddToSnapshot(Tagged<HeapObject> heap_object);
 
  private:
   void VisitRootPointers(Root root, const char* description,
