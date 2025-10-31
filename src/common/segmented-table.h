@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   static constexpr bool kUseSegmentPool = kMinimumOSPageSize <= 16 * KB;
 #endif
   static constexpr size_t kSegmentSize = kUseSegmentPool ? 16 * KB : 64 * KB;
-#else
+#else  // ndef V8_TARGET_ARCH_64_BIT
   // On 32 bit, segments are individually mapped.
   static constexpr bool kUseContiguousMemory = false;
   static constexpr bool kUseSegmentPool = false;

@@ -16,22 +16,29 @@ namespace internal {
 
 class Isolate;
 
-// Address spaces are mappings from integers to objects and slots within
+// AddressSpaces are mappings from integers to objects and slots within
 // objects.
+// Within an AddressSpace there may be different AllocationSpaces.  For example
+// NEW_SPACE and OLD_SPACE are both inside kMainCage.
+// Each lab is inside an AddressSpace and two labs in the same AddressSpace cannot
+// have overlapping locations.
 enum AddressSpace {
   kUncompressed,  // The uncaged 64 bit address space.
+                  // Not to be used for objects that could be in a more
+                  // specific AddressSpace.
   kMainCage,      // The first 4Gbytes of the sandbox.
                   // This is a 32 bit space.
   kTrustedCage,   // Trusted objects in their own compression cage.
                   // Maybe a mixture of 32 bit and 64 bit :-/.
   kCodeSpace,     // Executable machine code.
-               // This may require custom relocation due to unaligned relative
-               // pointers on x64.
-  kSharedSpace,  // The read-only shared space for immortal objects.
-  kRoots,        // The roots and global handles in the order they are visited.
-                 // This is a 64 bit space.
+                  // This may require custom relocation due to unaligned
+                  // relative pointers on x64.
+  kRoots,         // The roots and global handles in the order they are
+                  // visited.  This is a 64 bit space.
   kExternalPointerTable,  // Entries in the external pointer table.  64 bit.
-  // Other tables ha.ve their own address spaces.
+  kTrustedPointerTable,   // Entries in the trusted pointer table.  64 bit.
+  kJSDispatchTable,       // Entries in the JS dispatch table. 64 bit.
+  // Other tables have their own address spaces.
   // Oilpan perhaps?
   kNumberOfAddressSpaces
 };

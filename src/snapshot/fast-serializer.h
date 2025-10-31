@@ -101,7 +101,11 @@ class FastSerializer : public RootVisitor {
   LinearAllocationBuffer* GetOrCreateLabForFixedLocation(
       Tagged<HeapObject> object);
 
-  // Searches this and previous serializers to get the lab for an object.
+  LinearAllocationBuffer* GetOrCreateLabForFixedLocation(
+    Address address, AddressSpace address_space, AllocationSpace allocation_space);
+
+  // Searches this and previous serializers to get the lab for an object or a
+  // slot in a table.
   LinearAllocationBuffer* GetLabForFixedLocation(Tagged<HeapObject> object);
 
   // Find a lab in a given space that has space enough for an object.
@@ -134,6 +138,8 @@ class FastSerializer : public RootVisitor {
   // deserializer, this is map is always based on the serializer address.
   ZoneAbslFlatHashMap<Address, uint64_t*> lab_liveness_map_;
   // For FixedLocation snapshots, this lets us find the lab for a given address.
+  // We use this both for actual objects that have an address, but also, for
+  // convenience, for slots in tables, which also have address.
   ZoneAbslFlatHashMap<Address, LinearAllocationBuffer*> lab_map_;
   // For reallocating snapshots this is the forwarding table.  Contains an entry
   // for each object that is marked.
@@ -142,6 +148,8 @@ class FastSerializer : public RootVisitor {
   LinearAllocationBuffer* roots_lab_ = nullptr;
   // For reallocating snapshots, the location of the end of the newest lab.
   size_t address_space_fullnesses_[kNumberOfAddressSpaces];
+  // Indexed by AllocationSpaces (old, new, etc).  For reallocating snapshots,
+  // this is the lab we are currently allocating objects in, for each space.
   LinearAllocationBuffer* lab_per_space_[LAST_SPACE + 1];
   ZoneVector<LinearAllocationBuffer*> all_labs_;
   const PtrComprCageBase cage_base_;
