@@ -69,9 +69,12 @@ void LinearAllocationBuffer::Expand(Address from, Address to) {
 }
 
 uint8_t* LinearAllocationBuffer::BackingAt(size_t offset) {
-  CHECK(own_backing_);
-  // Return a short-lived pointer into backing_.
-  return &backing_[offset];
+  if (own_backing_) {
+    // Return a short-lived pointer into backing_.
+    return &backing_[offset];
+  } else {
+    return reinterpret_cast<uint8_t*>(start_);
+  }
 }
 
 FastSnapshot::FastSnapshot()
