@@ -49,7 +49,7 @@ int FastSerializer::next_lab_index_ = 0;
 void FastSerializer::Serialize() {
   DisallowGarbageCollection no_gc;
   // Make sure things get linked in.
-  ProcessQueue();
+  FinalizeSerialization();
   // TODO: The below is from ReadonlySerializer.
   /*
   ReadOnlyHeapImageSerializer::Serialize(isolate(), &sink_,
@@ -113,6 +113,7 @@ bool FastSerializer::LocalIsMarked(Tagged<HeapObject> object) {
 }
 
 void FastSerializer::Mark(Tagged<HeapObject> object, size_t size) {
+  printf("Mark %p-%p\n", (void*)(object->address()), (void*)(object->address() + size));
   Address lab_start = RoundDown(object->address(), kRegularPageSize);
   auto it = lab_liveness_map_.find(lab_start);
   uint64_t* bitmap = (it == lab_liveness_map_.end()) ? nullptr : it->second;
@@ -235,6 +236,8 @@ FastSerializer::LabAndOffset FastSerializer::FoundObject(
   Address start = heap_object.address();
   if ((flags_ & Snapshot::kUseIsolateMemory) != 0) {
     size_t size = heap_object->Size();
+    printf("IsMarked %p (%s)\n", (void*)(heap_object->address()),
+           IsMarked(heap_object) ? "yes" : "no");
     if (!IsMarked(heap_object)) {
       Mark(heap_object, size);
       queue_.push_back(heap_object);
@@ -259,6 +262,8 @@ FastSerializer::LabAndOffset FastSerializer::FoundObject(
     // We are constructing artificial labs for the snapshot.
     // Check if the slot points at an object that wasn't until now
     // part of the snapshot.
+    printf("IsMarked %p (%s)\n", (void*)(heap_object->address()),
+           IsMarked(heap_object) ? "yes" : "no");
     if (!IsMarked(heap_object)) {
       // We need to find a lab
       size_t size = heap_object->Size();
@@ -338,7 +343,7 @@ LinearAllocationBuffer* FastSerializer::GetOrCreatePackedLab(
   }
 }
 
-void FastSerializer::ProcessQueue() {
+void FastSerializer::FinalizeSerialization() {
   while (!queue_empty()) {
     Tagged<HeapObject> object = queue_.back();
     Tagged<HeapObject> new_object = object;
@@ -476,7 +481,7 @@ void FastSerializer::ObjectSerializer::VisitProtectedPointer(
 }
 
 void FastSerializer::ObjectSerializer::VisitTrustedPointerTableEntry(
-    Tagged<HeapObject>, IndirectPointerSlot) {
+    Tagged<HeapObject> object, IndirectPointerSlot slot) {
   UNREACHABLE();
 }
 

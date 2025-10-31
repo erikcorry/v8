@@ -14,12 +14,14 @@ namespace v8 {
 namespace internal {
 
 class HeapObject;
+class ReadOnlySerializer;
 class SnapshotByteSink;
 class SharedHeapSerializer;
 
 class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
  public:
   StartupSerializer(Isolate* isolate, Snapshot::SerializerFlags flags,
+                    ReadOnlySerializer* read_only_serializer,
                     SharedHeapSerializer* shared_heap_serializer);
   ~StartupSerializer() override;
   StartupSerializer(const StartupSerializer&) = delete;
@@ -51,7 +53,12 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
 
  private:
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
+  // Reports the reachable read-only object to the read-only serializer before
+  // calling the rebular SerializeReadOnlyObjectReference.
+  bool SerializeReadOnlyObject(Tagged<HeapObject> obj,
+                               SnapshotByteSink* sink);
 
+  ReadOnlySerializer* read_only_serializer_;
   SharedHeapSerializer* const shared_heap_serializer_;
   GlobalHandleVector<AccessorInfo> accessor_infos_;
   GlobalHandleVector<InterceptorInfo> interceptor_infos_;

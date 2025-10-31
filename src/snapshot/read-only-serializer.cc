@@ -627,7 +627,7 @@ void ReadOnlySerializer::Serialize() {
   special_orderer.AllocateFoundObjects();
   read_only_roots.Iterate(this);
 
-  ProcessQueue();  // Close transitivity.
+  FinalizeSerialization();  // Close transitivity.
 }
 
 void ReadOnlySerializer::CheckRehashability(Tagged<HeapObject> o) {
