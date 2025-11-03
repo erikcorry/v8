@@ -2527,6 +2527,8 @@ filegroup(
         "src/snapshot/fast-serializer.cc",
         "src/snapshot/fast-serializer-deserializer.h",
         "src/snapshot/fast-serializer-deserializer.cc",
+        "src/snapshot/fast-serializer-format.h",
+        "src/snapshot/fast-serializer-format.cc",
         "src/snapshot/object-deserializer.cc",
         "src/snapshot/object-deserializer.h",
         "src/snapshot/read-only-deserializer.cc",

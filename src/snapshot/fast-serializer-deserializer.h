@@ -18,7 +18,7 @@ class Isolate;
 
 // Address spaces are mappings from integers to objects and slots within
 // objects.
-enum AddressSpace {
+enum AddressSpace : uint8_t {
   kUncompressed,  // The uncaged 64 bit address space.
   kMainCage,      // The first 4Gbytes of the sandbox.
                   // This is a 32 bit space.
