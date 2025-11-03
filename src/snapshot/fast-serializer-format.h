@@ -68,14 +68,14 @@ struct EmbedderDataSection {
 class SerializedSnapshot {
  public:
   SerializedSnapshot(size_t data_length, size_t alignment);
-  SerializedSnapshot(std::unique_ptr<uint8_t[]> data, size_t data_length);
+  SerializedSnapshot(std::unique_ptr<const uint8_t> data, size_t data_length);
 
   const uint8_t* data() const { return data_.get(); }
 
-  size_t data_length() { return data_length_; }
+  size_t data_length() const { return data_length_; }
 
  private:
-  std::unique_ptr<uint8_t[]> data_;
+  std::unique_ptr<const uint8_t> data_;
   size_t data_length_;
 };
 
@@ -86,17 +86,22 @@ class FileOffsetCalculator {
   explicit FileOffsetCalculator(size_t current)
       : current_(static_cast<uint32_t>(current)) {}
 
-  uint32_t current() const { return current_; }
+  inline uint32_t current() const { return current_; }
 
-  uint32_t Allocate(size_t bytes, size_t alignment) {
-    current_ = RoundUp(current_, alignment);
-    auto start = current_;
-    current_ += bytes;
-    return start;
+  uint32_t Allocate(size_t bytes, size_t alignment);
+
+  template <typename T>
+  inline uint32_t Allocate() {
+    return Allocate(sizeof(T), alignof(T));
   }
 
-  uint32_t AllocateArray(size_t n, size_t bytes, size_t alignment) {
+  inline uint32_t AllocateArray(size_t n, size_t bytes, size_t alignment) {
     return Allocate(n * bytes, alignment);
+  }
+
+  template <typename T>
+  inline uint32_t AllocateArray(size_t n) {
+    return AllocateArray(n, sizeof(T), alignof(T));
   }
 
  private:
@@ -126,7 +131,9 @@ class SerializedSnapshotSizeCalculator {
     return lab_reloc_info_[lab_index];
   }
 
-  uint32_t GetLabDataOffset(size_t lab_index) const;
+  inline uint32_t GetLabDataOffset(size_t lab_index) const {
+    return lab_data_offsets_[lab_index];
+  }
 
   inline size_t GetLabCount() const { return labs_.size(); }
 

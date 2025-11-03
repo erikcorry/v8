@@ -13,6 +13,13 @@ namespace internal {
 // 64 bytes ought to be enough for everyone
 static const size_t kSimdAlignment = 64;
 
+uint32_t FileOffsetCalculator::Allocate(size_t bytes, size_t alignment) {
+  current_ = RoundUp(current_, alignment);
+  auto start = current_;
+  current_ += bytes;
+  return start;
+}
+
 SerializedSnapshotSizeCalculator::SerializedSnapshotSizeCalculator(
     const ZoneVector<LinearAllocationBuffer*>& labs,
     const ZoneVector<Relocation>& relocations)
@@ -58,18 +65,16 @@ void SerializedSnapshotSizeCalculator::GroupRelocationsByLab() {
 
 FileOffsetCalculator SerializedSnapshotSizeCalculator::CalculateHeaderSize(
     FileOffsetCalculator offset) {
-  offset.Allocate(sizeof(SerializedSnapshotHeader),
-                  alignof(SerializedSnapshotHeader));
+  offset.Allocate<SerializedSnapshotHeader>();
   return offset;
 }
 
 FileOffsetCalculator SerializedSnapshotSizeCalculator::CalculateLabMetadataSize(
     FileOffsetCalculator offset) {
   // Header
-  offset.Allocate(sizeof(SerializedLabSection), alignof(SerializedLabSection));
+  offset.Allocate<SerializedLabSection>();
   // Array of labs.
-  offset.AllocateArray(labs_.size(), sizeof(SerializedLabEntry),
-                       alignof(SerializedLabEntry));
+  offset.AllocateArray<SerializedLabEntry>(labs_.size());
   return offset;
 }
 
@@ -89,8 +94,7 @@ SerializedSnapshotSizeCalculator::CalculateRelocationDataSize(
     size_t reloc_count = relocs.size();
     // Record offset and count for this lab.
     lab_reloc_info_[lab_idx].offset =
-        offset.AllocateArray(reloc_count, sizeof(SerializedRelocEntry),
-                             alignof(SerializedRelocEntry));
+        offset.AllocateArray<SerializedRelocEntry>(reloc_count);
     lab_reloc_info_[lab_idx].count = static_cast<uint32_t>(reloc_count);
   }
   return offset;
@@ -126,7 +130,7 @@ void SerializedSnapshotSizeCalculator::CalculateTotalSize() {
     section_descs_[SerializedSnapshotHeader::kSectionLabs] = {
         section_start, offset.current() - section_start};
   }
-  // Data section.
+  // Reloc section.
   static_assert(SerializedSnapshotHeader::kSectionRelocs == 2);
   {
     uint32_t section_start = offset.current();
@@ -143,6 +147,17 @@ void SerializedSnapshotSizeCalculator::CalculateTotalSize() {
         section_start, offset.current() - section_start};
   }
   total_size_ = offset.current();
+}
+
+SerializedSnapshot::SerializedSnapshot(size_t data_length, size_t alignment)
+    : data_(std::unique_ptr<const uint8_t>(
+          static_cast<uint8_t*>(aligned_alloc(alignment, data_length)))),
+      data_length_(data_length) {}
+
+SerializedSnapshot::SerializedSnapshot(std::unique_ptr<const uint8_t> data,
+                                       size_t data_length)
+    : data_(std::move(data)), data_length_(data_length) {
+  DCHECK(IsAligned(reinterpret_cast<size_t>(data.get()), kSimdAlignment));
 }
 
 FastSnapshotSerializer::FastSnapshotSerializer(
@@ -184,9 +199,8 @@ void FastSnapshotSerializer::WriteLabMetadata() {
     DCHECK_EQ(lab->index(), lab_idx);
     // TODO check the labs[] field in SerializedLabSection has the correct
     // offset
-    SerializedLabEntry* entry =
-        GetPointerAtTyped<SerializedLabEntry>(offset.Allocate(
-            sizeof(SerializedLabEntry), alignof(SerializedLabEntry)));
+    SerializedLabEntry* entry = GetPointerAtTyped<SerializedLabEntry>(
+        offset.Allocate<SerializedLabEntry>());
     entry->lab_start = lab->start();
     entry->lab_offset = static_cast<uint32_t>(lab_idx);
     entry->padding = 0;
@@ -217,9 +231,8 @@ void FastSnapshotSerializer::WriteRelocationData() {
     DCHECK_EQ(reloc_info.count, relocs.size());
     for (size_t i = 0; i < relocs.size(); ++i) {
       const Relocation* reloc = relocs[i];
-      SerializedRelocEntry* entry =
-          GetPointerAtTyped<SerializedRelocEntry>(offset.Allocate(
-              sizeof(SerializedRelocEntry), alignof(SerializedRelocEntry)));
+      SerializedRelocEntry* entry = GetPointerAtTyped<SerializedRelocEntry>(
+          offset.Allocate<SerializedRelocEntry>());
       // Fill in relocation data.
       entry->target_lab_index = static_cast<uint32_t>(reloc->destination_lab());
       entry->offset_in_source = static_cast<uint32_t>(reloc->offset());
