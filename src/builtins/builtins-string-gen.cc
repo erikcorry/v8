@@ -488,7 +488,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
 
   TVARIABLE(String, result);
   Label check_right(this), runtime(this, Label::kDeferred), cons(this),
-      done(this, &result);
+      done(this, &result), squish(this, Label::kDeferred);
 
   TNode<Uint32T> left_length = LoadStringLengthAsWord32(left);
   GotoIfNot(Word32Equal(left_length, Uint32Constant(0)), &check_right,
@@ -520,6 +520,47 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
     GotoIf(Uint32LessThan(new_length, Uint32Constant(ConsString::kMinLength)),
            &non_cons);
 
+    // Perhaps we need to do a little flattening along the way.
+
+    // Search for right-hand-sides of the cons strings on the left that are so
+    // small they should just be flattened with the new one we are adding.
+    //
+    // string s := l;
+    // flatten_length := l.length();
+    // while (s.IsCons() && s.rhs().length() <= flatten_length) {
+    //   flatten_length += s.rhs().length();
+    //   s = s.lhs();
+    // }
+
+    TVARIABLE(String, search, right);
+    TVARIABLE(Uint32T, flatten_length, right_length);
+    Label done_searching(this, {&search});
+    Label keep_searching(this, {&search, &flatten_length});
+    Goto(&keep_searching);
+
+    BIND(&keep_searching);
+    TNode<Uint32T> search_instance_type = LoadInstanceType(search.value());
+    GotoIf(Word32NotEqual(Word32And(search_instance_type,
+                                    Int32Constant(kStringRepresentationMask)),
+                          Int32Constant(kConsStringTag)),
+           &done_searching);
+    // Search is a cons string.
+    TNode<String> search_right =
+        LoadObjectField<String>(search.value(), offsetof(ConsString, second_));
+    TNode<Uint32T> search_right_length = LoadStringLengthAsWord32(search_right);
+    GotoIf(Int32GreaterThan(search_right_length, flatten_length.value()),
+           &done_searching);
+    flatten_length = Uint32Add(left_length, right_length);
+    search =
+        LoadObjectField<String>(search.value(), offsetof(ConsString, first_));
+    Goto(&keep_searching);
+
+    BIND(&done_searching);
+    // If flatten_length != right_length we found something worth flattening,
+    // so we go to the runtime.  TODO: Handle the simple case here.
+    GotoIf(Word32NotEqual(flatten_length.value(), right_length), &squish);
+
+    // Simple creation of a cons string.
     result =
         AllocateConsString(new_length, var_left.value(), var_right.value());
     Goto(&done);
@@ -581,6 +622,12 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
                                 right_instance_type, &non_cons);
       Goto(&runtime);
     }
+  }
+
+  BIND(&squish);
+  {
+    // DebugBreak();
+    Goto(&runtime);  // Catch in runtime-strings.cc:157
   }
   BIND(&runtime);
   {
