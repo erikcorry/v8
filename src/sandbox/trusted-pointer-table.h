@@ -19,6 +19,7 @@ namespace v8 {
 namespace internal {
 
 class Counters;
+class FastSerializer;
 class Isolate;
 class TrustedPointerPublishingScope;
 
@@ -222,6 +223,8 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
 
   // Ensure that the value is valid before storing it into this table.
   inline void Validate(Address pointer, IndirectPointerTag tag);
+
+  friend class FastSerializer;
 };
 
 }  // namespace internal

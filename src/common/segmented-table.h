@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class FastSerializer;
+
 /**
  * A thread-safe table with a fixed maximum size split into segments.
  *
@@ -255,6 +257,8 @@ class V8_EXPORT_PRIVATE SegmentedTable {
   std::array<std::atomic<uint32_t>, kSegmentPoolSize> segment_pool_ = {};
   // Used during set-up of read only segments.
   uint32_t read_only_segments_used_ = 0;
+
+  friend class FastSerializer;
 };
 
 }  // namespace internal
