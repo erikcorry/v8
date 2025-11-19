@@ -412,14 +412,16 @@ v8::StartupData Snapshot::Create(
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
 
-  ReadOnlySerializer read_only_serializer(isolate, flags | Snapshot::kUseIsolateMemory);
+  ReadOnlySerializer read_only_serializer(isolate,
+                                          flags | Snapshot::kUseIsolateMemory);
   read_only_serializer.Serialize();
 
   // TODO(v8:6593): generalize rehashing, and remove this flag.
   bool can_be_rehashed = read_only_serializer.can_be_rehashed();
 
   SharedHeapSerializer shared_heap_serializer(isolate, flags);
-  StartupSerializer startup_serializer(isolate, flags, &read_only_serializer,&shared_heap_serializer);
+  StartupSerializer startup_serializer(isolate, flags, &read_only_serializer,
+                                       &shared_heap_serializer);
   startup_serializer.SerializeStrongReferences(no_gc);
 
   // Serialize each context with a new serializer.

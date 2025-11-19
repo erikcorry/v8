@@ -102,7 +102,8 @@ class FastSerializer : public RootVisitor {
       Tagged<HeapObject> object);
 
   LinearAllocationBuffer* GetOrCreateLabForFixedLocation(
-    Address address, AddressSpace address_space, AllocationSpace allocation_space);
+      Address address, AddressSpace address_space,
+      AllocationSpace allocation_space);
 
   // Searches this and previous serializers to get the lab for an object or a
   // slot in a table.
@@ -164,15 +165,12 @@ class FastSerializer : public RootVisitor {
   friend class ObjectSerializer;
 };
 
-class FastSerializer::ObjectSerializer : public ObjectVisitor {
+class FastSerializer::ObjectSerializer : public ObjectVisitorWithCageBases {
  public:
-  ObjectSerializer(FastSerializer* serializer, Tagged<HeapObject> old_object,
-                   Tagged<HeapObject> new_object,
-                   LinearAllocationBuffer* dest_lab, size_t dest_offset)
-      : serializer_(serializer),
-        old_object_(old_object),
-        new_object_(new_object),
-        dest_lab_(dest_lab) {}
+  inline ObjectSerializer(FastSerializer* serializer,
+                          Tagged<HeapObject> old_object,
+                          Tagged<HeapObject> new_object,
+                          LinearAllocationBuffer* dest_lab, size_t dest_offset);
   void SerializeObject();
   void VisitPointers(Tagged<HeapObject> host, ObjectSlot start,
                      ObjectSlot end) override;
@@ -211,6 +209,9 @@ class FastSerializer::ObjectSerializer : public ObjectVisitor {
   virtual void VisitMapPointer(Tagged<HeapObject> host) override;
 
  private:
+  void VisitIndirectPointerHelper(Tagged<Object> value,
+                                  IndirectPointerSlot slot);
+
   FastSerializer* serializer_;
   Tagged<HeapObject> old_object_;  // The object in its original location.
   Tagged<HeapObject> new_object_;  // The object copied into the snapshot.

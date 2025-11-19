@@ -17,6 +17,7 @@
 namespace v8 {
 namespace internal {
 
+class FastSerializer;
 class Isolate;
 class Counters;
 
@@ -189,6 +190,8 @@ class V8_EXPORT_PRIVATE CodePointerTable
  private:
   inline uint32_t HandleToIndex(CodePointerHandle handle) const;
   inline CodePointerHandle IndexToHandle(uint32_t index) const;
+
+  friend class FastSerializer;
 };
 
 }  // namespace internal
