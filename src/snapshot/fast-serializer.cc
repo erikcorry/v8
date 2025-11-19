@@ -5,6 +5,8 @@
 #include "src/snapshot/fast-serializer.h"
 
 #include "src/common/ptr-compr-inl.h"
+#include "src/heap/heap-visitor-inl.h"
+#include "src/heap/heap-visitor.h"
 #include "src/heap/visit-object.h"
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/compressed-slots.h"
@@ -39,7 +41,7 @@ FastSerializer::FastSerializer(Isolate* isolate,
   for (int space = 0; space < kNumberOfAddressSpaces; space++) {
     address_space_fullnesses_[space] = 0;
   }
-  for (int space = FIRST_SPACE; space <= LAST_SPACE ; space++) {
+  for (int space = FIRST_SPACE; space <= LAST_SPACE; space++) {
     lab_per_space_[space] = nullptr;
   }
 }
@@ -303,19 +305,21 @@ LinearAllocationBuffer* FastSerializer::GetOrCreateLabForFixedLocation(
   DCHECK((flags_ & Snapshot::kAllInOneSpace) == 0);
   AddressSpace address_space = GetAddressSpace(object);
   AllocationSpace allocation_space = GetAllocationSpace(object);
-  return GetOrCreateLabForFixedLocation(object->address(), address_space, allocation_space);
+  return GetOrCreateLabForFixedLocation(object->address(), address_space,
+                                        allocation_space);
 }
 
 LinearAllocationBuffer* FastSerializer::GetOrCreateLabForFixedLocation(
-  Address address, AddressSpace address_space, AllocationSpace allocation_space) {
-
+    Address address, AddressSpace address_space,
+    AllocationSpace allocation_space) {
   Address rounded_address = RoundDown(address, kRegularPageSize);
 
   LinearAllocationBuffer*& lab = lab_map_[rounded_address];
   if (lab == nullptr) {
     // Updates lab_map_ because it's a reference.
-    lab = zone_.New<LinearAllocationBuffer>(&zone_, next_lab_index_++, allocation_space,
-                                            address_space, address, address);
+    lab = zone_.New<LinearAllocationBuffer>(&zone_, next_lab_index_++,
+                                            allocation_space, address_space,
+                                            address, address);
     all_labs_.push_back(lab);
   }
   return lab;
@@ -375,6 +379,16 @@ void FastSerializer::FinalizeSerialization() {
   }
 }
 
+FastSerializer::ObjectSerializer::ObjectSerializer(
+    FastSerializer* serializer, Tagged<HeapObject> old_object,
+    Tagged<HeapObject> new_object, LinearAllocationBuffer* dest_lab,
+    size_t dest_offset)
+    : ObjectVisitorWithCageBases(serializer->isolate()),
+      serializer_(serializer),
+      old_object_(old_object),
+      new_object_(new_object),
+      dest_lab_(dest_lab) {}
+
 void FastSerializer::ObjectSerializer::SerializeObject() {
   // We get the object in its new location if we are relocating objects to
   // synthetic labs.
@@ -417,6 +431,10 @@ void FastSerializer::ObjectSerializer::VisitMapPointer(
 
 void FastSerializer::ObjectSerializer::VisitInstructionStreamPointer(
     Tagged<Code> host, InstructionStreamSlot slot) {
+  Tagged<Object> maybe_instruction_stream = slot.load(code_cage_base());
+  if (maybe_instruction_stream.IsSmi()) {
+    return;
+  }
   UNREACHABLE();
 }
 
@@ -447,32 +465,38 @@ void FastSerializer::ObjectSerializer::VisitExternalPointer(
   CHECK(!IsSharedExternalPointerType(tag_range));
   if (serializer_->is_read_only()) {
     CHECK(IsMaybeReadOnlyExternalPointerType(tag_range));
+    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
+    // The handle is a uint32_t which is shifted left so that no corruption can
+    // exceed the reserved area of the external pointer table.
+    CHECK_EQ(handle, kNullExternalPointerHandle);
+    // Don't need this since it's always null in our case.
     /*
     ExternalPointerTable& table =
         serializer_->isolate()->external_pointer_table();
     ExternalPointerTable::Space* space =
         serializer_->isolate()->heap()->read_only_external_pointer_space();
-    */
 
-    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-    // The handle is a uint32_t which is shifted left so that no corruption can
-    // exceed the reserved area of the external pointer table.
-    CHECK_EQ(handle, kNullExternalPointerHandle);
+    uint32_t index = table->HandleToIndex(handle);
+    */
   } else {
     // TODO: Handle external pointers outside the read-only snapshot.
     UNREACHABLE();
   }
 }
 
-void FastSerializer::ObjectSerializer::VisitIndirectPointer(
-    Tagged<HeapObject>, IndirectPointerSlot, IndirectPointerMode) {
-  UNREACHABLE();
-}
-
 void FastSerializer::ObjectSerializer::VisitProtectedPointer(
-    Tagged<TrustedObject>,
-    OffHeapCompressedObjectSlot<V8HeapCompressionSchemeImpl<TrustedCage>>) {
-  UNREACHABLE();
+    Tagged<TrustedObject> _,
+    OffHeapCompressedObjectSlot<V8HeapCompressionSchemeImpl<TrustedCage>>
+        slot) {
+  // The slot is a compressed offset in the trusted cage.
+  Address base_address = old_object_.address();
+  size_t in_object_offset = slot.address() - base_address;
+  size_t in_lab_offset = new_object_->address() -
+                         reinterpret_cast<Address>(dest_lab_->BackingAt(0));
+  OffHeapCompressedObjectSlot<V8HeapCompressionSchemeImpl<TrustedCage>>
+      new_slot(new_object_.address() + in_object_offset);
+  serializer_->VisitSlot(dest_lab_, in_lab_offset + in_object_offset, slot,
+                         new_slot);
 }
 
 void FastSerializer::ObjectSerializer::VisitProtectedPointer(
@@ -483,6 +507,12 @@ void FastSerializer::ObjectSerializer::VisitProtectedPointer(
 
 void FastSerializer::ObjectSerializer::VisitTrustedPointerTableEntry(
     Tagged<HeapObject> object, IndirectPointerSlot slot) {
+  Tagged<Object> value = slot.load(serializer_->isolate());
+  VisitIndirectPointerHelper(value, slot);
+}
+
+void FastSerializer::ObjectSerializer::VisitIndirectPointerHelper(
+    Tagged<Object> value, IndirectPointerSlot slot) {
   // The slot contains an index into the trusted pointer table.
   // Every trusted object has its own index in the trusted pointer table
   // as its first slot.  There can be trusted objects in the read-only
@@ -494,25 +524,40 @@ void FastSerializer::ObjectSerializer::VisitTrustedPointerTableEntry(
   size_t in_object_offset = slot.address() - base_address;
   size_t in_lab_offset = new_object_->address() -
                          reinterpret_cast<Address>(dest_lab_->BackingAt(0));
-  IndirectPointerSlot new_slot(new_object_.address() + in_object_offset, slot.tag());
+  IndirectPointerSlot new_slot(new_object_.address() + in_object_offset,
+  slot.tag());
   */
 
   // Get the index into the TrustedPointerTable.  It's actually just a 32 bit
   // integer.
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
 
-  TrustedPointerTable& table = serializer_->isolate()->trusted_pointer_table();
-  Address table_base = table.base_address();
-  Address slot_address = table_base + handle * sizeof(TrustedPointerTableEntry);
-  // TODO: allocate the slot either in the fixed or recreated lab.
+  Address slot_address;
+  if (slot.tag() == kCodeIndirectPointerTag) {
+    CodePointerTable* table =
+        serializer_->isolate()->isolate_group()->code_pointer_table();
+    uint32_t handle_index = table->HandleToIndex(handle);
+    Address table_base = table->base_address();
+    slot_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
+  } else {
+    TrustedPointerTable& table =
+        serializer_->isolate()->trusted_pointer_table();
+    uint32_t handle_index = table.HandleToIndex(handle);
+    Address table_base = table.base_address();
+    slot_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
+    UNREACHABLE();  // Do we actually need this branch?
+  }
   LinearAllocationBuffer* table_lab;
   // Offset within the table lab.
   uintptr_t table_offset;
   if ((serializer_->flags_ & Snapshot::kUseIsolateMemory) != 0) {
-    // TODO: Not sure how to get the correct space here, using OLD_SPACE for now.
-    table_lab = serializer_->GetOrCreateLabForFixedLocation(slot_address, kTrustedPointerTable, OLD_SPACE);
+    // TODO: Not sure how to get the correct space here, using OLD_SPACE for
+    // now.
+    table_lab = serializer_->GetOrCreateLabForFixedLocation(
+        slot_address, kTrustedPointerTable, OLD_SPACE);
     // Mark the slot in use in its own lab.
-    table_lab->Expand(slot_address, slot_address + sizeof(TrustedPointerTableEntry));
+    table_lab->Expand(slot_address,
+                      slot_address + sizeof(TrustedPointerTableEntry));
     table_offset = slot_address - table_lab->start();
     // No relocation is needed in this case for the table index slot in the
     // pointed-from object, since we are not changing it.
@@ -522,16 +567,25 @@ void FastSerializer::ObjectSerializer::VisitTrustedPointerTableEntry(
     // TODO: Allocate a slot in a virtualized TrustedPointerTable.
     UNREACHABLE();
   }
-  // Deal with the indirectly referenced object that is in the
-  // TrustedPointerTable.
-  Tagged<Object> value = slot.load(serializer_->isolate());
+  // Deal with the indirectly referenced object that is in the table.
   if (!value.IsSmi()) {
     LabAndOffset location = serializer_->FoundObject(Cast<HeapObject>(value));
-    // The table is not compressed.
+    // TODO: The table is not compressed, but the elements are shifted for
+    // security and in the case of the code pointer table there's also a tag in
+    // the low bit that we need to account for in the relocation information.
     constexpr bool table_slot_uncompressed = false;
-    serializer_->snapshot()->AddRelocation(table_lab->index(), location.lab->index(),
-                                           table_offset, table_slot_uncompressed);
+    serializer_->snapshot()->AddRelocation(table_lab->index(),
+                                           location.lab->index(), table_offset,
+                                           table_slot_uncompressed);
   }
+}
+
+void FastSerializer::ObjectSerializer::VisitIndirectPointer(
+    Tagged<HeapObject> host, IndirectPointerSlot slot,
+    IndirectPointerMode mode) {
+  Tagged<Object> value =
+      slot.Relaxed_Load_AllowUnpublished(serializer_->isolate());
+  VisitIndirectPointerHelper(value, slot);
 }
 
 void FastSerializer::ObjectSerializer::VisitJSDispatchTableEntry(

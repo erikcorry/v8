@@ -216,8 +216,7 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
       i_isolate, Snapshot::kDefaultSerializerFlags);
 
   StartupSerializer ser(i_isolate, Snapshot::kDefaultSerializerFlags,
-                        &read_only_serializer,
-                        &shared_space_serializer);
+                        &read_only_serializer, &shared_space_serializer);
   ser.SerializeStrongReferences(no_gc);
 
   ser.SerializeWeakReferencesAndDeferred();
@@ -439,7 +438,8 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer, &shared_space_serializer);
+        isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer,
+        &shared_space_serializer);
     startup_serializer.SerializeStrongReferences(no_gc);
 
     SnapshotByteSink context_sink;
@@ -633,10 +633,9 @@ static void SerializeCustomContext(
           i_isolate, Snapshot::kDefaultSerializerFlags);
 
       SnapshotByteSink startup_sink;
-      StartupSerializer startup_serializer(i_isolate,
-                                           Snapshot::kDefaultSerializerFlags,
-                                           &read_only_serializer,
-                                           &shared_space_serializer);
+      StartupSerializer startup_serializer(
+          i_isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer,
+          &shared_space_serializer);
       startup_serializer.SerializeStrongReferences(no_gc);
 
       SnapshotByteSink context_sink;
