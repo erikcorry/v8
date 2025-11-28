@@ -72,6 +72,13 @@ class FastSerializer : public RootVisitor {
  protected:
   virtual bool is_read_only() { return false; }
 
+  // Override to be able to give newly discovered objects to a previous
+  // snapshot.  This is used when the startup snapshot discovers objects
+  // in the read-only space that should be part of the read-only snapshot.
+  virtual bool belongs_to_previous_snapshot(Tagged<HeapObject> heap_object) {
+    return false;
+  }
+
   void AddToSnapshot(Tagged<HeapObject> heap_object);
 
  private:
