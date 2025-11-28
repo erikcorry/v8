@@ -152,6 +152,17 @@ void FastSerializer::VisitRootPointers(
     FullObjectSlot start,  // From src/objects/slots.h.
     FullObjectSlot end) {
   for (FullObjectSlot current = start; current < end; ++current) {
+    if (is_read_only()) {
+      Tagged<Object> value = current.load(isolate_);
+      if (!value.IsSmi()) {
+        AllocationSpace allocation_space =
+            GetAllocationSpace(Cast<HeapObject>(value));
+        if (allocation_space != RO_SPACE) {
+          // For the read-only serializer we skip other roots.
+          return;
+        }
+      }
+    }
     size_t offset = roots_lab_->highest();
     roots_lab_->Expand(offset, offset + sizeof(Address));
     snapshot_->root_lab_data_.push_back((*current).ptr());
