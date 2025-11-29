@@ -468,9 +468,10 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     ExternalPointerHandle ept_entry_ = kNullExternalPointerHandle;
   };
 
+  static inline uint32_t HandleToIndex(ExternalPointerHandle handle);
+
  private:
   static inline bool IsValidHandle(ExternalPointerHandle handle);
-  static inline uint32_t HandleToIndex(ExternalPointerHandle handle);
   static inline ExternalPointerHandle IndexToHandle(uint32_t index);
 
   inline void TakeOwnershipOfManagedResourceIfNecessary(
