@@ -423,7 +423,7 @@ void FastSerializer::ObjectSerializer::VisitPointers(
     Tagged<HeapObject> host, CompressedMaybeObjectSlot start,
     CompressedMaybeObjectSlot end) {
   Address base_address = old_object_.address();
-  for (CompressedMaybeObjectSlot slot = start; slot <= end; slot++) {
+  for (CompressedMaybeObjectSlot slot = start; slot < end; slot++) {
     size_t in_object_offset = slot.address() - base_address;
     size_t in_lab_offset = new_object_->address() -
                            reinterpret_cast<Address>(dest_lab_->BackingAt(0));
@@ -477,18 +477,27 @@ void FastSerializer::ObjectSerializer::VisitExternalPointer(
   if (serializer_->is_read_only()) {
     CHECK(IsMaybeReadOnlyExternalPointerType(tag_range));
     ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-    // The handle is a uint32_t which is shifted left so that no corruption can
-    // exceed the reserved area of the external pointer table.
-    CHECK_EQ(handle, kNullExternalPointerHandle);
-    // Don't need this since it's always null in our case.
-    /*
     ExternalPointerTable& table =
         serializer_->isolate()->external_pointer_table();
-    ExternalPointerTable::Space* space =
-        serializer_->isolate()->heap()->read_only_external_pointer_space();
-
-    uint32_t index = table->HandleToIndex(handle);
-    */
+    Address table_base = table.base();
+    uint32_t handle_index = table.HandleToIndex(handle);
+    Address slot_address = table_base + handle_index * sizeof(ExternalPointerTableEntry);
+    if ((serializer_->flags_ & Snapshot::kUseIsolateMemory) != 0) {
+      LinearAllocationBuffer* table_lab;
+      // TODO: Not sure how to get the correct space here, using OLD_SPACE for
+      // now.
+      table_lab = serializer_->GetOrCreateLabForFixedLocation(
+          slot_address, kTrustedPointerTable, OLD_SPACE);
+      table_lab->Expand(slot_address,
+                        slot_address + sizeof(ExternalPointerTableEntry));
+      // No relocation needed, since we are not changing the entry in the
+      // external pointer table, but we need to handle the actual pointers in
+      // the external pointer table.
+    } else {
+      // TODO: Allocate a slot in a virtualized ExternalPointerTable.
+      // TODO: Emit a relocation for the index into the table. The table is not
+      // compressed, but the indices are shifted for security.
+    }
   } else {
     // TODO: Handle external pointers outside the read-only snapshot.
     UNREACHABLE();
@@ -551,12 +560,12 @@ void FastSerializer::ObjectSerializer::VisitIndirectPointerHelper(
     Address table_base = table->base_address();
     slot_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
   } else {
+    // Eg a SFI in the read-only space.
     TrustedPointerTable& table =
         serializer_->isolate()->trusted_pointer_table();
     uint32_t handle_index = table.HandleToIndex(handle);
     Address table_base = table.base_address();
     slot_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
-    UNREACHABLE();  // Do we actually need this branch?
   }
   LinearAllocationBuffer* table_lab;
   // Offset within the table lab.
@@ -572,18 +581,17 @@ void FastSerializer::ObjectSerializer::VisitIndirectPointerHelper(
     table_offset = slot_address - table_lab->start();
     // No relocation is needed in this case for the table index slot in the
     // pointed-from object, since we are not changing it.
-    // TODO: Emit a relocation for the table when we know the destination
-    // location of the pointed-to object.
   } else {
     // TODO: Allocate a slot in a virtualized TrustedPointerTable.
+    // TODO: Emit a relocation for the index into the table. The table is not
+    // compressed, but the indices are shifted for security and in the case of
+    // the code pointer table there's also a tag in the low bit that we need to
+    // account for in the relocation information.
     UNREACHABLE();
   }
   // Deal with the indirectly referenced object that is in the table.
   if (!value.IsSmi()) {
     LabAndOffset location = serializer_->FoundObject(Cast<HeapObject>(value));
-    // TODO: The table is not compressed, but the elements are shifted for
-    // security and in the case of the code pointer table there's also a tag in
-    // the low bit that we need to account for in the relocation information.
     constexpr bool table_slot_uncompressed = false;
     serializer_->snapshot()->AddRelocation(table_lab->index(),
                                            location.lab->index(), table_offset,
