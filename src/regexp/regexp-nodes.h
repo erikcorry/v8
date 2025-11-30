@@ -15,12 +15,16 @@ namespace internal {
 class AlternativeGenerationList;
 class BoyerMooreLookahead;
 class SpecialLoopState;
+class NgramHash;
 class NodeVisitor;
 class QuickCheckDetails;
 class RegExpCompiler;
 class SeqRegExpNode;
 class Trace;
 struct PreloadState;
+
+// Coordinate size with NgramHash::kSize;
+typedef std::bitset<32> NgramBitset;
 
 #define FOR_EACH_NODE_TYPE(VISIT) \
   VISIT(End)                      \
@@ -222,7 +226,8 @@ class RegExpNode : public ZoneObject {
   static const int kRecursionBudget = 200;
   bool KeepRecursing(RegExpCompiler* compiler);
   virtual void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                            BoyerMooreLookahead* bm, bool not_at_start) {
+                            BoyerMooreLookahead* bm, bool not_at_start,
+                            NgramHash* ngrams, NgramBitset parent_entries) {
     UNREACHABLE();
   }
 
@@ -329,8 +334,10 @@ class SeqRegExpNode : public RegExpNode {
   void set_on_success(RegExpNode* node) { on_success_ = node; }
   RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override {
-    on_success_->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
+                    BoyerMooreLookahead* bm, bool not_at_start,
+                    NgramHash* ngrams, NgramBitset parent_entries) override {
+    on_success_->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start,
+                              ngrams, parent_entries);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
   SeqRegExpNode* AsSeqRegExpNode() override { return this; }
@@ -386,7 +393,8 @@ class ActionNode : public SeqRegExpNode {
                             RegExpCompiler* compiler, int filled_in,
                             bool not_at_start) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm, bool not_at_start,
+                    NgramHash* ngrams, NgramBitset parent_entries) override;
   ActionType action_type() const { return action_type_; }
   // TODO(erikcorry): We should allow some action nodes in fixed length loops.
   int FixedLengthLoopLength() override {
@@ -508,7 +516,8 @@ class TextNode : public SeqRegExpNode {
   RegExpNode* GetSuccessorOfOmnivorousTextNode(
       RegExpCompiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm, bool not_at_start,
+                    NgramHash* ngrams, NgramBitset parent_entries) override;
   void CalculateOffsets();
   RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   int Length();
@@ -560,7 +569,8 @@ class AssertionNode : public SeqRegExpNode {
                             RegExpCompiler* compiler, int filled_in,
                             bool not_at_start) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm, bool not_at_start,
+                    NgramHash* ngrams, NgramBitset parent_entries) override;
   AssertionType assertion_type() { return assertion_type_; }
 
  private:
@@ -597,7 +607,8 @@ class BackReferenceNode : public SeqRegExpNode {
     return;
   }
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm, bool not_at_start,
+                    NgramHash* ngrams, NgramBitset parent_entries) override;
 
  private:
   int start_reg_;
@@ -620,9 +631,9 @@ class EndNode : public RegExpNode {
     UNREACHABLE();
   }
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override {
-    // Returning 0 from EatsAtLeast should ensure we never get here.
-    UNREACHABLE();
+                    BoyerMooreLookahead* bm, bool not_at_start,
+                    NgramHash* ngrams, NgramBitset parent_entries) override {
+    return;
   }
 
  private:
@@ -699,7 +710,8 @@ class ChoiceNode : public RegExpNode {
                             RegExpCompiler* compiler, int characters_filled_in,
                             bool not_at_start) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm, bool not_at_start,
+                    NgramHash* ngrams, NgramBitset parent_entries) override;
 
   bool being_calculated() { return being_calculated_; }
   bool not_at_start() { return not_at_start_; }
@@ -722,6 +734,9 @@ class ChoiceNode : public RegExpNode {
   void GenerateGuard(RegExpMacroAssembler* macro_assembler, Guard* guard,
                      Trace* trace);
   int CalculatePreloadCharacters(RegExpCompiler* compiler, int eats_at_least);
+  void FillInBMInfoWithNgrams(Isolate* isolate, int offset, int budget,
+                              BoyerMooreLookahead* bm, bool not_at_start,
+                              NgramHash* ngrams, NgramBitset parent_entries);
   V8_WARN_UNUSED_RESULT EmitResult EmitOutOfLineContinuation(
       RegExpCompiler* compiler, Trace* trace, GuardedAlternative alternative,
       AlternativeGeneration* alt_gen, int preload_characters,
@@ -762,9 +777,10 @@ class NegativeLookaroundChoiceNode : public ChoiceNode {
                             RegExpCompiler* compiler, int characters_filled_in,
                             bool not_at_start) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override {
-    continue_node()->FillInBMInfo(isolate, offset, budget - 1, bm,
-                                  not_at_start);
+                    BoyerMooreLookahead* bm, bool not_at_start,
+                    NgramHash* ngrams, NgramBitset parent_entries) override {
+    continue_node()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start,
+                                  ngrams, parent_entries);
     if (offset == 0) set_bm_info(not_at_start, bm);
   }
   static constexpr int kLookaroundIndex = 0;
@@ -813,7 +829,8 @@ class LoopChoiceNode : public ChoiceNode {
                                          int characters_filled_in,
                                          bool not_at_start) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm, bool not_at_start,
+                    NgramHash* ngrams, NgramBitset parent_entries) override;
   EatsAtLeastInfo EatsAtLeastFromLoopEntry() override;
   RegExpNode* loop_node() { return loop_node_; }
   RegExpNode* continue_node() { return continue_node_; }

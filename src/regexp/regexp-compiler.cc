@@ -1415,7 +1415,8 @@ bool RegExpNode::KeepRecursing(RegExpCompiler* compiler) {
 }
 
 void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                              BoyerMooreLookahead* bm, bool not_at_start) {
+                              BoyerMooreLookahead* bm, bool not_at_start,
+                              NgramHash* ngrams, NgramBitset parent_entries) {
   std::optional<RegExpFlags> old_flags;
   if (action_type_ == MODIFY_FLAGS) {
     // It is not guaranteed that we hit the resetting modify flags node, due to
@@ -1427,13 +1428,14 @@ void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
   if (action_type_ == BEGIN_POSITIVE_SUBMATCH) {
     // We use the node after the lookaround to fill in the eats_at_least info
     // so we have to use the same node to fill in the Boyer-Moore info.
-    success_node()->on_success()->FillInBMInfo(isolate, offset, budget - 1, bm,
-                                               not_at_start);
+    success_node()->on_success()->FillInBMInfo(
+        isolate, offset, budget - 1, bm, not_at_start, ngrams, parent_entries);
   } else if (action_type_ != POSITIVE_SUBMATCH_SUCCESS) {
     // We don't use the node after a positive submatch success because it
     // rewinds the position.  Since we returned 0 as the eats_at_least value for
     // this node, we don't need to fill in any data.
-    on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
+    on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start,
+                               ngrams, parent_entries);
   }
   SaveBMInfo(bm, not_at_start, offset);
   if (old_flags.has_value()) {
@@ -1473,10 +1475,13 @@ void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
 }
 
 void AssertionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                                 BoyerMooreLookahead* bm, bool not_at_start) {
+                                 BoyerMooreLookahead* bm, bool not_at_start,
+                                 NgramHash* ngrams,
+                                 NgramBitset parent_entries) {
   // Match the behaviour of EatsAtLeast on this node.
   if (assertion_type() == AT_START && not_at_start) return;
-  on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
+  on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start,
+                             ngrams, parent_entries);
   SaveBMInfo(bm, not_at_start, offset);
 }
 
@@ -2156,14 +2161,300 @@ void LoopChoiceNode::GetQuickCheckDetailsFromLoopEntry(
   }
 }
 
+// We show the accumulator the characters in the regexp and it attempts to
+// identify ngrams that can be searched for with SIMD instructions.
+class NgramAccumulator {
+ public:
+  explicit NgramAccumulator(int offset) : offset_(offset) {
+    for (int i = 0; i < 4; i++) {
+      masks_[i] = 0;
+      in_use_[i] = false;
+    }
+  }
+
+  bool IsFull() const { return highest_seen_ == offset_ + 3; }
+
+  void Set(int offset, base::uc16 c) {
+    if (offset_ <= offset && offset < offset_ + 4) {
+      highest_seen_ = std::max(offset, highest_seen_);
+      int j = offset - offset_;
+      if (!in_use_[j]) {
+        chars_[j] = c;
+        masks_[j] = 0xffff;
+        in_use_[j] = true;
+      } else {
+        base::uc16 old = chars_[j];
+        base::uc16 mask = masks_[j];
+        base::uc16 disagreement = (c & mask) ^ (old & mask);
+        masks_[j] = mask & ~disagreement;
+        chars_[j] = old & ~disagreement;
+      }
+    }
+  }
+
+  void Shift() {
+    offset_++;
+    for (int i = 0; i < 3; i++) {
+      chars_[i] = chars_[i + 1];
+      masks_[i] = masks_[i + 1];
+    }
+    masks_[3] = false;
+    in_use_[3] = false;
+  }
+
+  unsigned HashCode() const {
+    // Only uses first two characters and ignores masks.
+    return chars_[0] * 211 + chars_[1] * 727;
+  }
+
+ private:
+  int offset_;  // Of 0th entry.
+  int highest_seen_ = 0;
+  base::uc16 chars_[4];
+  base::uc16 masks_[4];
+  bool in_use_[4];
+
+  friend class NgramInfo;
+  friend class NgramHash;
+};
+
+class NgramInfo {
+ public:
+  NgramInfo() {
+    for (int i = 0; i < 4; i++) chars_[i] = kUnused;
+  }
+
+  NgramInfo& operator=(const NgramAccumulator& acc) {
+    for (int i = 0; i < 4; i++) {
+      chars_[i] = acc.chars_[i];
+      masks_[i] = acc.masks_[i];
+    }
+    offsets_[acc.offset_] = 1;
+    return *this;
+  }
+
+  static bool CantRepresent(const NgramAccumulator* acc) {
+    return acc->chars_[0] == kUnused && acc->chars_[1] == kUnused;
+  }
+
+  bool IsFree() const { return chars_[0] == kUnused && chars_[1] == kUnused; }
+
+  bool Matches(const NgramAccumulator* acc) const {
+    return acc->chars_[0] == chars_[0] && acc->chars_[1] == chars_[1];
+  }
+
+  // Used to rank ngrams for search purposes.
+  int Points() const {
+    int offset_count = 0;
+    int first = 0;
+    int last = 0;
+
+    for (int i = 0; i < kSize; i++) {
+      if (offsets_[i]) {
+        if (offset_count == 0) first = i;
+        offset_count++;
+        last = i;
+      }
+    }
+    int points = 0;
+    for (int i = 0; i < 4; i++) {
+      // The more precisely we can describe the ngram, the better - slightly
+      // better for the early parts to be precise.
+      points += (10 - i) * __builtin_popcount(masks_[i] & 0xff);
+    }
+    // Reduce points for having the ngram occur at many different offsets.
+    points = (points * 5) / (5 + offset_count);
+    // Reduce points for having the ngram occur at very spread out offsets.
+    points = (points * 5) / (5 + last - first);
+    // Reduce points for having the ngram occur very late.
+    points = (points * 5) / (5 + first);
+    return points;
+  }
+
+  void Merge(const NgramAccumulator* acc) {
+    masks_[0] &= acc->masks_[0];
+    masks_[1] &= acc->masks_[1];
+    for (int i = 2; i < 4; i++) {
+      base::uc16 mask = masks_[i] & acc->masks_[i];
+      base::uc16 disagreement = (chars_[i] & mask) ^ (acc->chars_[i] & mask);
+      mask &= ~disagreement;
+      masks_[i] = mask;
+      chars_[i] &= mask;
+    }
+    offsets_[acc->offset_] = 1;
+  }
+
+  static constexpr int kSize = 64;  // Max look-ahead.
+
+  void PrintGood() {
+    printf("'");
+    for (int i = 0; i < 4; i++) {
+      int printed = 0;
+      if (__builtin_popcount(masks_[i] & 0x7f) >= 4) {
+        base::uc16 c = chars_[i];
+        int saved = 0;
+        for (int j = ' '; j <= '~'; j++) {
+          if ((j & masks_[i]) == c) {
+            if (printed == 0) {
+              saved = j;
+              printed = 1;
+            } else if (printed == 1) {
+              printf("[%c%c", saved, j);
+              printed = 2;
+            } else {
+              printf("%c", j);
+            }
+          }
+        }
+        if (printed == 1) {
+          printf("%c", saved);
+        } else if (printed > 1) {
+          printf("]");
+        }
+      }
+      if (printed == 0) {
+        printf(".");
+      }
+    }
+    printf("' at offsets ");
+    for (int i = 0; i < kSize; i++) {
+      if (offsets_[i]) printf("%d,", i);
+    }
+    printf("\n");
+  }
+
+ private:
+  // This means we can't search forwards for null chars.
+  static constexpr int kUnused = 0;
+  base::uc16 chars_[4];
+  base::uc16 masks_[4];
+  // Bitmap of offsets this ngram can occur in different branches of the
+  // regexp.
+  std::bitset<kSize> offsets_ = 0;
+};
+
+// A table of ngrams we have found in the regexp.
+class NgramHash {
+ public:
+  // Must be less than the size of NgramBitset.
+  static constexpr int kSize = 16;
+  NgramHash() {
+    for (int i = 0; i < kSize; i++) {
+      counts_[i] = 0;
+    }
+  }
+
+  int GetBestNgram() const;
+
+  // Finds an ngram in the data accumulated by the accumulator and adds
+  // it to the table.
+  int FindNgrams(NgramBitset parent_entries, NgramAccumulator* state);
+
+  // Once a ChoiceNode has found ngrams in all its successors we see if they
+  // found the same ngrams and otherwise remove the entries.
+  void CheckAllSiblings(int siblings, const uint8_t* saved_counts,
+                        NgramBitset parent_entries);
+
+  void GetCounts(uint8_t* dest) const {
+    for (int i = 0; i < kSize; i++) {
+      dest[i] = counts_[i];
+    }
+  }
+
+  void SetCounts(const uint8_t* source) {
+    for (int i = 0; i < kSize; i++) {
+      counts_[i] = source[i];
+    }
+  }
+
+  NgramInfo* bucket(int i) {
+    if (0 <= i && i < kSize) {
+      return buckets_ + i;
+    }
+    return nullptr;
+  }
+
+ private:
+  uint8_t* counts() { return &counts_[0]; }
+
+  NgramInfo buckets_[kSize];
+  uint8_t counts_[kSize];
+
+  friend class ChoiceNode;
+};
+
+int NgramHash::GetBestNgram() const {
+  int best = -1;
+  int best_points = -1;
+  for (int i = 0; i < kSize; i++) {
+    if (counts_[i] == 1) {
+      int new_points = buckets_[i].Points();
+      if (new_points > best_points) {
+        best = i;
+        best_points = new_points;
+      }
+    }
+  }
+  return best;
+}
+
+int NgramHash::FindNgrams(NgramBitset parent_entries, NgramAccumulator* acc) {
+  int offset = acc->offset_;
+  bool good_offset0 = (acc->masks_[0] & ~0x21) == 0xffde;
+  bool good_offset1 = (acc->masks_[1] & ~0x21) == 0xffde;
+  if (offset >= NgramInfo::kSize - 1) {
+    // Too far out.
+    return -2;
+  }
+  if (!good_offset0 || !good_offset1) {
+    // No good bigrams.
+    bool good_offset2 = (acc->masks_[2] & ~0x21) == 0xffde;
+    bool good_offset3 = (acc->masks_[3] & ~0x21) == 0xffde;
+    acc->Shift();
+    if (!good_offset2 && !good_offset3) return -2;
+    return -1;
+  }
+  int hash = acc->HashCode() % kSize;
+  // Don't mess with earlier ngrams from common predecessors.
+  if (parent_entries[hash]) {
+    acc->Shift();
+    return -1;
+  }
+  if (NgramInfo::CantRepresent(acc)) {
+    acc->Shift();
+    return -1;
+  }
+  NgramInfo& entry = buckets_[hash];
+  if (entry.IsFree()) {
+    entry = *acc;
+    DCHECK_EQ(0, counts_[hash]);
+    counts_[hash] = 1;
+    acc->Shift();
+    return hash;
+  }
+  if (!entry.Matches(acc)) {
+    // Hash collision!
+    acc->Shift();
+    return -1;
+  }
+  entry.Merge(acc);
+  counts_[hash]++;
+  acc->Shift();
+  return hash;
+}
+
 void LoopChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                                  BoyerMooreLookahead* bm, bool not_at_start) {
+                                  BoyerMooreLookahead* bm, bool not_at_start,
+                                  NgramHash* ngrams,
+                                  NgramBitset parent_entries) {
   if (body_can_be_zero_length_ || budget <= 0) {
     bm->SetRest(offset);
     SaveBMInfo(bm, not_at_start, offset);
     return;
   }
-  ChoiceNode::FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
+  NgramBitset dummy;
+  ChoiceNode::FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start,
+                           nullptr, dummy);
   SaveBMInfo(bm, not_at_start, offset);
 }
 
@@ -2254,7 +2545,9 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
     if (eats_at_least >= 1) {
       BoyerMooreLookahead* bm =
           zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
-      FillInBMInfo(isolate, 0, kRecursionBudget, bm, not_at_start);
+      NgramBitset dummy;
+      FillInBMInfo(isolate, 0, kRecursionBudget, bm, not_at_start, nullptr,
+                   dummy);
       if (bm->at(0)->is_non_word()) next_is_word_character = Trace::FALSE_VALUE;
       if (bm->at(0)->is_word()) next_is_word_character = Trace::TRUE_VALUE;
     }
@@ -2901,7 +3194,8 @@ BoyerMooreLookahead::BoyerMooreLookahead(int length, RegExpCompiler* compiler,
 // Find the longest range of lookahead that has the fewest number of different
 // characters that can occur at a given position.  Since we are optimizing two
 // different parameters at once this is a tradeoff.
-bool BoyerMooreLookahead::FindWorthwhileInterval(int* from, int* to) {
+bool BoyerMooreLookahead::FindWorthwhileInterval(int* from, int* to,
+                                                 NgramInfo* ngram) {
   int biggest_points = 0;
   // If more than 32 characters out of 128 can occur it is unlikely that we can
   // be lucky enough to step forwards much of the time.
@@ -3020,13 +3314,22 @@ int BoyerMooreLookahead::GetSkipTable(
 }
 
 // See comment above on the implementation of GetSkipTable.
-void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
+void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm,
+                                               NgramHash* hash) {
   const int kSize = RegExpMacroAssembler::kTableSize;
 
   int min_lookahead = 0;
   int max_lookahead = 0;
 
-  if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead)) return;
+  int best_ngram = hash->GetBestNgram();
+  if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead,
+                              hash->bucket(best_ngram))) {
+    // if (masm->CanDoBigramSearch(hash->bucket(best_ngram))) {
+    // return;
+    //}
+    // hash->PrintWorthwhileBigrams();
+    return;
+  }
 
   // Check if we only have a single non-empty position info, and that info
   // contains only one or two characters.
@@ -3387,16 +3690,19 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(
   // not be atoms, they can be any reasonably limited character class or
   // small alternation.
   BoyerMooreLookahead* bm = bm_info(false);
+  NgramHash ngrams;
+  NgramBitset no_parent;
   if (bm == nullptr) {
     eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast(false));
     if (eats_at_least >= 1) {
       bm = zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
       GuardedAlternative alt0 = alternatives_->at(0);
-      alt0.node()->FillInBMInfo(isolate, 0, kRecursionBudget, bm, false);
+      alt0.node()->FillInBMInfo(isolate, 0, kRecursionBudget, bm, false,
+                                &ngrams, no_parent);
     }
   }
   if (bm != nullptr) {
-    bm->EmitSkipInstructions(macro_assembler);
+    bm->EmitSkipInstructions(macro_assembler, &ngrams);
   }
   return eats_at_least;
 }
@@ -3992,8 +4298,9 @@ RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte, RegExpFlags flags,
 }
 
 void BackReferenceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                                     BoyerMooreLookahead* bm,
-                                     bool not_at_start) {
+                                     BoyerMooreLookahead* bm, bool not_at_start,
+                                     NgramHash* ngrams,
+                                     NgramBitset parent_entries) {
   // Working out the set of characters that a backreference can match is too
   // hard, so we just say that any character can match.
   bm->SetRest(offset);
@@ -4004,50 +4311,92 @@ static_assert(BoyerMoorePositionInfo::kMapSize ==
               RegExpMacroAssembler::kTableSize);
 
 void ChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                              BoyerMooreLookahead* bm, bool not_at_start) {
+                              BoyerMooreLookahead* bm, bool not_at_start,
+                              NgramHash* ngrams, NgramBitset parent_entries) {
   ZoneList<GuardedAlternative>* alts = alternatives();
+
+  if (budget <= 0) {
+    bm->SetRest(offset);
+    return;
+  }
   budget = (budget - 1) / alts->length();
+
+  uint8_t saved_counts[NgramHash::kSize];
+  if (ngrams) ngrams->GetCounts(saved_counts);
+
   for (int i = 0; i < alts->length(); i++) {
     GuardedAlternative& alt = alts->at(i);
     if (alt.guards() != nullptr && alt.guards()->length() != 0) {
       bm->SetRest(offset);  // Give up trying to fill in info.
       SaveBMInfo(bm, not_at_start, offset);
+      if (ngrams) ngrams->SetCounts(saved_counts);
       return;
     }
-    alt.node()->FillInBMInfo(isolate, offset, budget, bm, not_at_start);
+    alt.node()->FillInBMInfo(isolate, offset, budget, bm, not_at_start, ngrams,
+                             parent_entries);
+  }
+  if (ngrams) {
+    ngrams->CheckAllSiblings(alts->length(), saved_counts, parent_entries);
   }
   SaveBMInfo(bm, not_at_start, offset);
 }
 
-void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
-                            BoyerMooreLookahead* bm, bool not_at_start) {
-  if (initial_offset >= bm->length()) return;
-  if (read_backward()) return;
-  int offset = initial_offset;
-  int max_char = bm->max_char();
-  for (int i = 0; i < elements()->length(); i++) {
-    if (offset >= bm->length()) {
-      if (initial_offset == 0) set_bm_info(not_at_start, bm);
-      return;
+void NgramHash::CheckAllSiblings(int expected_increase,
+                                 const uint8_t* saved_counts,
+                                 NgramBitset parent_entries) {
+  for (int i = 0; i < kSize; i++) {
+    if (!parent_entries[i]) {
+      int expected = saved_counts[i] + expected_increase;
+      if (counts_[i] == expected) {
+        counts_[i] = saved_counts[i] + 1;
+      } else {
+        counts_[i] = saved_counts[i];
+      }
     }
+  }
+}
+
+void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
+                            BoyerMooreLookahead* bm, bool not_at_start,
+                            NgramHash* ngrams, NgramBitset parent_entries) {
+  int max_offset = bm->length() - 1;
+  if (ngrams) max_offset = std::max(max_offset, NgramInfo::kSize - 1);
+  if (initial_offset > max_offset) {
+    return;
+  }
+
+  if (read_backward()) return;
+  int max_char = bm->max_char();
+
+  NgramAccumulator accumulator(initial_offset);
+  int offset = initial_offset;
+
+  for (int i = 0; i < elements()->length(); i++) {
+    if (offset > max_offset) break;
     TextElement text = elements()->at(i);
     if (text.text_type() == TextElement::ATOM) {
       RegExpAtom* atom = text.atom();
       for (int j = 0; j < atom->length(); j++, offset++) {
-        if (offset >= bm->length()) {
-          if (initial_offset == 0) set_bm_info(not_at_start, bm);
-          return;
-        }
         base::uc16 character = atom->data()[j];
         if (IsIgnoreCase(bm->compiler()->flags())) {
           unibrow::uchar chars[4];
           int length = GetCaseIndependentLetters(isolate, character,
                                                  bm->compiler(), chars, 4);
           for (int k = 0; k < length; k++) {
-            bm->Set(offset, chars[k]);
+            if (offset < bm->length()) {
+              bm->Set(offset, chars[k]);
+            }
+            if (ngrams) accumulator.Set(offset, chars[k]);
           }
         } else {
-          if (character <= max_char) bm->Set(offset, character);
+          if (character <= max_char && offset < bm->length()) {
+            bm->Set(offset, character);
+          }
+          if (ngrams) accumulator.Set(offset, character);
+        }
+        if (ngrams && accumulator.IsFull()) {
+          int index = ngrams->FindNgrams(parent_entries, &accumulator);
+          if (index >= 0) parent_entries[index] = 1;
         }
       }
     } else {
@@ -4060,19 +4409,38 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
         for (int k = 0; k < ranges->length(); k++) {
           CharacterRange& range = ranges->at(k);
           if (static_cast<int>(range.from()) > max_char) continue;
-          int to = std::min(max_char, static_cast<int>(range.to()));
+          base::uc16 to = std::min(max_char, static_cast<int>(range.to()));
           bm->SetInterval(offset, Interval(range.from(), to));
+          if (ngrams && to < range.from() + 16) {
+            for (int l = range.from(); l <= to; l++) {
+              accumulator.Set(offset, l);
+            }
+          }
         }
       }
       offset++;
+      if (ngrams && accumulator.IsFull()) {
+        int index = ngrams->FindNgrams(parent_entries, &accumulator);
+        if (index >= 0) parent_entries[index] = 1;
+      }
     }
+  }
+  if (ngrams) {
+    int index;
+    do {
+      index = ngrams->FindNgrams(parent_entries, &accumulator);
+      if (index >= 0) parent_entries[index] = 1;
+    } while (index != -2);
   }
   if (offset >= bm->length()) {
     if (initial_offset == 0) set_bm_info(not_at_start, bm);
+  }
+  if (offset > max_offset) {
     return;
   }
   on_success()->FillInBMInfo(isolate, offset, budget - 1, bm,
-                             true);  // Not at start after a text node.
+                             true,  // Not at start after a text node.
+                             ngrams, parent_entries);
   if (initial_offset == 0) set_bm_info(not_at_start, bm);
 }
 

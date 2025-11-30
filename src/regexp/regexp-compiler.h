@@ -17,6 +17,8 @@ namespace internal {
 
 class DynamicBitSet;
 class Isolate;
+class NgramHash;
+class NgramInfo;
 class SpecialLoopState;
 
 namespace regexp_compiler_constants {
@@ -181,12 +183,14 @@ class BoyerMooreLookahead : public ZoneObject {
   BoyerMoorePositionInfo* at(int i) { return bitmaps_->at(i); }
 
   void Set(int map_number, int character) {
+    if (map_number >= length()) return;
     if (character > max_char_) return;
     BoyerMoorePositionInfo* info = bitmaps_->at(map_number);
     info->Set(character);
   }
 
   void SetInterval(int map_number, const Interval& interval) {
+    if (map_number >= length()) return;
     if (interval.from() > max_char_) return;
     BoyerMoorePositionInfo* info = bitmaps_->at(map_number);
     if (interval.to() > max_char_) {
@@ -196,12 +200,15 @@ class BoyerMooreLookahead : public ZoneObject {
     }
   }
 
-  void SetAll(int map_number) { bitmaps_->at(map_number)->SetAll(); }
+  void SetAll(int map_number) {
+    if (map_number >= length()) return;
+    bitmaps_->at(map_number)->SetAll();
+  }
 
   void SetRest(int from_map) {
     for (int i = from_map; i < length_; i++) SetAll(i);
   }
-  void EmitSkipInstructions(RegExpMacroAssembler* masm);
+  void EmitSkipInstructions(RegExpMacroAssembler* masm, NgramHash* ngrams);
 
  private:
   // This is the value obtained by EatsAtLeast.  If we do not have at least this
@@ -218,7 +225,7 @@ class BoyerMooreLookahead : public ZoneObject {
       int min_lookahead, int max_lookahead,
       DirectHandle<ByteArray> boolean_skip_table,
       DirectHandle<ByteArray> nibble_table = DirectHandle<ByteArray>{});
-  bool FindWorthwhileInterval(int* from, int* to);
+  bool FindWorthwhileInterval(int* from, int* to, NgramInfo* ngram);
   int FindBestInterval(int max_number_of_chars, int old_biggest_points,
                        int* from, int* to);
 };
