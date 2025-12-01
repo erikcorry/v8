@@ -69,6 +69,8 @@ class FastSerializer : public RootVisitor {
 
   LabAndOffset FoundObject(Tagged<HeapObject> heap_object);
 
+  void Dump();
+
  protected:
   virtual bool is_read_only() { return false; }
 

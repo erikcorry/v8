@@ -117,6 +117,10 @@ bool FastSerializer::LocalIsMarked(Tagged<HeapObject> object) {
 }
 
 void FastSerializer::Mark(Tagged<HeapObject> object, size_t size) {
+  Address address = object->address();
+  if (0x39f50003f800 <= address && address < 0x39f500040000) {
+    printf("Mark from %p-%p\n", (void*)address, (char*)address + size);
+  }
   Address lab_start = RoundDown(object->address(), kRegularPageSize);
   auto it = lab_liveness_map_.find(lab_start);
   uint64_t* bitmap = (it == lab_liveness_map_.end()) ? nullptr : it->second;
@@ -616,6 +620,45 @@ void FastSerializer::ObjectSerializer::VisitJSDispatchTableEntry(
   } else {
     // TODO: Handle JSDispatchTable indices.
     UNREACHABLE();
+  }
+}
+
+const char* SpaceToName(AddressSpace space) {
+  switch (space) {
+    case kUncompressed: return "Uncompressed";
+    case kMainCage: return "MainCage";
+    case kTrustedCage: return "TrustedCage";
+    case kCodeSpace: return "CodeSpace";
+    case kRoots: return "Roots";
+    case kExternalPointerTable: return "ExternalPointerTable";
+    case kTrustedPointerTable: return "TrustedPointerTable";
+    case kJSDispatchTable: return "JSDispatchTable";
+    default: return "Unknown space";
+  }
+}
+
+// For debugging only.
+void FastSerializer::Dump() {
+  for (LinearAllocationBuffer* lab : all_labs_) {
+    Address lab_base = lab->start();
+    uint64_t* liveness_map = lab_liveness_map_[lab_base];
+    printf("Lab at %p in %s:\n", (void*)lab_base, SpaceToName(lab->address_space()));
+    constexpr int kWordSize = sizeof(uint32_t);  // Words on a compressed heap.
+    for (int i = 0; i < kRegularPageSize; i += kWordSize) {
+      int word_index = i / kWordSize;  // Compressed words are 32 bits.
+      if ((word_index & 0x3f) == 0) {
+        printf("\n%p ", (void*)(lab_base + i));  // 64 asterisks per line.
+      }
+      int array_index = word_index / 64;  // 64 bits in a mark word.
+      uint64_t word = liveness_map[array_index];
+      int in_mark_word_index = word_index % 64;
+      if ((word & (uint64_t{1} << in_mark_word_index)) != 0) {
+        printf("*");
+      } else {
+        printf(".");
+      }
+    }
+    printf("\n");
   }
 }
 

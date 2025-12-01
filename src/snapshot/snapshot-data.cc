@@ -25,6 +25,7 @@ constexpr uint32_t SerializedData::kMagicNumber;
 SnapshotData::SnapshotData(FastSerializer* serializer) {
   DisallowGarbageCollection no_gc;
   FastSnapshot* snapshot = serializer->snapshot();
+  serializer->Dump();
   const std::vector<uint8_t>* payload = snapshot->Payload();
 
   // Calculate sizes.
