@@ -84,6 +84,8 @@ class FastSerializer : public RootVisitor {
   void AddToSnapshot(Tagged<HeapObject> heap_object);
 
  private:
+  void MarkTableEntry(LinearAllocationBuffer* table_lab, Address entry_address, size_t entry_size);
+
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end);
 
@@ -93,11 +95,11 @@ class FastSerializer : public RootVisitor {
   AllocationSpace GetAllocationSpace(Tagged<HeapObject> object);
 
   // Is the object marked in this or a previous serializer.
-  bool IsMarked(Tagged<HeapObject> object);
+  bool IsMarked(Address address);
   // Only ask the current serializer, not previous ones.
-  bool LocalIsMarked(Tagged<HeapObject> object);
+  bool LocalIsMarked(Address address);
   // Mark live in this serializer.
-  void Mark(Tagged<HeapObject> object, size_t size_in_bytes);
+  void Mark(Address address, size_t size_in_bytes);
 
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 

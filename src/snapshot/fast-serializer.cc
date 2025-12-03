@@ -97,31 +97,30 @@ AllocationSpace FastSerializer::GetAllocationSpace(Tagged<HeapObject> object) {
   return owner->identity();
 }
 
-bool FastSerializer::IsMarked(Tagged<HeapObject> object) {
-  if (LocalIsMarked(object)) return true;
+bool FastSerializer::IsMarked(Address address) {
+  if (LocalIsMarked(address)) return true;
   for (auto it : previous_serializers_) {
-    if (it->LocalIsMarked(object)) return true;
+    if (it->LocalIsMarked(address)) return true;
   }
   return false;
 }
 
-bool FastSerializer::LocalIsMarked(Tagged<HeapObject> object) {
-  Address lab_start = RoundDown(object->address(), kRegularPageSize);
+bool FastSerializer::LocalIsMarked(Address address) {
+  Address lab_start = RoundDown(address, kRegularPageSize);
   uint64_t*& bitmap = lab_liveness_map_[lab_start];
   if (bitmap == nullptr) return false;
   constexpr int kWordSize = sizeof(uint32_t);  // Words on a compressed heap.
-  size_t byte_offset = object->address() - lab_start;
+  size_t byte_offset = address - lab_start;
   size_t index = byte_offset / (64 * kWordSize);
   int bit_number = (byte_offset / kWordSize) & 63;
   return (bitmap[index] & (uint64_t{1} << bit_number)) != 0;
 }
 
-void FastSerializer::Mark(Tagged<HeapObject> object, size_t size) {
-  Address address = object->address();
+void FastSerializer::Mark(Address address, size_t size) {
   if (0x39f50003f800 <= address && address < 0x39f500040000) {
     printf("Mark from %p-%p\n", (void*)address, (char*)address + size);
   }
-  Address lab_start = RoundDown(object->address(), kRegularPageSize);
+  Address lab_start = RoundDown(address, kRegularPageSize);
   auto it = lab_liveness_map_.find(lab_start);
   uint64_t* bitmap = (it == lab_liveness_map_.end()) ? nullptr : it->second;
   if (bitmap == nullptr) {
@@ -132,8 +131,8 @@ void FastSerializer::Mark(Tagged<HeapObject> object, size_t size) {
     lab_liveness_map_[lab_start] = bitmap;
     memset(bitmap, 0, length);
   }
-  size_t start_offset = object->address() - lab_start;
-  size_t end_offset = object->address() + size - lab_start;
+  size_t start_offset = address - lab_start;
+  size_t end_offset = address + size - lab_start;
   end_offset = std::min(end_offset, size_t{kRegularPageSize});
   constexpr int kWordSize = sizeof(uint32_t);  // Words on a compressed heap.
   // Mark all words in the object. TODO(erikcorry): Do this more efficiently.
@@ -168,7 +167,7 @@ void FastSerializer::VisitRootPointers(
       }
     }
     size_t offset = roots_lab_->highest();
-    roots_lab_->Expand(offset, offset + sizeof(Address));
+    MarkTableEntry(roots_lab_, offset, sizeof(Address));
     snapshot_->root_lab_data_.push_back((*current).ptr());
     FullObjectSlot new_slot(
         reinterpret_cast<Address>(roots_lab_->BackingAt(offset)));
@@ -254,12 +253,12 @@ FastSerializer::LabAndOffset FastSerializer::FoundObject(
   Address start = heap_object.address();
   if ((flags_ & Snapshot::kUseIsolateMemory) != 0) {
     size_t size = heap_object->Size();
-    if (!IsMarked(heap_object)) {
-      Mark(heap_object, size);
+    if (!IsMarked(heap_object->address())) {
+      Mark(heap_object->address(), size);
       queue_.push_back(heap_object);
     }
     LinearAllocationBuffer* lab;
-    if (LocalIsMarked(heap_object)) {
+    if (LocalIsMarked(heap_object->address())) {
       // The object belongs to the current serializer.
       // The labs just record the real location of the objects.
       lab = GetOrCreateLabForFixedLocation(heap_object);
@@ -278,11 +277,11 @@ FastSerializer::LabAndOffset FastSerializer::FoundObject(
     // We are constructing artificial labs for the snapshot.
     // Check if the slot points at an object that wasn't until now
     // part of the snapshot.
-    if (!IsMarked(heap_object)) {
+    if (!IsMarked(heap_object->address())) {
       // We need to find a lab
       size_t size = heap_object->Size();
       // Make the object gray/black.
-      Mark(heap_object, size);
+      Mark(heap_object->address(), size);
       // The objects are reallocated in tightly packed labs that we create
       // in the serializer for use by the deserializer.
       LinearAllocationBuffer* lab = GetOrCreatePackedLab(heap_object, size);
@@ -473,6 +472,15 @@ void FastSerializer::ObjectSerializer::VisitInternalReference(
   UNREACHABLE();
 }
 
+void FastSerializer::MarkTableEntry(LinearAllocationBuffer* table_lab, Address entry_address, size_t entry_size) {
+  table_lab->Expand(entry_address, entry_address + entry_size);
+  if (!IsMarked(entry_address)) {
+    // We don't push the object onto the queue, that's the responsibility of
+    // the caller.
+    Mark(entry_address, entry_size);
+  }
+}
+
 void FastSerializer::ObjectSerializer::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
   ExternalPointerTagRange tag_range = slot.tag_range();
@@ -492,8 +500,7 @@ void FastSerializer::ObjectSerializer::VisitExternalPointer(
       // now.
       table_lab = serializer_->GetOrCreateLabForFixedLocation(
           slot_address, kTrustedPointerTable, OLD_SPACE);
-      table_lab->Expand(slot_address,
-                        slot_address + sizeof(ExternalPointerTableEntry));
+      serializer_->MarkTableEntry(table_lab, slot_address, sizeof(ExternalPointerTableEntry));
       // No relocation needed, since we are not changing the entry in the
       // external pointer table, but we need to handle the actual pointers in
       // the external pointer table.
@@ -556,20 +563,20 @@ void FastSerializer::ObjectSerializer::VisitIndirectPointerHelper(
   // integer.
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
 
-  Address slot_address;
+  Address entry_address;
   if (slot.tag() == kCodeIndirectPointerTag) {
     CodePointerTable* table =
         serializer_->isolate()->isolate_group()->code_pointer_table();
     uint32_t handle_index = table->HandleToIndex(handle);
     Address table_base = table->base_address();
-    slot_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
+    entry_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
   } else {
     // Eg a SFI in the read-only space.
     TrustedPointerTable& table =
         serializer_->isolate()->trusted_pointer_table();
     uint32_t handle_index = table.HandleToIndex(handle);
     Address table_base = table.base_address();
-    slot_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
+    entry_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
   }
   LinearAllocationBuffer* table_lab;
   // Offset within the table lab.
@@ -578,11 +585,10 @@ void FastSerializer::ObjectSerializer::VisitIndirectPointerHelper(
     // TODO: Not sure how to get the correct space here, using OLD_SPACE for
     // now.
     table_lab = serializer_->GetOrCreateLabForFixedLocation(
-        slot_address, kTrustedPointerTable, OLD_SPACE);
+        entry_address, kTrustedPointerTable, OLD_SPACE);
     // Mark the slot in use in its own lab.
-    table_lab->Expand(slot_address,
-                      slot_address + sizeof(TrustedPointerTableEntry));
-    table_offset = slot_address - table_lab->start();
+    serializer_->MarkTableEntry(table_lab, entry_address, sizeof(TrustedPointerTableEntry));
+    table_offset = entry_address - table_lab->start();
     // No relocation is needed in this case for the table index slot in the
     // pointed-from object, since we are not changing it.
   } else {
