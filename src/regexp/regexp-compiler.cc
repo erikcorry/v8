@@ -2165,12 +2165,9 @@ void LoopChoiceNode::GetQuickCheckDetailsFromLoopEntry(
 // identify ngrams that can be searched for with SIMD instructions.
 class NgramAccumulator {
  public:
-  explicit NgramAccumulator(int offset) : offset_(offset) {
-    for (int i = 0; i < 4; i++) {
-      masks_[i] = 0;
-      in_use_[i] = false;
-    }
-  }
+  // After constructing, use the one on the owner object, might not be this one!
+  explicit NgramAccumulator(NgramHash* owner, int offset);
+  ~NgramAccumulator();
 
   bool IsFull() const { return highest_seen_ == offset_ + 3; }
 
@@ -2208,6 +2205,7 @@ class NgramAccumulator {
   }
 
  private:
+  NgramHash* owner_;
   int offset_;  // Of 0th entry.
   int highest_seen_ = 0;
   base::uc16 chars_[4];
@@ -2348,7 +2346,7 @@ class NgramHash {
 
   // Finds an ngram in the data accumulated by the accumulator and adds
   // it to the table.
-  int FindNgrams(NgramBitset parent_entries, NgramAccumulator* state);
+  int FindNgrams(NgramBitset parent_entries);
 
   // Once a ChoiceNode has found ngrams in all its successors we see if they
   // found the same ngrams and otherwise remove the entries.
@@ -2374,14 +2372,39 @@ class NgramHash {
     return nullptr;
   }
 
+  NgramAccumulator* accumulator() { return accumulator_; }
+
  private:
   uint8_t* counts() { return &counts_[0]; }
 
+  void set_accumulator(NgramAccumulator* value) {
+    accumulator_ = value;
+  }
+
+  NgramAccumulator* accumulator_;
   NgramInfo buckets_[kSize];
   uint8_t counts_[kSize];
 
   friend class ChoiceNode;
+  friend class NgramAccumulator;
 };
+
+NgramAccumulator::NgramAccumulator(NgramHash* owner, int offset) : owner_(owner), offset_(offset) {
+  if (owner && owner->accumulator() == nullptr) {
+    owner->set_accumulator(this);
+  }
+
+  for (int i = 0; i < 4; i++) {
+    masks_[i] = 0;
+    in_use_[i] = false;
+  }
+}
+
+NgramAccumulator::~NgramAccumulator() {
+  if (owner_->accumulator() == this) {
+    owner_->set_accumulator(nullptr);
+  }
+}
 
 int NgramHash::GetBestNgram() const {
   int best = -1;
@@ -2398,48 +2421,48 @@ int NgramHash::GetBestNgram() const {
   return best;
 }
 
-int NgramHash::FindNgrams(NgramBitset parent_entries, NgramAccumulator* acc) {
-  int offset = acc->offset_;
-  bool good_offset0 = (acc->masks_[0] & ~0x21) == 0xffde;
-  bool good_offset1 = (acc->masks_[1] & ~0x21) == 0xffde;
+int NgramHash::FindNgrams(NgramBitset parent_entries) {
+  int offset = accumulator_->offset_;
+  bool good_offset0 = (accumulator_->masks_[0] & ~0x21) == 0xffde;
+  bool good_offset1 = (accumulator_->masks_[1] & ~0x21) == 0xffde;
   if (offset >= NgramInfo::kSize - 1) {
     // Too far out.
     return -2;
   }
   if (!good_offset0 || !good_offset1) {
     // No good bigrams.
-    bool good_offset2 = (acc->masks_[2] & ~0x21) == 0xffde;
-    bool good_offset3 = (acc->masks_[3] & ~0x21) == 0xffde;
-    acc->Shift();
+    bool good_offset2 = (accumulator_->masks_[2] & ~0x21) == 0xffde;
+    bool good_offset3 = (accumulator_->masks_[3] & ~0x21) == 0xffde;
+    accumulator_->Shift();
     if (!good_offset2 && !good_offset3) return -2;
     return -1;
   }
-  int hash = acc->HashCode() % kSize;
+  int hash = accumulator_->HashCode() % kSize;
   // Don't mess with earlier ngrams from common predecessors.
   if (parent_entries[hash]) {
-    acc->Shift();
+    accumulator_->Shift();
     return -1;
   }
-  if (NgramInfo::CantRepresent(acc)) {
-    acc->Shift();
+  if (NgramInfo::CantRepresent(accumulator_)) {
+    accumulator_->Shift();
     return -1;
   }
   NgramInfo& entry = buckets_[hash];
   if (entry.IsFree()) {
-    entry = *acc;
+    entry = *accumulator_;
     DCHECK_EQ(0, counts_[hash]);
     counts_[hash] = 1;
-    acc->Shift();
+    accumulator_->Shift();
     return hash;
   }
-  if (!entry.Matches(acc)) {
+  if (!entry.Matches(accumulator_)) {
     // Hash collision!
-    acc->Shift();
+    accumulator_->Shift();
     return -1;
   }
-  entry.Merge(acc);
+  entry.Merge(accumulator_);
   counts_[hash]++;
-  acc->Shift();
+  accumulator_->Shift();
   return hash;
 }
 
@@ -4368,9 +4391,9 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
   if (read_backward()) return;
   int max_char = bm->max_char();
 
-  NgramAccumulator accumulator(initial_offset);
+  NgramAccumulator local_accumulator(ngrams, initial_offset);  // May not be used.
+  NgramAccumulator* accumulator = ngrams ? ngrams->accumulator() : nullptr;
   int offset = initial_offset;
-
   for (int i = 0; i < elements()->length(); i++) {
     if (offset > max_offset) break;
     TextElement text = elements()->at(i);
@@ -4386,16 +4409,16 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
             if (offset < bm->length()) {
               bm->Set(offset, chars[k]);
             }
-            if (ngrams) accumulator.Set(offset, chars[k]);
+            if (accumulator) accumulator->Set(offset, chars[k]);
           }
         } else {
           if (character <= max_char && offset < bm->length()) {
             bm->Set(offset, character);
           }
-          if (ngrams) accumulator.Set(offset, character);
+          if (accumulator) accumulator->Set(offset, character);
         }
-        if (ngrams && accumulator.IsFull()) {
-          int index = ngrams->FindNgrams(parent_entries, &accumulator);
+        if (accumulator && accumulator->IsFull()) {
+          int index = ngrams->FindNgrams(parent_entries);
           if (index >= 0) parent_entries[index] = 1;
         }
       }
@@ -4411,26 +4434,19 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
           if (static_cast<int>(range.from()) > max_char) continue;
           base::uc16 to = std::min(max_char, static_cast<int>(range.to()));
           bm->SetInterval(offset, Interval(range.from(), to));
-          if (ngrams && to < range.from() + 16) {
+          if (accumulator && to < range.from() + 16) {
             for (int l = range.from(); l <= to; l++) {
-              accumulator.Set(offset, l);
+              accumulator->Set(offset, l);
             }
           }
         }
       }
       offset++;
-      if (ngrams && accumulator.IsFull()) {
-        int index = ngrams->FindNgrams(parent_entries, &accumulator);
+      if (accumulator && accumulator->IsFull()) {
+        int index = ngrams->FindNgrams(parent_entries);
         if (index >= 0) parent_entries[index] = 1;
       }
     }
-  }
-  if (ngrams) {
-    int index;
-    do {
-      index = ngrams->FindNgrams(parent_entries, &accumulator);
-      if (index >= 0) parent_entries[index] = 1;
-    } while (index != -2);
   }
   if (offset >= bm->length()) {
     if (initial_offset == 0) set_bm_info(not_at_start, bm);
