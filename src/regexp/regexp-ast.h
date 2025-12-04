@@ -572,7 +572,8 @@ class RegExpQuantifier final : public RegExpTree {
 
   static RegExpNode* ToNode(int min, int max, bool is_greedy, RegExpTree* body,
                             RegExpCompiler* compiler, RegExpNode* on_success,
-                            bool not_at_start = false);
+                            bool not_at_start = false,
+                            bool allow_min_unrolls = true);
   Interval CaptureRegisters() override;
   int min_match() override { return min_match_; }
   int max_match() override { return max_match_; }

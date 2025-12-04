@@ -1975,8 +1975,8 @@ class RegExpExpansionLimiter {
 
 RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
                                      RegExpTree* body, RegExpCompiler* compiler,
-                                     RegExpNode* on_success,
-                                     bool not_at_start) {
+                                     RegExpNode* on_success, bool not_at_start,
+                                     bool allow_min_unrolls) {
   // x{f, t} becomes this:
   //
   //             (r++)<-.
@@ -1998,6 +1998,8 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   // from step 2.1.  If the min and max are small we can unroll a little in
   // this case.
   static const int kMaxUnrolledMinMatches = 3;  // Unroll (foo)+ and (foo){3,}
+  static const int kPartiallyUnrolledMatches =
+      2;                                        // Unroll (x){5,7} to xxx{3,5}.
   static const int kMaxUnrolledMaxMatches = 3;  // Unroll (foo)? and (foo){x,3}
   if (max == 0) return on_success;  // This can happen due to recursion.
   bool body_can_be_empty = (body->min_match() == 0);
@@ -2015,18 +2017,21 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   } else if (compiler->optimize() && !needs_capture_clearing) {
     // Only unroll if there are no captures and the body can't be
     // empty.
-    {
-      RegExpExpansionLimiter limiter(compiler, min + ((max != min) ? 1 : 0));
-      if (min > 0 && min <= kMaxUnrolledMinMatches && limiter.ok_to_expand()) {
-        int new_max = (max == kInfinity) ? max : max - min;
+    if (allow_min_unrolls) {
+      int unrolls =
+          min <= kMaxUnrolledMinMatches ? min : kPartiallyUnrolledMatches;
+      RegExpExpansionLimiter limiter(compiler,
+                                     unrolls + ((max != unrolls) ? 1 : 0));
+      if (unrolls > 0 && limiter.ok_to_expand()) {
+        int new_max = (max == kInfinity) ? max : max - unrolls;
         // Recurse once to get the loop or optional matches after the fixed
         // ones.
-        RegExpNode* answer =
-            ToNode(0, new_max, is_greedy, body, compiler, on_success, true);
-        // Unroll the forced matches from 0 to min.  This can cause chains of
-        // TextNodes (which the parser does not generate).  These should be
+        RegExpNode* answer = ToNode(min - unrolls, new_max, is_greedy, body,
+                                    compiler, on_success, true, false);
+        // Unroll the forced matches from 0 to unrolls.  This can cause chains
+        // of TextNodes (which the parser does not generate).  These should be
         // combined if it turns out they hinder good code generation.
-        for (int i = 0; i < min; i++) {
+        for (int i = 0; i < unrolls; i++) {
           answer = body->ToNode(compiler, answer);
         }
         return answer;
