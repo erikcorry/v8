@@ -3687,19 +3687,17 @@ class EatsAtLeastPropagator : public AllStatic {
           that->loop_node()->eats_at_least_info();
       const EatsAtLeastInfo* continue_info =
           that->continue_node()->eats_at_least_info();
-      DCHECK_GE(body_info->from_not_start,
-                continue_info->from_not_start);
+      DCHECK_GE(body_info->from_not_start, continue_info->from_not_start);
       DCHECK_GE(body_info->from_possibly_start,
                 continue_info->from_possibly_start);
       if (that->min_loop_iterations() > 0) {
         // uint64_t is at least twice the size of int, so it can't overflow.
-        uint64_t start_diff = body_info->from_possibly_start -
-                              continue_info->from_possibly_start;
-        uint64_t non_start_diff = body_info->from_not_start -
-                                  continue_info->from_not_start;
-        uint64_t new_start_eats =
-            continue_info->from_possibly_start +
-            start_diff * that->min_loop_iterations();
+        uint64_t start_diff =
+            body_info->from_possibly_start - continue_info->from_possibly_start;
+        uint64_t non_start_diff =
+            body_info->from_not_start - continue_info->from_not_start;
+        uint64_t new_start_eats = continue_info->from_possibly_start +
+                                  start_diff * that->min_loop_iterations();
         uint64_t new_non_start_eats =
             continue_info->from_not_start +
             non_start_diff * that->min_loop_iterations();

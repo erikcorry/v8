@@ -102,8 +102,7 @@ struct EatsAtLeastInfo final {
   explicit EatsAtLeastInfo(uint8_t eats)
       : from_possibly_start(eats), from_not_start(eats) {}
   EatsAtLeastInfo(uint8_t eats_start, uint8_t eats_non_start)
-      : from_possibly_start(eats_start),
-        from_not_start(eats_non_start) {}
+      : from_possibly_start(eats_start), from_not_start(eats_non_start) {}
   void SetMin(const EatsAtLeastInfo& other) {
     if (other.from_possibly_start < from_possibly_start) {
       from_possibly_start = other.from_possibly_start;
