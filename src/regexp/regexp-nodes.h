@@ -814,6 +814,8 @@ class LoopChoiceNode : public ChoiceNode {
   RegExpNode* continue_node_;
   bool body_can_be_zero_length_;
   bool read_backward_;
+  // The minimum number of times the loop_node_ must match before the
+  // continue_node_ might be considered.
   int min_loop_iterations_;
 };
 

@@ -3675,37 +3675,29 @@ class EatsAtLeastPropagator : public AllStatic {
   }
 
   static void VisitLoopChoiceLoopNode(LoopChoiceNode* that) {
-    // By the time we get here, the continue_node has
-    // been analyzed and the eats_at_least_info has been set
-    // based on that.  The loop_node has also been analyzed,
-    // and its eats_at_least_info has been set based on the
-    // body length + the continuation length.  Thus we can
-    // derive the incremental eats_at_least of the body by
-    // subtraction.
-    if (!that->read_backward()) {
-      const EatsAtLeastInfo* body_info =
-          that->loop_node()->eats_at_least_info();
-      const EatsAtLeastInfo* continue_info =
-          that->continue_node()->eats_at_least_info();
-      DCHECK_GE(body_info->from_not_start, continue_info->from_not_start);
-      DCHECK_GE(body_info->from_possibly_start,
-                continue_info->from_possibly_start);
-      if (that->min_loop_iterations() > 0) {
-        // uint64_t is at least twice the size of int, so it can't overflow.
-        uint64_t start_diff =
-            body_info->from_possibly_start - continue_info->from_possibly_start;
-        uint64_t non_start_diff =
-            body_info->from_not_start - continue_info->from_not_start;
-        uint64_t new_start_eats = continue_info->from_possibly_start +
-                                  start_diff * that->min_loop_iterations();
-        uint64_t new_non_start_eats =
-            continue_info->from_not_start +
-            non_start_diff * that->min_loop_iterations();
-        EatsAtLeastInfo updated(
-            base::saturated_cast<uint8_t>(new_start_eats),
-            base::saturated_cast<uint8_t>(new_non_start_eats));
-        that->set_eats_at_least_info(updated);
-      }
+    // By the time we get here, the continue_node has been analyzed and the
+    // eats_at_least_info has been set based on that.  The loop_node has also
+    // been analyzed, and its eats_at_least_info has been set based on the body
+    // length + the continuation length.  Thus we can derive the incremental
+    // eats_at_least of the body by subtraction.
+    if (that->read_backward()) return;
+    const EatsAtLeastInfo* body = that->loop_node()->eats_at_least_info();
+    const EatsAtLeastInfo* cont = that->continue_node()->eats_at_least_info();
+    DCHECK_GE(body->from_not_start, cont->from_not_start);
+    DCHECK_GE(body->from_possibly_start, cont->from_possibly_start);
+    if (that->min_loop_iterations() > 0) {
+      // uint64_t is at least twice the size of int, so it can't overflow.
+      uint64_t start_diff =
+          body->from_possibly_start - cont->from_possibly_start;
+      uint64_t non_start_diff = body->from_not_start - cont->from_not_start;
+      uint64_t new_start_eats =
+          cont->from_possibly_start + start_diff * that->min_loop_iterations();
+      uint64_t new_non_start_eats =
+          cont->from_not_start + non_start_diff * that->min_loop_iterations();
+      EatsAtLeastInfo updated(
+          base::saturated_cast<uint8_t>(new_start_eats),
+          base::saturated_cast<uint8_t>(new_non_start_eats));
+      that->set_eats_at_least_info(updated);
     }
   }
 
