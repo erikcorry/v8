@@ -1386,19 +1386,10 @@ void EmitClassRanges(RegExpMacroAssembler* macro_assembler,
   base::uc16 kTableMask = RegExpMacroAssembler::kTableMask;
   if (!done && end_index > 3 && !cr->is_negated() &&
       (min & ~kTableMask) == (max & ~kTableMask)) {
-    base::uc32 mask = kTableMask;
-    while (mask != 0) {
-      base::uc32 small_mask = mask >> 1;
-      if ((min & ~small_mask) == (max & ~small_mask)) {
-        mask = small_mask;
-      } else {
-        break;
-      }
-    }
-    mask = ~mask;
-    macro_assembler->CheckNotCharacterAfterAnd(min & mask, mask, on_failure);
-    min &= mask;
-    max |= ~mask;
+    base::uc32 diff = max + 1 - min;
+    base::uc32 mask = base::bits::RoundUpToPowerOfTwo32(diff) - 1;
+    macro_assembler->CheckNotCharacterAfterMinusAnd(0, min, ~mask, on_failure);
+    max = min + mask;
   } else {
     min = 0;
     max = max_char;

@@ -594,11 +594,11 @@ void RegExpMacroAssemblerX64::CheckBitInTable(Handle<ByteArray> table,
       }
     }
     if (mod == 32) {
-      __ movl(kScratchRegister, Immediate(bits & 0xffffffff));
-      __ btl(kScratchRegister, current_character());
+      __ movl(rax, Immediate(bits & 0xffffffff));
+      __ btl(rax, current_character());
     } else {
-      __ movq(kScratchRegister, Immediate64(bits));
-      __ btq(kScratchRegister, current_character());
+      __ emit_mov(rax, Immediate64(bits), 8);
+      __ btq(rax, current_character());
     }
     BranchOrBacktrack(carry, on_bit_set);
     return;
