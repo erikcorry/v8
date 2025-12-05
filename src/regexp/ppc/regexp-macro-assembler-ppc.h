@@ -51,7 +51,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerPPC
                                   Label* on_in_range) override;
   bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
                                      Label* on_not_in_range) override;
-  void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
+  void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set,
+                       base::uc32 min_char, base::uc32 max_char) override;
   void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                            Handle<ByteArray> nibble_table, int advance_by,
                            Label* on_match, Label* on_no_match) override;

@@ -560,9 +560,10 @@ bool RegExpMacroAssemblerIA32::CheckCharacterNotInRangeArray(
   return true;
 }
 
-void RegExpMacroAssemblerIA32::CheckBitInTable(
-    Handle<ByteArray> table,
-    Label* on_bit_set) {
+void RegExpMacroAssemblerIA32::CheckBitInTable(Handle<ByteArray> table,
+                                               Label* on_bit_set,
+                                               base::uc32 min_char,
+                                               base::uc32 max_char) {
   __ mov(eax, Immediate(table));
   Register index = current_character();
   if (mode() != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
@@ -582,7 +583,7 @@ void RegExpMacroAssemblerIA32::SkipUntilBitInTable(
   Label again;
   Bind(&again);
   LoadCurrentCharacter(cp_offset, on_no_match, true);
-  CheckBitInTable(table, on_match);
+  CheckBitInTable(table, on_match, 0, mode() == LATIN1 ? 0xff : 0xffff);
   AdvanceCurrentPosition(advance_by);
   GoTo(&again);
 }

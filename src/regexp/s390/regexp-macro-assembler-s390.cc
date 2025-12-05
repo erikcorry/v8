@@ -523,7 +523,9 @@ bool RegExpMacroAssemblerS390::CheckCharacterNotInRangeArray(
 }
 
 void RegExpMacroAssemblerS390::CheckBitInTable(Handle<ByteArray> table,
-                                               Label* on_bit_set) {
+                                               Label* on_bit_set,
+                                               base::uc32 min_char,
+                                               base::uc32 max_char) {
   __ mov(r2, Operand(table));
   Register index = current_character();
   if (mode() != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {

@@ -1049,6 +1049,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void bswapl(Register dst);
   void bswapq(Register dst);
   void btq(Operand dst, Register src);
+  void btq(Register dst, Register src);
+  void btl(Register dst, Register src);
   void btsq(Operand dst, Register src);
   void btsq(Register dst, Immediate imm8);
   void btrq(Register dst, Immediate imm8);

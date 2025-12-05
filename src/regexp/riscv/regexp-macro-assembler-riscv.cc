@@ -488,7 +488,9 @@ void RegExpMacroAssemblerRISCV::CheckCharacterNotInRange(
 }
 
 void RegExpMacroAssemblerRISCV::CheckBitInTable(Handle<ByteArray> table,
-                                                Label* on_bit_set) {
+                                                Label* on_bit_set,
+                                                base::uc32 min_char,
+                                                base::uc32 max_char) {
   __ li(a0, Operand(table));
   if (mode() != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ And(a1, current_character(), Operand(kTableSize - 1));

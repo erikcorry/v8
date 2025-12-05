@@ -115,7 +115,8 @@ class RegExpMacroAssembler {
 
   // The current character (modulus the kTableSize) is looked up in the byte
   // array, and if the found byte is non-zero, we jump to the on_bit_set label.
-  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) = 0;
+  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set,
+                               base::uc32 min_char, base::uc32 max_char) = 0;
 
   virtual void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
                                    Handle<ByteArray> nibble_table,

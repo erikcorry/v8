@@ -1897,7 +1897,7 @@ void CreatePeepholeSkipUntilBitInTableBytecode(RegExpMacroAssembler* m,
   Label start;
   m->Bind(&start);
   m->LoadCurrentCharacter(0, nullptr, true);
-  m->CheckBitInTable(bit_table, nullptr);
+  m->CheckBitInTable(bit_table, nullptr, 0, 0xffff);
   m->AdvanceCurrentPosition(1);
   m->GoTo(&start);
 }
@@ -2104,7 +2104,7 @@ void CreatePeepholeSkipUntilGtOrNotBitInTableBytecode(RegExpMacroAssembler* m,
   m->Bind(&start);
   m->LoadCurrentCharacter(0, nullptr, true);
   m->CheckCharacterGT('x', nullptr);
-  m->CheckBitInTable(bit_table, &advance);
+  m->CheckBitInTable(bit_table, &advance, 0, 0xffff);
   m->GoTo(&end);
   m->Bind(&advance);
   m->AdvanceCurrentPosition(1);

@@ -344,7 +344,9 @@ void RegExpBytecodeGenerator::EmitSkipTable(DirectHandle<ByteArray> table) {
 }
 
 void RegExpBytecodeGenerator::CheckBitInTable(Handle<ByteArray> table,
-                                              Label* on_bit_set) {
+                                              Label* on_bit_set,
+                                              base::uc32 min_char,
+                                              base::uc32 max_char) {
   Emit(BC_CHECK_BIT_IN_TABLE, 0);
   EmitOrLink(on_bit_set);
   EmitSkipTable(table);

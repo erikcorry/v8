@@ -1011,8 +1011,8 @@ void EmitDoubleBoundaryTest(RegExpMacroAssembler* masm, int first, int last,
 void EmitUseLookupTable(RegExpMacroAssembler* masm,
                         ZoneList<base::uc32>* ranges, uint32_t start_index,
                         uint32_t end_index, base::uc32 min_char,
-                        Label* fall_through, Label* even_label,
-                        Label* odd_label) {
+                        base::uc32 max_char, Label* fall_through,
+                        Label* even_label, Label* odd_label) {
   static const uint32_t kSize = RegExpMacroAssembler::kTableSize;
   static const uint32_t kMask = RegExpMacroAssembler::kTableMask;
 
@@ -1059,7 +1059,7 @@ void EmitUseLookupTable(RegExpMacroAssembler* masm,
   for (uint32_t i = 0; i < kSize; i++) {
     ba->set(i, templ[i]);
   }
-  masm->CheckBitInTable(ba, on_bit_set);
+  masm->CheckBitInTable(ba, on_bit_set, min_char, max_char);
   if (on_bit_clear != fall_through) masm->GoTo(on_bit_clear);
 }
 
@@ -1146,17 +1146,18 @@ void SplitSearchSpace(ZoneList<base::uc32>* ranges, uint32_t start_index,
   }
 }
 
-// Gets a series of segment boundaries representing a character class.  If the
+// GenerateBranches and GenerateTrivialBranches get a series of
+// segment boundaries representing a character class.  If the
 // character is in the range between an even and an odd boundary (counting from
 // start_index) then go to even_label, otherwise go to odd_label.  We already
 // know that the character is in the range of min_char to max_char inclusive.
 // Either label can be nullptr indicating backtracking.  Either label can also
 // be equal to the fall_through label.
-void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<base::uc32>* ranges,
-                      uint32_t start_index, uint32_t end_index,
-                      base::uc32 min_char, base::uc32 max_char,
-                      Label* fall_through, Label* even_label,
-                      Label* odd_label) {
+bool GenerateTrivialBranches(RegExpMacroAssembler* masm,
+                             ZoneList<base::uc32>* ranges, uint32_t start_index,
+                             uint32_t end_index, base::uc32 min_char,
+                             base::uc32 max_char, Label* fall_through,
+                             Label* even_label, Label* odd_label) {
   DCHECK_LE(min_char, String::kMaxUtf16CodeUnit);
   DCHECK_LE(max_char, String::kMaxUtf16CodeUnit);
 
@@ -1169,7 +1170,7 @@ void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<base::uc32>* ranges,
   // a particular character.
   if (start_index == end_index) {
     EmitBoundaryTest(masm, first, fall_through, even_label, odd_label);
-    return;
+    return true;
   }
 
   // Another almost trivial case:  There is one interval in the middle that is
@@ -1177,12 +1178,28 @@ void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<base::uc32>* ranges,
   if (start_index + 1 == end_index) {
     EmitDoubleBoundaryTest(masm, first, last, fall_through, even_label,
                            odd_label);
+    return true;
+  }
+  return false;
+}
+
+// See GenerateTrivialBranches.
+void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<base::uc32>* ranges,
+                      uint32_t start_index, uint32_t end_index,
+                      base::uc32 min_char, base::uc32 max_char,
+                      Label* fall_through, Label* even_label,
+                      Label* odd_label) {
+  if (GenerateTrivialBranches(masm, ranges, start_index, end_index, min_char,
+                              max_char, fall_through, even_label, odd_label)) {
     return;
   }
 
+  base::uc32 first = ranges->at(start_index);
+  base::uc32 last = ranges->at(end_index) - 1;
+
   // It's not worth using table lookup if there are very few intervals in the
   // character class.
-  if (end_index - start_index <= 6) {
+  if (end_index - start_index <= 6) { // && max_char - min_char >= 64) {
     // It is faster to test for individual characters, so we look for those
     // first, then try arbitrary ranges in the second round.
     static uint32_t kNoCutIndex = -1;
@@ -1207,7 +1224,7 @@ void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<base::uc32>* ranges,
   static const int kBits = RegExpMacroAssembler::kTableSizeBits;
 
   if ((max_char >> kBits) == (min_char >> kBits)) {
-    EmitUseLookupTable(masm, ranges, start_index, end_index, min_char,
+    EmitUseLookupTable(masm, ranges, start_index, end_index, min_char, max_char,
                        fall_through, even_label, odd_label);
     return;
   }
@@ -1335,6 +1352,9 @@ void EmitClassRanges(RegExpMacroAssembler* macro_assembler,
 
   bool zeroth_entry_is_failure = !cr->is_negated();
 
+  base::uc32 max = 0;
+  base::uc32 min = max_char;
+
   for (int i = 0; i < ranges_length; i++) {
     CharacterRange& range = ranges->at(i);
     if (range.from() == 0) {
@@ -1346,6 +1366,8 @@ void EmitClassRanges(RegExpMacroAssembler* macro_assembler,
     // `+ 1` to convert from inclusive to exclusive `to`.
     // [from, to] == [from, to+1[.
     range_boundaries->Add(range.to() + 1, zone);
+    min = std::min(range.from(), min);
+    max = std::max(range.to(), max);
   }
   int end_index = range_boundaries->length() - 1;
   if (range_boundaries->at(end_index) > max_char) {
@@ -1353,11 +1375,38 @@ void EmitClassRanges(RegExpMacroAssembler* macro_assembler,
   }
 
   Label fall_through;
+  bool done = GenerateTrivialBranches(
+      macro_assembler, range_boundaries,
+      0,  // start_index.
+      end_index,
+      0,  // min_char.
+      max_char, &fall_through,
+      zeroth_entry_is_failure ? &fall_through : on_failure,
+      zeroth_entry_is_failure ? on_failure : &fall_through);
+  base::uc16 kTableMask = RegExpMacroAssembler::kTableMask;
+  done = false;
+  if (!done && end_index > 3 && !cr->is_negated() &&
+      (min & ~kTableMask) == (max & ~kTableMask)) {
+    base::uc32 mask = kTableMask;
+    while (mask != 0) {
+      base::uc32 small_mask = mask >> 1;
+      if ((min & ~small_mask) == (max & ~small_mask)) {
+        mask = small_mask;
+      } else {
+        break;
+      }
+    }
+    mask = ~mask;
+    macro_assembler->CheckNotCharacterAfterAnd(min & mask, mask, on_failure);
+    min &= mask;
+    max |= ~mask;
+  } else {
+    min = 0;
+    max = max_char;
+  }
   GenerateBranches(macro_assembler, range_boundaries,
                    0,  // start_index.
-                   end_index,
-                   0,  // min_char.
-                   max_char, &fall_through,
+                   end_index, min, max, &fall_through,
                    zeroth_entry_is_failure ? &fall_through : on_failure,
                    zeroth_entry_is_failure ? on_failure : &fall_through);
   macro_assembler->Bind(&fall_through);

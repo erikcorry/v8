@@ -522,9 +522,10 @@ bool RegExpMacroAssemblerMIPS::CheckCharacterNotInRangeArray(
   return true;
 }
 
-void RegExpMacroAssemblerMIPS::CheckBitInTable(
-    Handle<ByteArray> table,
-    Label* on_bit_set) {
+void RegExpMacroAssemblerMIPS::CheckBitInTable(Handle<ByteArray> table,
+                                               Label* on_bit_set,
+                                               base::uc32 min_char,
+                                               base::uc32 max_char) {
   __ li(a0, Operand(table));
   if (mode() != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ And(a1, current_character(), Operand(kTableSize - 1));
@@ -544,7 +545,7 @@ void RegExpMacroAssemblerMIPS::SkipUntilBitInTable(
   Label again;
   Bind(&again);
   LoadCurrentCharacter(cp_offset, on_no_match, true);
-  CheckBitInTable(table, on_match);
+  CheckBitInTable(table, on_match, 0, mode() == LATIN1 ? 0xff : 0xffff);
   AdvanceCurrentPosition(advance_by);
   GoTo(&again);
 }

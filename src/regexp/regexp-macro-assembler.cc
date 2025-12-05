@@ -334,7 +334,7 @@ void RegExpMacroAssembler::SkipUntilGtOrNotBitInTable(
   Bind(&loop);
   LoadCurrentCharacter(cp_offset, on_no_match, true);
   CheckCharacterGT(character, on_match);
-  CheckBitInTable(table, &advance_and_continue);
+  CheckBitInTable(table, &advance_and_continue, 0, mode() == LATIN1 ? 0xff : 0xffff);
   GoTo(on_match);
   Bind(&advance_and_continue);
   AdvanceCurrentPosition(advance_by);

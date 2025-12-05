@@ -790,12 +790,10 @@ std::unique_ptr<RegExpMacroAssembler> CreateNativeMacroAssembler(
 #error "Unsupported architecture"
 #endif
 
-#ifdef DEBUG
   if (v8_flags.trace_regexp_assembler) {
     return std::make_unique<RegExpMacroAssemblerTracer>(
         std::move(macro_assembler));
   }
-#endif
 
   return macro_assembler;
 }

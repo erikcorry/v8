@@ -580,9 +580,29 @@ bool RegExpMacroAssemblerX64::CheckCharacterNotInRangeArray(
   return true;
 }
 
-void RegExpMacroAssemblerX64::CheckBitInTable(
-    Handle<ByteArray> table,
-    Label* on_bit_set) {
+void RegExpMacroAssemblerX64::CheckBitInTable(Handle<ByteArray> table,
+                                              Label* on_bit_set,
+                                              base::uc32 min_char,
+                                              base::uc32 max_char) {
+  if (max_char - min_char < 64) {
+    base::uc32 mod = 64;
+    if (max_char - min_char < 32) mod = 32;
+    uint64_t bits = 0;
+    for (base::uc32 i = min_char; i <= max_char; i++) {
+      if (table->get(i & kTableMask) != 0) {
+        bits |= uint64_t{1} << (i % mod);
+      }
+    }
+    if (mod == 32) {
+      __ movl(kScratchRegister, Immediate(bits & 0xffffffff));
+      __ btl(kScratchRegister, current_character());
+    } else {
+      __ movq(kScratchRegister, Immediate64(bits));
+      __ btq(kScratchRegister, current_character());
+    }
+    BranchOrBacktrack(carry, on_bit_set);
+    return;
+  }
   __ Move(rax, table);
   Register index = current_character();
   if (mode() != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {

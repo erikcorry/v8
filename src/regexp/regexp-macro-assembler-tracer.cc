@@ -357,8 +357,10 @@ bool RegExpMacroAssemblerTracer::CheckCharacterNotInRangeArray(
   return emitted;
 }
 
-void RegExpMacroAssemblerTracer::CheckBitInTable(
-    Handle<ByteArray> table, Label* on_bit_set) {
+void RegExpMacroAssemblerTracer::CheckBitInTable(Handle<ByteArray> table,
+                                                 Label* on_bit_set,
+                                                 base::uc32 min_char,
+                                                 base::uc32 max_char) {
   PrintF(" CheckBitInTable(label[%08x] ", LabelToInt(on_bit_set));
   for (int i = 0; i < kTableSize; i++) {
     PrintF("%c", table->get(i) != 0 ? 'X' : '.');
@@ -367,7 +369,7 @@ void RegExpMacroAssemblerTracer::CheckBitInTable(
     }
   }
   PrintF(");\n");
-  assembler_->CheckBitInTable(table, on_bit_set);
+  assembler_->CheckBitInTable(table, on_bit_set, min_char, max_char);
 }
 
 namespace {

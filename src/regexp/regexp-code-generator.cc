@@ -331,7 +331,7 @@ Handle<ByteArray> CreateBitTableByteArray(
 VISIT(CheckBitInTable) {
   INIT(CheckBitInTable, on_bit_set, table_data);
   Handle<ByteArray> table = CreateBitTableByteArray(isolate_, table_data);
-  __ CheckBitInTable(table, on_bit_set);
+  __ CheckBitInTable(table, on_bit_set, 0, 0xffff);
 }
 
 VISIT(LoadCurrentCharacterUnchecked) {
