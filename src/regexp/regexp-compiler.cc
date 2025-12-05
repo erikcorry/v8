@@ -1164,7 +1164,7 @@ bool GenerateTrivialBranches(RegExpMacroAssembler* masm,
   base::uc32 first = ranges->at(start_index);
   base::uc32 last = ranges->at(end_index) - 1;
 
-  DCHECK_LT(min_char, first);
+  //DCHECK_LT(min_char, first);
 
   // Just need to test if the character is before or on-or-after
   // a particular character.

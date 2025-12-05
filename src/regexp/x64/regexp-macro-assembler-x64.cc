@@ -522,9 +522,14 @@ void RegExpMacroAssemblerX64::CheckNotCharacterAfterMinusAnd(
     base::uc16 c, base::uc16 minus, base::uc16 mask, Label* on_not_equal) {
   DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ leal(rax, Operand(current_character(), -minus));
-  __ andl(rax, Immediate(mask));
-  __ cmpl(rax, Immediate(c));
-  BranchOrBacktrack(not_equal, on_not_equal);
+  if (c == 0) {
+    __ testl(rax, Immediate(mask));
+    BranchOrBacktrack(not_zero, on_not_equal);
+  } else {
+    __ andl(rax, Immediate(mask));
+    __ cmpl(rax, Immediate(c));
+    BranchOrBacktrack(not_equal, on_not_equal);
+  }
 }
 
 void RegExpMacroAssemblerX64::CheckCharacterInRange(base::uc16 from,
@@ -584,7 +589,24 @@ void RegExpMacroAssemblerX64::CheckBitInTable(Handle<ByteArray> table,
                                               Label* on_bit_set,
                                               base::uc32 min_char,
                                               base::uc32 max_char) {
-  if (max_char - min_char < 64) {
+  bool use_shift = max_char - min_char < 64;
+  if (!use_shift) {
+    bool mismatch = false;
+    base::uc32 half = kTableSize / 2;
+    for (base::uc32 i = 0; i < half; i++) {
+      base::uc32 j = i + half;
+      //if (min_char <= i && i <= max_char) {
+        //if (min_char <= j && j <= max_char) {
+          if (table->get(i) != table->get(j)) {
+            mismatch = true;
+            break;
+          }
+        //}
+      //}
+    }
+    use_shift = !mismatch;
+  }
+  if (use_shift) {
     base::uc32 mod = 64;
     if (max_char - min_char < 32) mod = 32;
     uint64_t bits = 0;
@@ -593,11 +615,11 @@ void RegExpMacroAssemblerX64::CheckBitInTable(Handle<ByteArray> table,
         bits |= uint64_t{1} << (i % mod);
       }
     }
-    if (mod == 32) {
+    if (mod == 32 || (bits & 0xffffffff) == (bits >> 32)) {
       __ movl(rax, Immediate(bits & 0xffffffff));
       __ btl(rax, current_character());
     } else {
-      __ emit_mov(rax, Immediate64(bits), 8);
+      __ movq_imm64(rax, bits);
       __ btq(rax, current_character());
     }
     BranchOrBacktrack(carry, on_bit_set);
