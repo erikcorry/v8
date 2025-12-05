@@ -1199,7 +1199,7 @@ void GenerateBranches(RegExpMacroAssembler* masm, ZoneList<base::uc32>* ranges,
 
   // It's not worth using table lookup if there are very few intervals in the
   // character class.
-  if (end_index - start_index <= 6) { // && max_char - min_char >= 64) {
+  if (end_index - start_index <= 6 && max_char - min_char >= 64) {
     // It is faster to test for individual characters, so we look for those
     // first, then try arbitrary ranges in the second round.
     static uint32_t kNoCutIndex = -1;
@@ -1384,7 +1384,6 @@ void EmitClassRanges(RegExpMacroAssembler* macro_assembler,
       zeroth_entry_is_failure ? &fall_through : on_failure,
       zeroth_entry_is_failure ? on_failure : &fall_through);
   base::uc16 kTableMask = RegExpMacroAssembler::kTableMask;
-  done = false;
   if (!done && end_index > 3 && !cr->is_negated() &&
       (min & ~kTableMask) == (max & ~kTableMask)) {
     base::uc32 mask = kTableMask;
