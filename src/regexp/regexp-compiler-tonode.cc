@@ -42,17 +42,28 @@ RegExpNode* RegExpTree::ToNode(RegExpCompiler* compiler,
 
 RegExpNode* RegExpAtom::ToNodeImpl(RegExpCompiler* compiler,
                                    RegExpNode* on_success) {
-  ZoneList<TextElement>* elms =
-      compiler->zone()->New<ZoneList<TextElement>>(1, compiler->zone());
-  elms->Add(TextElement::Atom(this), compiler->zone());
-  return compiler->zone()->New<TextNode>(elms, compiler->read_backward(),
-                                         on_success);
+  Zone* zone = compiler->zone();
+  ZoneList<TextElement>* elms = zone->New<ZoneList<TextElement>>(1, zone);
+  elms->Add(TextElement::Atom(this), zone);
+  TextNode* result =
+      zone->New<TextNode>(elms, compiler->read_backward(), on_success);
+  if (compiler->one_byte() && !result->CanMatchLatin1(compiler)) {
+    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+  }
+
+  return result;
 }
 
 RegExpNode* RegExpText::ToNodeImpl(RegExpCompiler* compiler,
                                    RegExpNode* on_success) {
-  return compiler->zone()->New<TextNode>(elements(), compiler->read_backward(),
-                                         on_success);
+  Zone* zone = compiler->zone();
+  TextNode* result =
+      zone->New<TextNode>(elements(), compiler->read_backward(), on_success);
+  if (compiler->one_byte() && !result->CanMatchLatin1(compiler)) {
+    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+  }
+
+  return result;
 }
 
 namespace {
@@ -478,7 +489,13 @@ RegExpNode* RegExpClassRanges::ToNodeImpl(RegExpCompiler* compiler,
 
   if (!IsEitherUnicode(compiler->flags()) || compiler->one_byte() ||
       contains_split_surrogate()) {
-    return zone->New<TextNode>(this, compiler->read_backward(), on_success);
+    TextNode* result =
+        zone->New<TextNode>(this, compiler->read_backward(), on_success);
+    if (compiler->one_byte() && !result->CanMatchLatin1(compiler)) {
+      return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+    }
+
+    return result;
   }
 
   if (is_negated()) {
@@ -499,9 +516,7 @@ RegExpNode* RegExpClassRanges::ToNodeImpl(RegExpCompiler* compiler,
   }
 
   if (ranges->length() == 0) {
-    // The empty character class is used as a 'fail' node.
-    RegExpClassRanges* fail = zone->New<RegExpClassRanges>(zone, ranges);
-    return zone->New<TextNode>(fail, compiler->read_backward(), on_success);
+    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
   }
 
   if (set_.is_standard() &&
@@ -539,10 +554,10 @@ RegExpNode* RegExpClassSetOperand::ToNodeImpl(RegExpCompiler* compiler,
   if (size == 0) {
     // If neither ranges nor strings are present, the operand is equal to an
     // empty range (matching nothing).
-    return zone->template New<EndNode>(EndNode::BACKTRACK, zone);
+    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
   }
   ZoneList<RegExpTree*>* alternatives =
-      zone->template New<ZoneList<RegExpTree*>>(size, zone);
+      zone->New<ZoneList<RegExpTree*>>(size, zone);
   // Strings are sorted by length first (larger strings before shorter ones).
   // See the comment on CharacterClassStrings.
   // Empty strings (if present) are added after character ranges.
@@ -562,8 +577,8 @@ RegExpNode* RegExpClassSetOperand::ToNodeImpl(RegExpCompiler* compiler,
     // It is therefore the parsers responsibility to case fold (sub-) ranges
     // before creating ClassSetOperands.
     alternatives->Add(
-        zone->template New<RegExpClassRanges>(
-            zone, ranges(), RegExpClassRanges::NO_CASE_FOLDING_NEEDED),
+        zone->New<RegExpClassRanges>(zone, ranges(),
+                                     RegExpClassRanges::NO_CASE_FOLDING_NEEDED),
         zone);
   }
   if (empty_string != nullptr) {
@@ -575,7 +590,7 @@ RegExpNode* RegExpClassSetOperand::ToNodeImpl(RegExpCompiler* compiler,
     DCHECK_EQ(alternatives->length(), 1);
     node = alternatives->first();
   } else {
-    node = zone->template New<RegExpDisjunction>(alternatives);
+    node = zone->New<RegExpDisjunction>(alternatives);
   }
   return node->ToNode(compiler, on_success);
 }
@@ -584,7 +599,7 @@ RegExpNode* RegExpClassSetExpression::ToNodeImpl(RegExpCompiler* compiler,
                                                  RegExpNode* on_success) {
   Zone* zone = compiler->zone();
   ZoneList<CharacterRange>* temp_ranges =
-      zone->template New<ZoneList<CharacterRange>>(4, zone);
+      zone->New<ZoneList<CharacterRange>>(4, zone);
   RegExpClassSetOperand* root = ComputeExpression(this, temp_ranges, zone);
   return root->ToNode(compiler, on_success);
 }
@@ -593,7 +608,7 @@ void RegExpClassSetOperand::Union(RegExpClassSetOperand* other, Zone* zone) {
   ranges()->AddAll(*other->ranges(), zone);
   if (other->has_strings()) {
     if (strings_ == nullptr) {
-      strings_ = zone->template New<CharacterClassStrings>(zone);
+      strings_ = zone->New<CharacterClassStrings>(zone);
     }
     strings()->insert(other->strings()->begin(), other->strings()->end());
   }
@@ -1060,7 +1075,7 @@ RegExpNode* RegExpDisjunction::ToNodeImpl(RegExpCompiler* compiler,
   if (node_length >= 2) return result;
   if (node_length == 1) return result->alternatives()->at(0).node();
   Zone* zone = on_success->zone();
-  return zone->template New<EndNode>(EndNode::BACKTRACK, zone);
+  return zone->New<EndNode>(EndNode::BACKTRACK, zone);
 }
 
 RegExpNode* RegExpQuantifier::ToNodeImpl(RegExpCompiler* compiler,
@@ -2056,14 +2071,13 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
         RegExpNode* answer = on_success;
         for (int i = 0; i < max; i++) {
           ChoiceNode* alternation = zone->New<ChoiceNode>(2, zone);
+          RegExpNode* body_node = body->ToNode(compiler, answer);
           if (is_greedy) {
-            alternation->AddAlternative(
-                GuardedAlternative(body->ToNode(compiler, answer)));
+            alternation->AddAlternative(GuardedAlternative(body_node));
             alternation->AddAlternative(GuardedAlternative(on_success));
           } else {
             alternation->AddAlternative(GuardedAlternative(on_success));
-            alternation->AddAlternative(
-                GuardedAlternative(body->ToNode(compiler, answer)));
+            alternation->AddAlternative(GuardedAlternative(body_node));
           }
           answer = alternation;
         }
@@ -2089,6 +2103,10 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
         ActionNode::EmptyMatchCheck(body_start_reg, reg_ctr, min, loop_return);
   }
   RegExpNode* body_node = body->ToNode(compiler, loop_return);
+  if (body_node->IsBacktrack()) {
+    if (has_min) return body_node;
+    return on_success;
+  }
   if (body_can_be_empty) {
     // If the body can be empty we need to store the start position
     // so we can bail out if it was empty.

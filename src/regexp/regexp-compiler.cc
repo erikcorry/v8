@@ -1818,22 +1818,6 @@ class VisitMarker {
   NodeInfo* info_;
 };
 
-RegExpNode* SeqRegExpNode::FilterOneByte(int depth, RegExpCompiler* compiler) {
-  if (info()->replacement_calculated) return replacement();
-  if (depth < 0) return this;
-  DCHECK(!info()->visited);
-  VisitMarker marker(info());
-  return FilterSuccessor(depth - 1, compiler);
-}
-
-RegExpNode* SeqRegExpNode::FilterSuccessor(int depth,
-                                           RegExpCompiler* compiler) {
-  RegExpNode* next = on_success_->FilterOneByte(depth - 1, compiler);
-  if (next == nullptr) return set_replacement(nullptr);
-  on_success_ = next;
-  return set_replacement(this);
-}
-
 // We need to check for the following characters: 0x39C 0x3BC 0x178.
 bool RangeContainsLatin1Equivalents(CharacterRange range) {
   // TODO(dcarney): this could be a lot more efficient.
@@ -1853,12 +1837,8 @@ bool RangesContainLatin1Equivalents(ZoneList<CharacterRange>* ranges) {
 
 }  // namespace
 
-RegExpNode* TextNode::FilterOneByte(int depth, RegExpCompiler* compiler) {
+bool TextNode::CanMatchLatin1(RegExpCompiler* compiler) {
   RegExpFlags flags = compiler->flags();
-  if (info()->replacement_calculated) return replacement();
-  if (depth < 0) return this;
-  DCHECK(!info()->visited);
-  VisitMarker marker(info());
   int element_count = elements()->length();
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elements()->at(i);
@@ -1867,13 +1847,13 @@ RegExpNode* TextNode::FilterOneByte(int depth, RegExpCompiler* compiler) {
       for (int j = 0; j < quarks.length(); j++) {
         base::uc16 c = quarks[j];
         if (!IsIgnoreCase(flags)) {
-          if (c > String::kMaxOneByteCharCode) return set_replacement(nullptr);
+          if (c > String::kMaxOneByteCharCode) return false;
         } else {
           unibrow::uchar chars[4];
           int length = GetCaseIndependentLetters(compiler->isolate(), c,
                                                  compiler, chars, 4);
           if (length == 0 || chars[0] > String::kMaxOneByteCharCode) {
-            return set_replacement(nullptr);
+            return false;
           }
         }
       }
@@ -1896,7 +1876,7 @@ RegExpNode* TextNode::FilterOneByte(int depth, RegExpCompiler* compiler) {
                                     IsIgnoreCase(flags) &&
                                     RangesContainLatin1Equivalents(ranges);
           if (!case_complications) {
-            return set_replacement(nullptr);
+            return false;
           }
         }
       } else {
@@ -1906,103 +1886,13 @@ RegExpNode* TextNode::FilterOneByte(int depth, RegExpCompiler* compiler) {
                                     IsIgnoreCase(flags) &&
                                     RangesContainLatin1Equivalents(ranges);
           if (!case_complications) {
-            return set_replacement(nullptr);
+            return false;
           }
         }
       }
     }
   }
-  return FilterSuccessor(depth - 1, compiler);
-}
-
-RegExpNode* LoopChoiceNode::FilterOneByte(int depth, RegExpCompiler* compiler) {
-  if (info()->replacement_calculated) return replacement();
-  if (depth < 0) return this;
-  if (info()->visited) return this;
-  {
-    VisitMarker marker(info());
-
-    RegExpNode* continue_replacement =
-        continue_node_->FilterOneByte(depth - 1, compiler);
-    // If we can't continue after the loop then there is no sense in doing the
-    // loop.
-    if (continue_replacement == nullptr) return set_replacement(nullptr);
-  }
-
-  return ChoiceNode::FilterOneByte(depth - 1, compiler);
-}
-
-RegExpNode* ChoiceNode::FilterOneByte(int depth, RegExpCompiler* compiler) {
-  if (info()->replacement_calculated) return replacement();
-  if (depth < 0) return this;
-  if (info()->visited) return this;
-  VisitMarker marker(info());
-  int choice_count = alternatives_->length();
-
-  for (int i = 0; i < choice_count; i++) {
-    GuardedAlternative alternative = alternatives_->at(i);
-    if (alternative.guards() != nullptr &&
-        alternative.guards()->length() != 0) {
-      set_replacement(this);
-      return this;
-    }
-  }
-
-  int surviving = 0;
-  RegExpNode* survivor = nullptr;
-  for (int i = 0; i < choice_count; i++) {
-    GuardedAlternative alternative = alternatives_->at(i);
-    RegExpNode* replacement =
-        alternative.node()->FilterOneByte(depth - 1, compiler);
-    DCHECK(replacement != this);  // No missing EMPTY_MATCH_CHECK.
-    if (replacement != nullptr) {
-      alternatives_->at(i).set_node(replacement);
-      surviving++;
-      survivor = replacement;
-    }
-  }
-  if (surviving < 2) return set_replacement(survivor);
-
-  set_replacement(this);
-  if (surviving == choice_count) {
-    return this;
-  }
-  // Only some of the nodes survived the filtering.  We need to rebuild the
-  // alternatives list.
-  ZoneList<GuardedAlternative>* new_alternatives =
-      zone()->New<ZoneList<GuardedAlternative>>(surviving, zone());
-  for (int i = 0; i < choice_count; i++) {
-    RegExpNode* replacement =
-        alternatives_->at(i).node()->FilterOneByte(depth - 1, compiler);
-    if (replacement != nullptr) {
-      alternatives_->at(i).set_node(replacement);
-      new_alternatives->Add(alternatives_->at(i), zone());
-    }
-  }
-  alternatives_ = new_alternatives;
-  return this;
-}
-
-RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(
-    int depth, RegExpCompiler* compiler) {
-  if (info()->replacement_calculated) return replacement();
-  if (depth < 0) return this;
-  if (info()->visited) return this;
-  VisitMarker marker(info());
-  // Alternative 0 is the negative lookahead, alternative 1 is what comes
-  // afterwards.
-  RegExpNode* node = continue_node();
-  RegExpNode* replacement = node->FilterOneByte(depth - 1, compiler);
-  if (replacement == nullptr) return set_replacement(nullptr);
-  alternatives_->at(kContinueIndex).set_node(replacement);
-
-  RegExpNode* neg_node = lookaround_node();
-  RegExpNode* neg_replacement = neg_node->FilterOneByte(depth - 1, compiler);
-  // If the negative lookahead is always going to fail then
-  // we don't need to check it.
-  if (neg_replacement == nullptr) return set_replacement(replacement);
-  alternatives_->at(kLookaroundIndex).set_node(neg_replacement);
-  return set_replacement(this);
+  return true;  // It might match Latin1 input, we can't eliminate this node.
 }
 
 void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
@@ -3992,15 +3882,8 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
   } else {
     node = RegExpCapture::ToNode(data->tree, 0, this, accept());
   }
-  if (is_one_byte) {
-    node = node->FilterOneByte(RegExpCompiler::kMaxRecursion, this);
-    // Do it again to propagate the new nodes to places where they were not
-    // put because they had not been calculated yet.
-    if (node != nullptr) {
-      node = node->FilterOneByte(RegExpCompiler::kMaxRecursion, this);
-    }
-  } else if (IsEitherUnicode(flags()) &&
-             (IsGlobal(flags()) || IsSticky(flags()))) {
+  if (!is_one_byte && IsEitherUnicode(flags()) &&
+      (IsGlobal(flags()) || IsSticky(flags()))) {
     node = OptionallyStepBackToLeadSurrogate(node);
   }
 
