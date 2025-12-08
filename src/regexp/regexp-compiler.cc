@@ -1486,6 +1486,13 @@ void AssertionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
   SaveBMInfo(bm, not_at_start, offset);
 }
 
+void EndNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
+                           BoyerMooreLookahead* bm, bool not_at_start) {
+  if (action_ == BACKTRACK) return;
+  // Returning 0 from EatsAtLeast should ensure we never get here.
+  UNREACHABLE();
+}
+
 void NegativeLookaroundChoiceNode::GetQuickCheckDetails(
     QuickCheckDetails* details, RegExpCompiler* compiler, int filled_in,
     bool not_at_start, int budget) {
@@ -2220,6 +2227,17 @@ void EndNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                    int characters_filled_in, bool not_at_start,
                                    int budget) {
   details->set_cannot_match_from(characters_filled_in);
+}
+
+void EndNode::GetQuickCheckDetails(QuickCheckDetails* details,
+                                   RegExpCompiler* compiler, int filled_in,
+                                   bool not_at_start) {
+  if (action_ == BACKTRACK) {
+    details->set_cannot_match();
+  } else {
+    // Returning 0 from EatsAtLeast should ensure we never get here.
+    UNREACHABLE();
+  }
 }
 
 EmitResult AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {

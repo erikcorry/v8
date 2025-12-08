@@ -595,16 +595,18 @@ class BackReferenceNode : public SeqRegExpNode {
 class EndNode : public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
-  EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {}
+  EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {
+    if (action == BACKTRACK) set_eats_at_least_info(EatsAtLeastInfo(UINT8_MAX));
+  }
   EndNode* AsEndNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
   V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
                                         Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
-                            bool not_at_start, int budget) override;
+                            int budget) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override {}
+                    BoyerMooreLookahead* bm) override;
 
  private:
   Action action_;

@@ -535,10 +535,7 @@ RegExpNode* RegExpClassSetOperand::ToNodeImpl(RegExpCompiler* compiler,
   if (size == 0) {
     // If neither ranges nor strings are present, the operand is equal to an
     // empty range (matching nothing).
-    ZoneList<CharacterRange>* empty =
-        zone->template New<ZoneList<CharacterRange>>(0, zone);
-    return zone->template New<RegExpClassRanges>(zone, empty)
-        ->ToNode(compiler, on_success);
+    return zone->template New<EndNode>(EndNode::BACKTRACK, zone);
   }
   ZoneList<RegExpTree*>* alternatives =
       zone->template New<ZoneList<RegExpTree*>>(size, zone);
@@ -2069,10 +2066,10 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   LoopChoiceNode* center = zone->New<LoopChoiceNode>(
       body->min_match() == 0, compiler->read_backward(), zone);
   if (not_at_start && !compiler->read_backward()) center->set_not_at_start();
-  RegExpNode* loop_return =
-      needs_counter ? static_cast<RegExpNode*>(
-                          ActionNode::IncrementRegister(reg_ctr, center))
-                    : static_cast<RegExpNode*>(center);
+  RegExpNode* loop_return = center;
+  if (needs_counter) {
+    loop_return = ActionNode::IncrementRegister(reg_ctr, loop_return);
+  }
   if (body_can_be_empty) {
     // If the body can be empty we need to check if it was and then
     // backtrack.

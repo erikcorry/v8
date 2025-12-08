@@ -414,6 +414,16 @@ class RegExpParserState : public ZoneObject {
     return false;
   }
 
+  bool IsInsideLookbehind() const {
+    for (const RegExpParserState* s = this; s != nullptr;
+         s = s->previous_state()) {
+      if (s->lookaround_type_ == RegExpLookaround::LOOKBEHIND) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void NewAlternative(int captures_started) {
     // Nothing to do if there were no new captures started before the
     // alternative.
@@ -547,7 +557,13 @@ class RegExpParserImpl final {
   // Only use if the result of the parse is a single atom node.
   bool simple() const { return simple_; }
   bool contains_anchor() const { return contains_anchor_; }
+  bool contains_anchor_in_lookbehind() const {
+    return contains_anchor_in_lookbehind_;
+  }
   void set_contains_anchor() { contains_anchor_ = true; }
+  void set_contains_anchor_in_lookbehind() {
+    contains_anchor_in_lookbehind_ = true;
+  }
   int captures_started() const { return captures_started_; }
   int position() const {
     const bool current_is_surrogate =
@@ -662,6 +678,7 @@ class RegExpParserImpl final {
   bool has_more_;
   bool simple_;
   bool contains_anchor_;
+  bool contains_anchor_in_lookbehind_;
   bool is_scanned_for_captures_;
   bool has_named_captures_;  // Only valid after we have scanned for captures.
   bool failed_;
@@ -690,6 +707,7 @@ RegExpParserImpl<CharT>::RegExpParserImpl(
       has_more_(true),
       simple_(false),
       contains_anchor_(false),
+      contains_anchor_in_lookbehind_(false),
       is_scanned_for_captures_(false),
       has_named_captures_(false),
       failed_(false),
@@ -1009,6 +1027,9 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
             builder->multiline() ? RegExpAssertion::Type::START_OF_LINE
                                  : RegExpAssertion::Type::START_OF_INPUT));
         set_contains_anchor();
+        if (state->IsInsideLookbehind()) {
+          set_contains_anchor_in_lookbehind();
+        }
         continue;
       }
       case '$': {
@@ -3154,6 +3175,7 @@ bool RegExpParserImpl<CharT>::Parse(RegExpCompileData* result) {
   const int capture_count = captures_started();
   result->simple = tree->IsAtom() && simple() && capture_count == 0;
   result->contains_anchor = contains_anchor();
+  result->contains_anchor_in_lookbehind = contains_anchor_in_lookbehind();
   result->capture_count = capture_count;
   result->named_captures = GetNamedCaptures();
   return true;
