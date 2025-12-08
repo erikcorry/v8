@@ -4020,27 +4020,38 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
   // Wrap the body of the regexp in capture #0.
   RegExpNode* captured_body =
       RegExpCapture::ToNode(data->tree, 0, this, accept());
-  RegExpNode* node = captured_body;
+  RegExpNode* node;
   if (!data->tree->IsAnchoredAtStart() && !IsSticky(flags())) {
     // Add a .*? at the beginning, outside the body capture, unless
     // this expression is anchored at the beginning or sticky.
-    RegExpNode* loop_node = RegExpQuantifier::ToNode(
+    if (!data->contains_anchor || data->contains_anchor_in_lookbehind) {
+      node = RegExpQuantifier::ToNode(
+        0, RegExpTree::kInfinity, false,
+        zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything), this,
+        captured_body, data->contains_anchor);
+    } else {
+      // Peel loop once, to take care of the case that might start at the start
+      // of input.
+      RegExpNode* peeled_body = captured_body;
+      not_at_start_ = true;  // This makes ToNode convert ^ into backtracks.
+      // Make a new body node from the same AST tree.
+      captured_body = RegExpCapture::ToNode(data->tree, 0, this, accept());
+      not_at_start_ = false;
+
+      RegExpNode* loop_node = RegExpQuantifier::ToNode(
         0, RegExpTree::kInfinity, false,
         zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything), this,
         captured_body, data->contains_anchor);
 
-    if (data->contains_anchor) {
-      // Unroll loop once, to take care of the case that might start
-      // at the start of input.
       ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, zone());
-      first_step_node->AddAlternative(GuardedAlternative(captured_body));
+      first_step_node->AddAlternative(GuardedAlternative(peeled_body));
       first_step_node->AddAlternative(GuardedAlternative(zone()->New<TextNode>(
           zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything),
           false, loop_node)));
       node = first_step_node;
-    } else {
-      node = loop_node;
     }
+  } else {
+    node = captured_body;
   }
   if (is_one_byte) {
     node = node->FilterOneByte(RegExpCompiler::kMaxRecursion, this);

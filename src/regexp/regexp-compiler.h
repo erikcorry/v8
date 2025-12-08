@@ -631,6 +631,8 @@ class RegExpCompiler {
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
+  bool not_at_start() const { return not_at_start_; }
+
   static const int kNoRegister = -1;
 
  private:
@@ -646,6 +648,7 @@ class RegExpCompiler {
   bool reg_exp_too_big_;
   bool limiting_recursion_;
   int to_node_overflow_check_ticks_ = 0;
+  bool not_at_start_ = false;
   bool optimize_;
   bool read_backward_;
   int current_expansion_factor_;
