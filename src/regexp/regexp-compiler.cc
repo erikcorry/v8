@@ -633,11 +633,15 @@ EmitResult NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler,
 }
 
 EmitResult EndNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  if (action_ == BACKTRACK) {
+    assembler->Backtrack();
+    return EmitResult::Success();
+  }
   if (!trace->is_trivial()) {
     DCHECK(action_ == ACCEPT);
     return trace->Flush(compiler, this, Trace::kFlushSuccess);
   }
-  RegExpMacroAssembler* assembler = compiler->macro_assembler();
   if (!label()->is_bound()) {
     assembler->Bind(label());
   }
@@ -646,8 +650,6 @@ EmitResult EndNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       assembler->Succeed();
       return EmitResult::Success();
     case BACKTRACK:
-      assembler->GoTo(trace->backtrack());
-      return EmitResult::Success();
     case NEGATIVE_SUBMATCH_SUCCESS:
       // This case is handled in a different virtual method.
       UNREACHABLE();
