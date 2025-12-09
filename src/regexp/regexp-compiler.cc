@@ -1533,9 +1533,7 @@ bool QuickCheckDetails::Rationalize(bool asc) {
   return found_useful_op;
 }
 
-uint32_t RegExpNode::EatsAtLeast() {
-  return eats_at_least_.from_possibly_start;
-}
+int RegExpNode::EatsAtLeast() { return eats_at_least_; }
 
 bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
                                 Trace* bounds_check_trace, Trace* trace,
@@ -2116,7 +2114,8 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
   Trace::TriBool next_is_word_character = Trace::UNKNOWN;
   BoyerMooreLookahead* lookahead = bm_info();
   if (lookahead == nullptr) {
-    int eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
+    int eats_at_least =
+        std::min(int{kMaxLookaheadForBoyerMoore}, EatsAtLeast());
     if (eats_at_least >= 1) {
       BoyerMooreLookahead* bm =
           zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
@@ -3610,9 +3609,8 @@ class EatsAtLeastPropagator : public AllStatic {
       // We are not at the start after this node, and thus we can use the
       // successor's from_not_start value.
       uint8_t eats_at_least = base::saturated_cast<uint8_t>(
-          that->Length() +
-          that->on_success()->eats_at_least_info()->from_not_start);
-      that->set_eats_at_least_info(EatsAtLeastInfo(eats_at_least));
+          that->Length() + that->on_success()->eats_at_least_info());
+      that->set_eats_at_least_info(eats_at_least);
     }
   }
 
@@ -3629,13 +3627,13 @@ class EatsAtLeastPropagator : public AllStatic {
         // could tell us something about how close to the end of the string we
         // are.
         that->set_eats_at_least_info(
-            *that->success_node()->on_success()->eats_at_least_info());
+            that->success_node()->on_success()->eats_at_least_info());
         break;
       }
       case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
         // We do not propagate eats_at_least data through positive submatch
         // success because it rewinds input.
-        DCHECK(that->eats_at_least_info()->IsZero());
+        DCHECK_EQ(0, that->eats_at_least_info());
         break;
       case ActionNode::EATS_AT_LEAST: {
         EatsAtLeastInfo eats = *that->on_success()->eats_at_least_info();
@@ -3648,7 +3646,7 @@ class EatsAtLeastPropagator : public AllStatic {
         // Note: we can propagate eats_at_least data for BEGIN_NEGATIVE_SUBMATCH
         // because NegativeLookaroundChoiceNode ignores its lookaround successor
         // when computing eats-at-least and quick check information.
-        that->set_eats_at_least_info(*that->on_success()->eats_at_least_info());
+        that->set_eats_at_least_info(that->on_success()->eats_at_least_info());
         break;
     }
   }
@@ -3656,17 +3654,16 @@ class EatsAtLeastPropagator : public AllStatic {
   static void VisitChoice(ChoiceNode* that, int i) {
     // The minimum possible match from a choice node is the minimum of its
     // successors.
-    EatsAtLeastInfo eats_at_least =
-        i == 0 ? EatsAtLeastInfo(UINT8_MAX) : *that->eats_at_least_info();
-    eats_at_least.SetMin(
-        *that->alternatives()->at(i).node()->eats_at_least_info());
+    int eats_at_least = i == 0 ? UINT8_MAX : that->eats_at_least_info();
+    eats_at_least =
+        std::min(eats_at_least,
+                 that->alternatives()->at(i).node()->eats_at_least_info());
     that->set_eats_at_least_info(eats_at_least);
   }
 
   static void VisitLoopChoiceContinueNode(LoopChoiceNode* that) {
     if (!that->read_backward()) {
-      that->set_eats_at_least_info(
-          *that->continue_node()->eats_at_least_info());
+      that->set_eats_at_least_info(that->continue_node()->eats_at_least_info());
     }
   }
 
@@ -3677,17 +3674,17 @@ class EatsAtLeastPropagator : public AllStatic {
 
   static void VisitNegativeLookaroundChoiceContinueNode(
       NegativeLookaroundChoiceNode* that) {
-    that->set_eats_at_least_info(*that->continue_node()->eats_at_least_info());
+    that->set_eats_at_least_info(that->continue_node()->eats_at_least_info());
   }
 
   static void VisitBackReference(BackReferenceNode* that) {
     if (!that->read_backward()) {
-      that->set_eats_at_least_info(*that->on_success()->eats_at_least_info());
+      that->set_eats_at_least_info(that->on_success()->eats_at_least_info());
     }
   }
 
   static void VisitAssertion(AssertionNode* that) {
-    EatsAtLeastInfo eats_at_least = *that->on_success()->eats_at_least_info();
+    int eats_at_least = that->on_success()->eats_at_least_info();
     that->set_eats_at_least_info(eats_at_least);
   }
 };

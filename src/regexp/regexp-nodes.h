@@ -97,37 +97,6 @@ struct NodeInfo final {
   bool replacement_calculated : 1;
 };
 
-struct EatsAtLeastInfo final {
-  EatsAtLeastInfo() : EatsAtLeastInfo(0) {}
-  explicit EatsAtLeastInfo(uint8_t eats)
-      : from_possibly_start(eats), from_not_start(eats) {}
-  void SetMin(const EatsAtLeastInfo& other) {
-    from_possibly_start =
-        std::min(from_possibly_start, other.from_possibly_start);
-    from_not_start = std::min(from_not_start, other.from_not_start);
-  }
-  void SetMax(int other) {
-    uint8_t max = base::saturated_cast<uint8_t>(other);
-    from_possibly_start = std::max(from_possibly_start, max);
-    from_not_start = std::max(from_not_start, max);
-  }
-
-  bool IsZero() const {
-    return from_possibly_start == 0 && from_not_start == 0;
-  }
-
-  // Any successful match starting from the current node will consume at least
-  // this many characters. This does not necessarily mean that there is a
-  // possible match with exactly this many characters, but we generally try to
-  // get this number as high as possible to allow for early exit on failure.
-  uint8_t from_possibly_start;
-
-  // Like from_possibly_start, but with the additional assumption
-  // that start-of-string assertions (^) can't match. This value is greater than
-  // or equal to from_possibly_start.
-  uint8_t from_not_start;
-};
-
 class EmitResult final {
  public:
   static EmitResult Success() { return EmitResult(kSuccess); }
@@ -160,7 +129,7 @@ class RegExpNode : public ZoneObject {
   V8_WARN_UNUSED_RESULT virtual EmitResult Emit(RegExpCompiler* compiler,
                                                 Trace* trace) = 0;
   // How many characters must this node consume at a minimum in order to
-  // succeed.
+  // succeed.  If this node has not been analyzed yet, EatsAtLeast returns 0.
   uint32_t EatsAtLeast();
   // Emits some quick code that checks whether the preloaded characters match.
   // Falls through on certain failure, jumps to the label on possible success.
@@ -238,8 +207,8 @@ class RegExpNode : public ZoneObject {
   void set_on_work_list(bool value) { on_work_list_ = value; }
 
   NodeInfo* info() { return &info_; }
-  const EatsAtLeastInfo* eats_at_least_info() const { return &eats_at_least_; }
-  void set_eats_at_least_info(const EatsAtLeastInfo& eats_at_least) {
+  int eats_at_least_info() const { return eats_at_least_; }
+  void set_eats_at_least_info(int eats_at_least) {
     eats_at_least_ = eats_at_least;
   }
 
@@ -281,7 +250,7 @@ class RegExpNode : public ZoneObject {
 
   // Saved values for EatsAtLeast results, to avoid recomputation. Filled in
   // during analysis (valid if info_.been_analyzed is true).
-  EatsAtLeastInfo eats_at_least_;
+  int eats_at_least_ = 0;
 
   // This variable keeps track of how many times code has been generated for
   // this node (in different traces).  We don't keep track of where the
@@ -591,7 +560,7 @@ class EndNode : public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
   EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {
-    if (action == BACKTRACK) set_eats_at_least_info(EatsAtLeastInfo(UINT8_MAX));
+    if (action == BACKTRACK) set_eats_at_least_info(UINT8_MAX);
   }
   EndNode* AsEndNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
@@ -603,9 +572,7 @@ class EndNode : public RegExpNode {
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm) override;
 
-  virtual bool IsBacktrack() const override {
-    return action_ == BACKTRACK;
-  }
+  virtual bool IsBacktrack() const override { return action_ == BACKTRACK; }
 
  private:
   Action action_;
