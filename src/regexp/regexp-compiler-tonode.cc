@@ -32,6 +32,7 @@ constexpr uint32_t kMaxUtf16CodeUnitU = 0xffff;
 
 RegExpNode* RegExpTree::ToNode(RegExpCompiler* compiler,
                                RegExpNode* on_success) {
+  if (on_success->IsBacktrack()) return on_success;
   compiler->ToNodeMaybeCheckForStackOverflow();
   return ToNodeImpl(compiler, on_success);
 }
@@ -1216,6 +1217,7 @@ RegExpNode* RegExpGroup::ToNodeImpl(RegExpCompiler* compiler,
   // Convert body using modifier.
   ModifiersScope modifiers_scope(compiler, flags());
   RegExpNode* body = body_->ToNode(compiler, on_success);
+  if (body->IsBacktrack()) return body;
 
   // Wrap body into modifier node.
   RegExpNode* modified_body = ActionNode::ModifyFlags(flags(), body);
@@ -1279,6 +1281,7 @@ RegExpNode* RegExpLookaround::ToNodeImpl(RegExpCompiler* compiler,
   Builder builder(is_positive(), on_success, stack_pointer_register,
                   position_register, register_count, register_start);
   RegExpNode* match = body_->ToNode(compiler, builder.on_match_success());
+  if (is_positive() && match->IsBacktrack()) return match;
   result = builder.ForMatch(match);
   compiler->set_read_backward(was_reading_backward);
   return result;
@@ -1298,6 +1301,7 @@ RegExpNode* RegExpCapture::ToNode(RegExpTree* body, int index,
   if (compiler->read_backward()) std::swap(start_reg, end_reg);
   RegExpNode* store_end = ActionNode::StorePosition(end_reg, on_success);
   RegExpNode* body_node = body->ToNode(compiler, store_end);
+  if (body_node->IsBacktrack()) return body_node;
   return ActionNode::StorePosition(start_reg, body_node);
 }
 
