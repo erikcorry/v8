@@ -121,7 +121,7 @@ class RegExpNode : public ZoneObject {
         on_work_list_(false),
         trace_count_(0),
         zone_(zone) {
-    bm_info_[0] = bm_info_[1] = nullptr;
+    bm_info_ = nullptr;
   }
   virtual ~RegExpNode();
   virtual void Accept(NodeVisitor* visitor) = 0;
@@ -221,7 +221,7 @@ class RegExpNode : public ZoneObject {
   // function.
   void SetDoNotInline() { trace_count_ = kMaxCopiesCodeGenerated; }
 
-  BoyerMooreLookahead* bm_info() { return bm_info_[0]; }
+  BoyerMooreLookahead* bm_info() { return bm_info_; }
 
 #define DECLARE_CAST(type) \
   virtual type##Node* As##type##Node() { return nullptr; }
@@ -240,7 +240,7 @@ class RegExpNode : public ZoneObject {
 
   LimitResult LimitVersions(RegExpCompiler* compiler, Trace* trace);
 
-  void set_bm_info(BoyerMooreLookahead* bm) { bm_info_[0] = bm; }
+  void set_bm_info(BoyerMooreLookahead* bm) { bm_info_ = bm; }
 
  private:
   static const int kFirstCharBudget = 10;
@@ -258,7 +258,7 @@ class RegExpNode : public ZoneObject {
   // a trace, in which case it is generic and can be reused by flushing the
   // deferred operations in the current trace and generating a goto.
   int trace_count_;
-  BoyerMooreLookahead* bm_info_[2];
+  BoyerMooreLookahead* bm_info_;
 
   Zone* zone_;
 };
