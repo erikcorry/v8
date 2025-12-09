@@ -1426,7 +1426,7 @@ bool RegExpNode::KeepRecursing(RegExpCompiler* compiler) {
 }
 
 void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                              BoyerMooreLookahead* bm, bool not_at_start) {
+                              BoyerMooreLookahead* bm) {
   std::optional<RegExpFlags> old_flags;
   if (action_type_ == MODIFY_FLAGS) {
     // It is not guaranteed that we hit the resetting modify flags node, due to
@@ -1438,15 +1438,14 @@ void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
   if (action_type_ == BEGIN_POSITIVE_SUBMATCH) {
     // We use the node after the lookaround to fill in the eats_at_least info
     // so we have to use the same node to fill in the Boyer-Moore info.
-    success_node()->on_success()->FillInBMInfo(isolate, offset, budget - 1, bm,
-                                               not_at_start);
+    success_node()->on_success()->FillInBMInfo(isolate, offset, budget - 1, bm);
   } else if (action_type_ != POSITIVE_SUBMATCH_SUCCESS) {
     // We don't use the node after a positive submatch success because it
     // rewinds the position.  Since we returned 0 as the eats_at_least value for
     // this node, we don't need to fill in any data.
-    on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
+    on_success()->FillInBMInfo(isolate, offset, budget - 1, bm);
   }
-  SaveBMInfo(bm, not_at_start, offset);
+  SaveBMInfo(bm, offset);
   if (old_flags.has_value()) {
     bm->compiler()->set_flags(*old_flags);
   }
@@ -1454,12 +1453,12 @@ void ActionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
 
 void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                       RegExpCompiler* compiler, int filled_in,
-                                      bool not_at_start, int budget) {
+                                      int budget) {
   if (action_type_ == BEGIN_POSITIVE_SUBMATCH) {
     // We use the node after the lookaround to fill in the eats_at_least info
     // so we have to use the same node to fill in the QuickCheck info.
     success_node()->on_success()->GetQuickCheckDetails(
-        details, compiler, filled_in, not_at_start, budget - 1);
+        details, compiler, filled_in, budget - 1);
   } else if (action_type() != POSITIVE_SUBMATCH_SUCCESS) {
     // We don't use the node after a positive submatch success because it
     // rewinds the position.  Since we returned 0 as the eats_at_least value
@@ -1473,7 +1472,7 @@ void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
       compiler->set_flags(flags());
     }
     on_success()->GetQuickCheckDetails(details, compiler, filled_in,
-                                       not_at_start, budget - 1);
+                                       budget - 1);
     if (old_flags.has_value()) {
       compiler->set_flags(*old_flags);
     }
@@ -1481,15 +1480,14 @@ void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
 }
 
 void AssertionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                                 BoyerMooreLookahead* bm, bool not_at_start) {
+                                 BoyerMooreLookahead* bm) {
   // Match the behaviour of EatsAtLeast on this node.
-  if (assertion_type() == AT_START && not_at_start) return;
-  on_success()->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
-  SaveBMInfo(bm, not_at_start, offset);
+  on_success()->FillInBMInfo(isolate, offset, budget - 1, bm);
+  SaveBMInfo(bm, offset);
 }
 
 void EndNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                           BoyerMooreLookahead* bm, bool not_at_start) {
+                           BoyerMooreLookahead* bm) {
   if (action_ == BACKTRACK) return;
   // Returning 0 from EatsAtLeast should ensure we never get here.
   UNREACHABLE();
@@ -1497,9 +1495,9 @@ void EndNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
 
 void NegativeLookaroundChoiceNode::GetQuickCheckDetails(
     QuickCheckDetails* details, RegExpCompiler* compiler, int filled_in,
-    bool not_at_start, int budget) {
+    int budget) {
   RegExpNode* node = continue_node();
-  return node->GetQuickCheckDetails(details, compiler, filled_in, not_at_start,
+  return node->GetQuickCheckDetails(details, compiler, filled_in,
                                     budget - 1);
 }
 
@@ -1535,9 +1533,8 @@ bool QuickCheckDetails::Rationalize(bool asc) {
   return found_useful_op;
 }
 
-uint32_t RegExpNode::EatsAtLeast(bool not_at_start) {
-  return not_at_start ? eats_at_least_.from_not_start
-                      : eats_at_least_.from_possibly_start;
+uint32_t RegExpNode::EatsAtLeast() {
+  return eats_at_least_.from_possibly_start;
 }
 
 bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
@@ -1549,9 +1546,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
                                 ChoiceNode* predecessor) {
   DCHECK_NOT_NULL(predecessor);
   if (details->characters() == 0) return false;
-  GetQuickCheckDetails(details, compiler, 0,
-                       trace->at_start() == Trace::FALSE_VALUE,
-                       kRecursionBudget);
+  GetQuickCheckDetails(details, compiler, 0, kRecursionBudget);
   if (details->cannot_match()) return false;
   if (!details->Rationalize(compiler->one_byte())) return false;
   DCHECK(details->characters() == 1 ||
@@ -1568,8 +1563,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
     // choices can succeed, so we can just immediately backtrack, rather
     // than go to the next choice. The number of characters preloaded may be
     // less than the number used for the bounds check.
-    int eats_at_least = predecessor->EatsAtLeast(
-        bounds_check_trace->at_start() == Trace::FALSE_VALUE);
+    int eats_at_least = predecessor->EatsAtLeast();
     DCHECK_GE(eats_at_least, details->characters());
     assembler->LoadCurrentCharacter(
         trace->cp_offset(), bounds_check_trace->backtrack(),
@@ -1624,7 +1618,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
 // generating a quick check.
 void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in, bool not_at_start,
+                                    int characters_filled_in,
                                     int budget) {
   // Do not collect any quick check details if the text node reads backward,
   // since it reads in the opposite direction than we use for quick checks.
@@ -1766,7 +1760,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   DCHECK(characters_filled_in != details->characters());
   if (!details->cannot_match()) {
     on_success()->GetQuickCheckDetails(details, compiler, characters_filled_in,
-                                       true, budget - 1);
+                                       budget - 1);
   }
 }
 
@@ -2023,40 +2017,38 @@ RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(
 void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                           RegExpCompiler* compiler,
                                           int characters_filled_in,
-                                          bool not_at_start, int budget) {
+                                          int budget) {
   if (body_can_be_zero_length_ || budget <= 0) return;
-  not_at_start = not_at_start || this->not_at_start();
   DCHECK_EQ(alternatives_->length(), 2);  // There's just loop and continue.
   ChoiceNode::GetQuickCheckDetails(details, compiler, characters_filled_in,
-                                   not_at_start, budget);
+                                   budget);
 }
 
 void LoopChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                                  BoyerMooreLookahead* bm, bool not_at_start) {
+                                  BoyerMooreLookahead* bm) {
   if (body_can_be_zero_length_ || budget <= 0) {
     bm->SetRest(offset);
-    SaveBMInfo(bm, not_at_start, offset);
+    SaveBMInfo(bm, offset);
     return;
   }
-  ChoiceNode::FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
-  SaveBMInfo(bm, not_at_start, offset);
+  ChoiceNode::FillInBMInfo(isolate, offset, budget - 1, bm);
+  SaveBMInfo(bm, offset);
 }
 
 void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                       RegExpCompiler* compiler,
                                       int characters_filled_in,
-                                      bool not_at_start, int budget) {
-  not_at_start = (not_at_start || not_at_start_);
+                                      int budget) {
   int choice_count = alternatives_->length();
   DCHECK_LT(0, choice_count);
   budget /= choice_count;
   alternatives_->at(0).node()->GetQuickCheckDetails(
-      details, compiler, characters_filled_in, not_at_start, budget);
+      details, compiler, characters_filled_in, budget);
   for (int i = 1; i < choice_count; i++) {
     QuickCheckDetails new_details(details->characters());
     RegExpNode* node = alternatives_->at(i).node();
     node->GetQuickCheckDetails(&new_details, compiler, characters_filled_in,
-                               not_at_start, budget);
+                               budget);
     // Here we merge the quick match details of the two branches.
     details->Merge(&new_details, characters_filled_in);
   }
@@ -2122,15 +2114,13 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   Isolate* isolate = assembler->isolate();
   Trace::TriBool next_is_word_character = Trace::UNKNOWN;
-  bool not_at_start = (trace->at_start() == Trace::FALSE_VALUE);
-  BoyerMooreLookahead* lookahead = bm_info(not_at_start);
+  BoyerMooreLookahead* lookahead = bm_info();
   if (lookahead == nullptr) {
-    int eats_at_least =
-        std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast(not_at_start));
+    int eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
     if (eats_at_least >= 1) {
       BoyerMooreLookahead* bm =
           zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
-      FillInBMInfo(isolate, 0, kRecursionBudget, bm, not_at_start);
+      FillInBMInfo(isolate, 0, kRecursionBudget, bm);
       if (bm->at(0)->is_non_word()) next_is_word_character = Trace::FALSE_VALUE;
       if (bm->at(0)->is_word()) next_is_word_character = Trace::TRUE_VALUE;
     }
@@ -2210,30 +2200,11 @@ EmitResult AssertionNode::BacktrackIfPrevious(
 
 void AssertionNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                          RegExpCompiler* compiler,
-                                         int filled_in, bool not_at_start,
-                                         int budget) {
-  if (assertion_type_ == AT_START && not_at_start) {
-    details->set_cannot_match_from(filled_in);
-    return;
-  }
-  if (assertion_type_ == AT_END) {
-    details->set_cannot_match_from(filled_in);
-    return;
-  }
-  return on_success()->GetQuickCheckDetails(details, compiler, filled_in,
-                                            not_at_start, budget - 1);
+                                         int filled_in, int budget) {
 }
 
 void EndNode::GetQuickCheckDetails(QuickCheckDetails* details,
-                                   RegExpCompiler* compiler,
-                                   int characters_filled_in, bool not_at_start,
-                                   int budget) {
-  details->set_cannot_match_from(characters_filled_in);
-}
-
-void EndNode::GetQuickCheckDetails(QuickCheckDetails* details,
-                                   RegExpCompiler* compiler, int filled_in,
-                                   bool not_at_start) {
+                                   RegExpCompiler* compiler, int filled_in) {
   if (action_ == BACKTRACK) {
     details->set_cannot_match();
   } else {
@@ -2253,17 +2224,9 @@ EmitResult AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       break;
     }
     case AT_START: {
-      if (trace->at_start() == Trace::FALSE_VALUE) {
-        assembler->GoTo(trace->backtrack());
-        return EmitResult::Success();
-      }
-      if (trace->at_start() == Trace::UNKNOWN) {
-        assembler->CheckNotAtStart(trace->cp_offset(), trace->backtrack());
-        Trace at_start_trace = *trace;
-        at_start_trace.set_at_start(Trace::TRUE_VALUE);
-        return on_success()->Emit(compiler, &at_start_trace);
-      }
-    } break;
+      assembler->CheckNotAtStart(trace->cp_offset(), trace->backtrack());
+      return on_success()->Emit(compiler, trace);
+    }
     case AFTER_NEWLINE:
       return EmitHat(compiler, on_success(), trace);
     case AT_BOUNDARY:
@@ -2501,8 +2464,6 @@ EmitResult TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   // If we advance backward, we may end up at the start.
   RETURN_IF_ERROR(successor_trace.AdvanceCurrentPositionInTrace(
       read_backward() ? -Length() : Length(), compiler));
-  successor_trace.set_at_start(read_backward() ? Trace::UNKNOWN
-                                               : Trace::FALSE_VALUE);
   RecursionCheck rc(compiler);
   return on_success()->Emit(compiler, &successor_trace);
 }
@@ -3100,11 +3061,9 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
  *        S2--/
  */
 
-SpecialLoopState::SpecialLoopState(bool not_at_start,
-                                   ChoiceNode* loop_choice_node)
+SpecialLoopState::SpecialLoopState(ChoiceNode* loop_choice_node)
     : loop_choice_node_(loop_choice_node) {
   backtrack_trace_.set_backtrack(&step_label_);
-  if (not_at_start) backtrack_trace_.set_at_start(Trace::FALSE_VALUE);
 }
 
 void SpecialLoopState::BindStepLabel(RegExpMacroAssembler* macro_assembler) {
@@ -3137,8 +3096,7 @@ void ChoiceNode::SetUpPreLoad(RegExpCompiler* compiler, Trace* current_trace,
                               PreloadState* state) {
   if (state->eats_at_least_ == PreloadState::kEatsAtLeastNotYetInitialized) {
     // Save some time by looking at most one machine word ahead.
-    state->eats_at_least_ =
-        EatsAtLeast(current_trace->at_start() == Trace::FALSE_VALUE);
+    state->eats_at_least_ = EatsAtLeast();
   }
   state->preload_characters_ =
       CalculatePreloadCharacters(compiler, state->eats_at_least_);
@@ -3173,7 +3131,7 @@ EmitResult ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   preload.init();
   // This must be outside the 'if' because the trace we use for what
   // comes after the special_loop is inside it and needs the lifetime.
-  SpecialLoopState special_loop_state(not_at_start(), this);
+  SpecialLoopState special_loop_state(this);
 
   int text_length = FixedLengthLoopLengthForAlternative(&alternatives_->at(0));
   AlternativeGenerationList alt_gens(choice_count, zone());
@@ -3237,7 +3195,6 @@ Trace* ChoiceNode::EmitFixedLengthLoop(
   // we have stepped back to try again with one iteration fewer.
   Label after_body_match_attempt;
   Trace fixed_length_match_trace;
-  if (not_at_start()) fixed_length_match_trace.set_at_start(Trace::FALSE_VALUE);
   fixed_length_match_trace.set_backtrack(&after_body_match_attempt);
   fixed_length_loop_state->BindLoopTopLabel(macro_assembler);
   fixed_length_match_trace.set_special_loop_state(fixed_length_loop_state);
@@ -3294,16 +3251,16 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(
   // and step forwards 3 if the character is not one of abc.  Abc need
   // not be atoms, they can be any reasonably limited character class or
   // small alternation.
-  BoyerMooreLookahead* bm = bm_info(false);
+  BoyerMooreLookahead* bm = bm_info();
   // The --no-regexp-quick-check is for testing.  It disables the compiler's
   // clever optimizations that attempt to eliminate match positions. This
   // way the regular regexp machinery gets more exercise and test coverage.
   if (bm == nullptr && v8_flags.regexp_quick_check) {
-    eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast(false));
+    eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
     if (eats_at_least >= 1) {
       bm = zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
       GuardedAlternative alt0 = alternatives_->at(0);
-      alt0.node()->FillInBMInfo(isolate, 0, kRecursionBudget, bm, false);
+      alt0.node()->FillInBMInfo(isolate, 0, kRecursionBudget, bm);
     }
   }
   if (bm != nullptr) {
@@ -3344,7 +3301,6 @@ EmitResult ChoiceNode::EmitChoices(RegExpCompiler* compiler,
       new_trace.set_bound_checked_up_to(preload->preload_characters_);
     }
     new_trace.quick_check_performed()->Clear();
-    if (not_at_start_) new_trace.set_at_start(Trace::FALSE_VALUE);
     if (!is_last) {
       new_trace.set_backtrack(&alt_gen->after);
     }
@@ -3412,7 +3368,6 @@ EmitResult ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
   Trace out_of_line_trace(*trace);
   out_of_line_trace.set_characters_preloaded(preload_characters);
   out_of_line_trace.set_quick_check_performed(&alt_gen->quick_check_details);
-  if (not_at_start_) out_of_line_trace.set_at_start(Trace::FALSE_VALUE);
   ZoneList<Guard*>* guards = alternative.guards();
   int guard_count = (guards == nullptr) ? 0 : guards->length();
   if (next_expects_preload) {
@@ -3571,8 +3526,6 @@ EmitResult BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     assembler->CheckNotBackReference(start_reg_, read_backward(),
                                      trace->backtrack());
   }
-  // We are going to advance backward, so we may end up at the start.
-  if (read_backward()) trace->set_at_start(Trace::UNKNOWN);
 
   // Check that the back reference does not end inside a surrogate pair.
   if (IsEitherUnicode(compiler->flags()) && !compiler->one_byte()) {
@@ -3735,14 +3688,6 @@ class EatsAtLeastPropagator : public AllStatic {
 
   static void VisitAssertion(AssertionNode* that) {
     EatsAtLeastInfo eats_at_least = *that->on_success()->eats_at_least_info();
-    if (that->assertion_type() == AssertionNode::AT_START) {
-      // If we know we are not at the start and we are asked "how many
-      // characters will you match if you succeed?" then we can answer anything
-      // since false implies false.  So let's just set the max answer
-      // (UINT8_MAX) since that won't prevent us from preloading a lot of
-      // characters for the other branches in the node graph.
-      eats_at_least.from_not_start = UINT8_MAX;
-    }
     that->set_eats_at_least_info(eats_at_least);
   }
 };
@@ -3905,42 +3850,41 @@ RegExpError AnalyzeRegExp(Isolate* isolate, bool is_one_byte, RegExpFlags flags,
 }
 
 void BackReferenceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                                     BoyerMooreLookahead* bm,
-                                     bool not_at_start) {
+                                     BoyerMooreLookahead* bm) {
   // Working out the set of characters that a backreference can match is too
   // hard, so we just say that any character can match.
   bm->SetRest(offset);
-  SaveBMInfo(bm, not_at_start, offset);
+  SaveBMInfo(bm, offset);
 }
 
 static_assert(BoyerMoorePositionInfo::kMapSize ==
               RegExpMacroAssembler::kTableSize);
 
 void ChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                              BoyerMooreLookahead* bm, bool not_at_start) {
+                              BoyerMooreLookahead* bm) {
   ZoneList<GuardedAlternative>* alts = alternatives();
   budget = (budget - 1) / alts->length();
   for (int i = 0; i < alts->length(); i++) {
     GuardedAlternative& alt = alts->at(i);
     if (alt.guards() != nullptr && alt.guards()->length() != 0) {
       bm->SetRest(offset);  // Give up trying to fill in info.
-      SaveBMInfo(bm, not_at_start, offset);
+      SaveBMInfo(bm, offset);
       return;
     }
-    alt.node()->FillInBMInfo(isolate, offset, budget, bm, not_at_start);
+    alt.node()->FillInBMInfo(isolate, offset, budget, bm);
   }
-  SaveBMInfo(bm, not_at_start, offset);
+  SaveBMInfo(bm, offset);
 }
 
 void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
-                            BoyerMooreLookahead* bm, bool not_at_start) {
+                            BoyerMooreLookahead* bm) {
   if (initial_offset >= bm->length()) return;
   if (read_backward()) return;
   int offset = initial_offset;
   int max_char = bm->max_char();
   for (int i = 0; i < elements()->length(); i++) {
     if (offset >= bm->length()) {
-      if (initial_offset == 0) set_bm_info(not_at_start, bm);
+      if (initial_offset == 0) set_bm_info(bm);
       return;
     }
     TextElement text = elements()->at(i);
@@ -3948,7 +3892,7 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
       RegExpAtom* atom = text.atom();
       for (int j = 0; j < atom->length(); j++, offset++) {
         if (offset >= bm->length()) {
-          if (initial_offset == 0) set_bm_info(not_at_start, bm);
+          if (initial_offset == 0) set_bm_info(bm);
           return;
         }
         base::uc16 character = atom->data()[j];
@@ -3981,12 +3925,11 @@ void TextNode::FillInBMInfo(Isolate* isolate, int initial_offset, int budget,
     }
   }
   if (offset >= bm->length()) {
-    if (initial_offset == 0) set_bm_info(not_at_start, bm);
+    if (initial_offset == 0) set_bm_info(bm);
     return;
   }
-  on_success()->FillInBMInfo(isolate, offset, budget - 1, bm,
-                             true);  // Not at start after a text node.
-  if (initial_offset == 0) set_bm_info(not_at_start, bm);
+  on_success()->FillInBMInfo(isolate, offset, budget - 1, bm);
+  if (initial_offset == 0) set_bm_info(bm);
 }
 
 RegExpNode* RegExpCompiler::OptionallyStepBackToLeadSurrogate(
@@ -4026,9 +3969,9 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
     // this expression is anchored at the beginning or sticky.
     if (!data->contains_anchor || data->contains_anchor_in_lookbehind) {
       node = RegExpQuantifier::ToNode(
-        0, RegExpTree::kInfinity, false,
-        zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything), this,
-        captured_body, data->contains_anchor);
+          0, RegExpTree::kInfinity, false,
+          zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything),
+          this, captured_body);
     } else {
       // Peel loop once, to take care of the case that might start at the start
       // of input.
@@ -4039,9 +3982,9 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
       not_at_start_ = false;
 
       RegExpNode* loop_node = RegExpQuantifier::ToNode(
-        0, RegExpTree::kInfinity, false,
-        zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything), this,
-        captured_body, data->contains_anchor);
+          0, RegExpTree::kInfinity, false,
+          zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything),
+          this, captured_body);
 
       ChoiceNode* first_step_node = zone()->New<ChoiceNode>(2, zone());
       first_step_node->AddAlternative(GuardedAlternative(peeled_body));

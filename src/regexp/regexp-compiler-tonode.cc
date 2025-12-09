@@ -1974,8 +1974,7 @@ class RegExpExpansionLimiter {
 
 RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
                                      RegExpTree* body, RegExpCompiler* compiler,
-                                     RegExpNode* on_success,
-                                     bool not_at_start) {
+                                     RegExpNode* on_success) {
   // x{f, t} becomes this:
   //
   //             (r++)<-.
@@ -2022,7 +2021,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
         // Recurse once to get the loop or optional matches after the fixed
         // ones.
         RegExpNode* answer =
-            ToNode(0, new_max, is_greedy, body, compiler, on_success, true);
+            ToNode(0, new_max, is_greedy, body, compiler, on_success);
         // Unroll the forced matches from 0 to min.  This can cause chains of
         // TextNodes (which the parser does not generate).  These should be
         // combined if it turns out they hinder good code generation.
@@ -2050,9 +2049,6 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
                 GuardedAlternative(body->ToNode(compiler, answer)));
           }
           answer = alternation;
-          if (not_at_start && !compiler->read_backward()) {
-            alternation->set_not_at_start();
-          }
         }
         return answer;
       }
@@ -2064,8 +2060,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   int reg_ctr = needs_counter ? compiler->AllocateRegister()
                               : RegExpCompiler::kNoRegister;
   LoopChoiceNode* center = zone->New<LoopChoiceNode>(
-      body->min_match() == 0, compiler->read_backward(), zone);
-  if (not_at_start && !compiler->read_backward()) center->set_not_at_start();
+      compiler->read_backward(), zone);
   RegExpNode* loop_return = center;
   if (needs_counter) {
     loop_return = ActionNode::IncrementRegister(reg_ctr, loop_return);

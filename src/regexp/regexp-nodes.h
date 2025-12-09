@@ -160,11 +160,8 @@ class RegExpNode : public ZoneObject {
   V8_WARN_UNUSED_RESULT virtual EmitResult Emit(RegExpCompiler* compiler,
                                                 Trace* trace) = 0;
   // How many characters must this node consume at a minimum in order to
-  // succeed.  The not_at_start argument is used to indicate that we know we are
-  // not at the start of the input.  In this case anchored branches will always
-  // fail and can be ignored when determining how many characters are consumed
-  // on success.  If this node has not been analyzed yet, EatsAtLeast returns 0.
-  uint32_t EatsAtLeast(bool not_at_start);
+  // succeed.
+  uint32_t EatsAtLeast();
   // Emits some quick code that checks whether the preloaded characters match.
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
@@ -179,7 +176,7 @@ class RegExpNode : public ZoneObject {
   // A comparison success indicates the node may match.
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in, bool not_at_start,
+                                    int characters_filled_in,
                                     int budget) = 0;
   static const int kNodeIsTooComplexForFixedLengthLoops = kMinInt;
   virtual int FixedLengthLoopLength() {
@@ -200,7 +197,7 @@ class RegExpNode : public ZoneObject {
   static const int kRecursionBudget = 200;
   bool KeepRecursing(RegExpCompiler* compiler);
   virtual void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                            BoyerMooreLookahead* bm, bool not_at_start) {
+                            BoyerMooreLookahead* bm) {
     return;
   }
 
@@ -225,8 +222,8 @@ class RegExpNode : public ZoneObject {
   // node.  Only info that is for this node is stored.  We can tell that the
   // info is for this node when offset == 0, so the information is calculated
   // relative to this node.
-  void SaveBMInfo(BoyerMooreLookahead* bm, bool not_at_start, int offset) {
-    if (offset == 0) set_bm_info(not_at_start, bm);
+  void SaveBMInfo(BoyerMooreLookahead* bm, int offset) {
+    if (offset == 0) set_bm_info(bm);
   }
 
   Label* label() { return &label_; }
@@ -255,9 +252,7 @@ class RegExpNode : public ZoneObject {
   // function.
   void SetDoNotInline() { trace_count_ = kMaxCopiesCodeGenerated; }
 
-  BoyerMooreLookahead* bm_info(bool not_at_start) {
-    return bm_info_[not_at_start ? 1 : 0];
-  }
+  BoyerMooreLookahead* bm_info() { return bm_info_[0]; }
 
 #define DECLARE_CAST(type) \
   virtual type##Node* As##type##Node() { return nullptr; }
@@ -274,9 +269,7 @@ class RegExpNode : public ZoneObject {
 
   LimitResult LimitVersions(RegExpCompiler* compiler, Trace* trace);
 
-  void set_bm_info(bool not_at_start, BoyerMooreLookahead* bm) {
-    bm_info_[not_at_start ? 1 : 0] = bm;
-  }
+  void set_bm_info(BoyerMooreLookahead* bm) { bm_info_[0] = bm; }
 
  private:
   static const int kFirstCharBudget = 10;
@@ -307,9 +300,9 @@ class SeqRegExpNode : public RegExpNode {
   void set_on_success(RegExpNode* node) { on_success_ = node; }
   RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override {
-    on_success_->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
-    if (offset == 0) set_bm_info(not_at_start, bm);
+                    BoyerMooreLookahead* bm) override {
+    on_success_->FillInBMInfo(isolate, offset, budget - 1, bm);
+    if (offset == 0) set_bm_info(bm);
   }
   SeqRegExpNode* AsSeqRegExpNode() override { return this; }
 
@@ -364,9 +357,9 @@ class ActionNode : public SeqRegExpNode {
                                         Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int filled_in,
-                            bool not_at_start, int budget) override;
+                            int budget) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm) override;
   ActionType action_type() const { return action_type_; }
   // TODO(erikcorry): We should allow some action nodes in fixed length loops.
   int FixedLengthLoopLength() override {
@@ -486,7 +479,7 @@ class TextNode : public SeqRegExpNode {
                                         Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
-                            bool not_at_start, int budget) override;
+                            int budget) override;
   ZoneList<TextElement>* elements() { return elms_; }
   bool read_backward() { return read_backward_; }
   void MakeCaseIndependent(Isolate* isolate, bool is_one_byte,
@@ -495,7 +488,7 @@ class TextNode : public SeqRegExpNode {
   RegExpNode* GetSuccessorOfOmnivorousTextNode(
       RegExpCompiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm) override;
   void CalculateOffsets();
   RegExpNode* FilterOneByte(int depth, RegExpCompiler* compiler) override;
   int Length();
@@ -545,9 +538,9 @@ class AssertionNode : public SeqRegExpNode {
                                         Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int filled_in,
-                            bool not_at_start, int budget) override;
+                            int budget) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm) override;
   AssertionType assertion_type() { return assertion_type_; }
 
  private:
@@ -580,11 +573,11 @@ class BackReferenceNode : public SeqRegExpNode {
                                         Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
-                            bool not_at_start, int budget) override {
+                            int budget) override {
     return;
   }
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm) override;
 
  private:
   int start_reg_;
@@ -668,7 +661,6 @@ class ChoiceNode : public RegExpNode {
       : RegExpNode(zone),
         alternatives_(
             zone->New<ZoneList<GuardedAlternative>>(expected_size, zone)),
-        not_at_start_(false),
         being_calculated_(false) {}
   ChoiceNode* AsChoiceNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
@@ -680,13 +672,11 @@ class ChoiceNode : public RegExpNode {
                                         Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
-                            bool not_at_start, int budget) override;
+                            int budget) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm) override;
 
   bool being_calculated() { return being_calculated_; }
-  bool not_at_start() { return not_at_start_; }
-  void set_not_at_start() { not_at_start_ = true; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
   virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
     return true;
@@ -726,9 +716,6 @@ class ChoiceNode : public RegExpNode {
               int first_choice, Trace* trace, PreloadState* preloads,
               RegExpFlags flags);
 
-  // If true, this node is never checked at the start of the input.
-  // Allows a new trace to start with at_start() set to false.
-  bool not_at_start_;
   bool being_calculated_;
 };
 
@@ -743,12 +730,11 @@ class NegativeLookaroundChoiceNode : public ChoiceNode {
   }
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
-                            bool not_at_start, int budget) override;
+                            int budget) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override {
-    continue_node()->FillInBMInfo(isolate, offset, budget - 1, bm,
-                                  not_at_start);
-    if (offset == 0) set_bm_info(not_at_start, bm);
+                    BoyerMooreLookahead* bm) override {
+    continue_node()->FillInBMInfo(isolate, offset, budget - 1, bm);
+    if (offset == 0) set_bm_info(bm);
   }
   static constexpr int kLookaroundIndex = 0;
   static constexpr int kContinueIndex = 1;
@@ -787,9 +773,9 @@ class LoopChoiceNode : public ChoiceNode {
                                         Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
-                            bool not_at_start, int budget) override;
+                            int budget) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm, bool not_at_start) override;
+                    BoyerMooreLookahead* bm) override;
   RegExpNode* loop_node() { return loop_node_; }
   RegExpNode* continue_node() { return continue_node_; }
   bool body_can_be_zero_length() { return body_can_be_zero_length_; }

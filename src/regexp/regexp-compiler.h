@@ -430,7 +430,7 @@ class Trace {
 // regexp).
 class SpecialLoopState {
  public:
-  explicit SpecialLoopState(bool not_at_start, ChoiceNode* loop_choice_node);
+  explicit SpecialLoopState(ChoiceNode* loop_choice_node);
 
   void BindStepLabel(RegExpMacroAssembler* macro_assembler);
   void BindLoopTopLabel(RegExpMacroAssembler* macro_assembler);
