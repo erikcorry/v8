@@ -204,7 +204,8 @@ void ReadOnlyHeap::PopulateReadOnlySpaceStatistics(
 bool ReadOnlyHeap::Contains(Address address) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(address);
   bool in = chunk->InReadOnlySpace();
-  //printf("Chunk %p object %p %s\n", (void*)chunk->address(), (void*)address, in ? "in" : "out");
+  // printf("Chunk %p object %p %s\n", (void*)chunk->address(), (void*)address,
+  // in ? "in" : "out");
   return in;
 }
 

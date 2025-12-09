@@ -84,7 +84,8 @@ class FastSerializer : public RootVisitor {
   void AddToSnapshot(Tagged<HeapObject> heap_object);
 
  private:
-  void MarkTableEntry(LinearAllocationBuffer* table_lab, Address entry_address, size_t entry_size);
+  void MarkTableEntry(LinearAllocationBuffer* table_lab, Address entry_address,
+                      size_t entry_size);
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end);

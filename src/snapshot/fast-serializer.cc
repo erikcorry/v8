@@ -472,7 +472,8 @@ void FastSerializer::ObjectSerializer::VisitInternalReference(
   UNREACHABLE();
 }
 
-void FastSerializer::MarkTableEntry(LinearAllocationBuffer* table_lab, Address entry_address, size_t entry_size) {
+void FastSerializer::MarkTableEntry(LinearAllocationBuffer* table_lab,
+                                    Address entry_address, size_t entry_size) {
   table_lab->Expand(entry_address, entry_address + entry_size);
   if (!IsMarked(entry_address)) {
     // We don't push the object onto the queue, that's the responsibility of
@@ -493,14 +494,16 @@ void FastSerializer::ObjectSerializer::VisitExternalPointer(
         serializer_->isolate()->external_pointer_table();
     Address table_base = table.base();
     uint32_t handle_index = table.HandleToIndex(handle);
-    Address slot_address = table_base + handle_index * sizeof(ExternalPointerTableEntry);
+    Address slot_address =
+        table_base + handle_index * sizeof(ExternalPointerTableEntry);
     if ((serializer_->flags_ & Snapshot::kUseIsolateMemory) != 0) {
       LinearAllocationBuffer* table_lab;
       // TODO: Not sure how to get the correct space here, using OLD_SPACE for
       // now.
       table_lab = serializer_->GetOrCreateLabForFixedLocation(
           slot_address, kTrustedPointerTable, OLD_SPACE);
-      serializer_->MarkTableEntry(table_lab, slot_address, sizeof(ExternalPointerTableEntry));
+      serializer_->MarkTableEntry(table_lab, slot_address,
+                                  sizeof(ExternalPointerTableEntry));
       // No relocation needed, since we are not changing the entry in the
       // external pointer table, but we need to handle the actual pointers in
       // the external pointer table.
@@ -569,14 +572,16 @@ void FastSerializer::ObjectSerializer::VisitIndirectPointerHelper(
         serializer_->isolate()->isolate_group()->code_pointer_table();
     uint32_t handle_index = table->HandleToIndex(handle);
     Address table_base = table->base_address();
-    entry_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
+    entry_address =
+        table_base + handle_index * sizeof(TrustedPointerTableEntry);
   } else {
     // Eg a SFI in the read-only space.
     TrustedPointerTable& table =
         serializer_->isolate()->trusted_pointer_table();
     uint32_t handle_index = table.HandleToIndex(handle);
     Address table_base = table.base_address();
-    entry_address = table_base + handle_index * sizeof(TrustedPointerTableEntry);
+    entry_address =
+        table_base + handle_index * sizeof(TrustedPointerTableEntry);
   }
   LinearAllocationBuffer* table_lab;
   // Offset within the table lab.
@@ -587,7 +592,8 @@ void FastSerializer::ObjectSerializer::VisitIndirectPointerHelper(
     table_lab = serializer_->GetOrCreateLabForFixedLocation(
         entry_address, kTrustedPointerTable, OLD_SPACE);
     // Mark the slot in use in its own lab.
-    serializer_->MarkTableEntry(table_lab, entry_address, sizeof(TrustedPointerTableEntry));
+    serializer_->MarkTableEntry(table_lab, entry_address,
+                                sizeof(TrustedPointerTableEntry));
     table_offset = entry_address - table_lab->start();
     // No relocation is needed in this case for the table index slot in the
     // pointed-from object, since we are not changing it.
@@ -631,15 +637,24 @@ void FastSerializer::ObjectSerializer::VisitJSDispatchTableEntry(
 
 const char* SpaceToName(AddressSpace space) {
   switch (space) {
-    case kUncompressed: return "Uncompressed";
-    case kMainCage: return "MainCage";
-    case kTrustedCage: return "TrustedCage";
-    case kCodeSpace: return "CodeSpace";
-    case kRoots: return "Roots";
-    case kExternalPointerTable: return "ExternalPointerTable";
-    case kTrustedPointerTable: return "TrustedPointerTable";
-    case kJSDispatchTable: return "JSDispatchTable";
-    default: return "Unknown space";
+    case kUncompressed:
+      return "Uncompressed";
+    case kMainCage:
+      return "MainCage";
+    case kTrustedCage:
+      return "TrustedCage";
+    case kCodeSpace:
+      return "CodeSpace";
+    case kRoots:
+      return "Roots";
+    case kExternalPointerTable:
+      return "ExternalPointerTable";
+    case kTrustedPointerTable:
+      return "TrustedPointerTable";
+    case kJSDispatchTable:
+      return "JSDispatchTable";
+    default:
+      return "Unknown space";
   }
 }
 
@@ -648,23 +663,43 @@ void FastSerializer::Dump() {
   for (LinearAllocationBuffer* lab : all_labs_) {
     Address lab_base = lab->start();
     uint64_t* liveness_map = lab_liveness_map_[lab_base];
-    printf("Lab at %p in %s:\n", (void*)lab_base, SpaceToName(lab->address_space()));
+    printf("Lab at %p in %s:\n", (void*)lab_base,
+           SpaceToName(lab->address_space()));
     constexpr int kWordSize = sizeof(uint32_t);  // Words on a compressed heap.
-    for (int i = 0; i < kRegularPageSize; i += kWordSize) {
+    char line_buffer[1000];
+    char old_line_buffer[1000];
+    memset(old_line_buffer, 0, sizeof(old_line_buffer));
+
+    int line_pos = 0;
+    bool dots_printed = false;
+    for (int i = 0; i <= kRegularPageSize; i += kWordSize) {
       int word_index = i / kWordSize;  // Compressed words are 32 bits.
-      if ((word_index & 0x3f) == 0) {
-        printf("\n%p ", (void*)(lab_base + i));  // 64 asterisks per line.
+      if ((word_index & 0x3f) == 0 && i != 0) {
+        line_buffer[line_pos] = 0;
+        if (strcmp(line_buffer, old_line_buffer) != 0 ||
+            i == kRegularPageSize) {
+          printf("0x%016lx %s - %3.2fk-%3.2fk\n", lab_base + (i & ~0x3f),
+                 line_buffer, (i - 0x100) / 1024.0, i / 1024.0);
+          dots_printed = false;
+          memcpy(old_line_buffer, line_buffer, sizeof(old_line_buffer));
+        } else {
+          if (!dots_printed) {
+            printf("...                %s\n", line_buffer);
+            dots_printed = true;
+          }
+        }
+        line_pos = 0;
+        if (i == kRegularPageSize) break;
       }
       int array_index = word_index / 64;  // 64 bits in a mark word.
       uint64_t word = liveness_map[array_index];
       int in_mark_word_index = word_index % 64;
       if ((word & (uint64_t{1} << in_mark_word_index)) != 0) {
-        printf("*");
+        line_pos += sprintf(line_buffer + line_pos, "*");
       } else {
-        printf(".");
+        line_pos += sprintf(line_buffer + line_pos, ".");
       }
     }
-    printf("\n");
   }
 }
 
