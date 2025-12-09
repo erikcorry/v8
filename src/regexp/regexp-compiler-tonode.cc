@@ -1048,9 +1048,15 @@ RegExpNode* RegExpDisjunction::ToNodeImpl(RegExpCompiler* compiler,
   for (int i = 0; i < length; i++) {
     GuardedAlternative alternative(
         alternatives->at(i)->ToNode(compiler, on_success));
-    result->AddAlternative(alternative);
+    if (!alternative.node()->IsBacktrack()) {
+      result->AddAlternative(alternative);
+    }
   }
-  return result;
+  int node_length = result->alternatives()->length();
+  if (node_length >= 2) return result;
+  if (node_length == 1) return result->alternatives()->at(0).node();
+  Zone* zone = on_success->zone();
+  return zone->template New<EndNode>(EndNode::BACKTRACK, zone);
 }
 
 RegExpNode* RegExpQuantifier::ToNodeImpl(RegExpCompiler* compiler,

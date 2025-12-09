@@ -263,6 +263,8 @@ class RegExpNode : public ZoneObject {
 
   Zone* zone() const { return zone_; }
 
+  virtual bool IsBacktrack() const { return false; }
+
  protected:
   enum LimitResult { DONE, CONTINUE };
   RegExpNode* replacement_;
@@ -600,6 +602,10 @@ class EndNode : public RegExpNode {
                             int budget) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm) override;
+
+  virtual bool IsBacktrack() const override {
+    return action_ == BACKTRACK;
+  }
 
  private:
   Action action_;
