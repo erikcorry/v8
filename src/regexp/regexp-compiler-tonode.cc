@@ -1105,7 +1105,11 @@ RegExpNode* RegExpAssertion::ToNodeImpl(RegExpCompiler* compiler,
     case Type::START_OF_LINE:
       return AssertionNode::AfterNewline(on_success);
     case Type::START_OF_INPUT:
-      return AssertionNode::AtStart(on_success);
+      if (compiler->not_at_start()) {
+        return zone->template New<EndNode>(EndNode::BACKTRACK, zone);
+      } else {
+        return AssertionNode::AtStart(on_success);
+      }
     case Type::BOUNDARY:
       return NeedsUnicodeCaseEquivalents(compiler->flags())
                  ? BoundaryAssertionAsLookaround(compiler, on_success,

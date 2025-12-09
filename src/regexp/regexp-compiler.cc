@@ -635,7 +635,7 @@ EmitResult NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler,
 EmitResult EndNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   if (action_ == BACKTRACK) {
-    assembler->Backtrack();
+    assembler->GoTo(trace->backtrack());
     return EmitResult::Success();
   }
   if (!trace->is_trivial()) {
