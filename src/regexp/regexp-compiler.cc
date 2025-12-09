@@ -3971,8 +3971,11 @@ RegExpNode* RegExpCompiler::PreprocessRegExp(RegExpCompileData* data,
           zone()->New<RegExpClassRanges>(StandardCharacterSet::kEverything),
           this, captured_body);
     } else {
-      // Peel loop once, to take care of the case that might start at the start
-      // of input.
+      // Although the regexp is not anchored at the start, it does contain a ^
+      // anchor.  This is relatively rare, but causes performance issues, so we
+      // generate the whole regexp twice, so we can skip checks for the start of
+      // input after checking for a match at the start position.  Example:
+      // /^\s+|\s+$/.
       not_at_start_ = true;  // This makes ToNode convert ^ into backtracks.
       RegExpNode* captured_body =
           RegExpCapture::ToNode(data->tree, 0, this, accept());
