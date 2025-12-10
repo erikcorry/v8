@@ -1281,9 +1281,9 @@ RegExpNode* RegExpLookaround::ToNodeImpl(RegExpCompiler* compiler,
   Builder builder(is_positive(), on_success, stack_pointer_register,
                   position_register, register_count, register_start);
   RegExpNode* match = body_->ToNode(compiler, builder.on_match_success());
-  if (is_positive() && match->IsBacktrack()) return match;
   result = builder.ForMatch(match);
   compiler->set_read_backward(was_reading_backward);
+  if (is_positive() && match->IsBacktrack()) return match;
   return result;
 }
 
