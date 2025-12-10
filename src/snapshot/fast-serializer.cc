@@ -38,6 +38,7 @@ FastSerializer::FastSerializer(Isolate* isolate,
   roots_lab_ = zone_.New<LinearAllocationBuffer>(
       &zone_, next_lab_index_++, kIgnoreAllocationSpace, AddressSpace::kRoots,
       location);
+  all_labs_.push_back(roots_lab_);
   for (int space = 0; space < kNumberOfAddressSpaces; space++) {
     address_space_fullnesses_[space] = 0;
   }
