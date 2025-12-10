@@ -663,7 +663,12 @@ void FastSerializer::Dump() {
   for (LinearAllocationBuffer* lab : all_labs_) {
     Address lab_base = lab->start();
     uint64_t* liveness_map = lab_liveness_map_[lab_base];
-    printf("Lab at %p in %s:\n", (void*)lab_base,
+    const char* ro_tag = "";
+    AddressSpace space = lab->address_space();
+    if (space == kMainCage && ReadOnlyHeap::Contains(lab_base)) {
+      ro_tag = "Read-only ";
+    }
+    printf("%sLab at %p in %s:\n", ro_tag, (void*)lab_base,
            SpaceToName(lab->address_space()));
     constexpr int kWordSize = sizeof(uint32_t);  // Words on a compressed heap.
     char line_buffer[1000];
@@ -672,14 +677,15 @@ void FastSerializer::Dump() {
 
     int line_pos = 0;
     bool dots_printed = false;
+    constexpr size_t kLineSize = kWordSize * 64;
     for (int i = 0; i <= kRegularPageSize; i += kWordSize) {
       int word_index = i / kWordSize;  // Compressed words are 32 bits.
-      if ((word_index & 0x3f) == 0 && i != 0) {
+      if (i % kLineSize == 0 && i != 0) {
         line_buffer[line_pos] = 0;
         if (strcmp(line_buffer, old_line_buffer) != 0 ||
             i == kRegularPageSize) {
-          printf("0x%016lx %s - %3.2fk-%3.2fk\n", lab_base + (i & ~0x3f),
-                 line_buffer, (i - 0x100) / 1024.0, i / 1024.0);
+          printf("0x%016lx %s - %3.2fk-%3.2fk\n", lab_base + i - kLineSize,
+                 line_buffer, (i - kLineSize) / 1024.0, i / 1024.0);
           dots_printed = false;
           memcpy(old_line_buffer, line_buffer, sizeof(old_line_buffer));
         } else {
