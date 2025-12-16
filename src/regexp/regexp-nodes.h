@@ -211,8 +211,8 @@ class RegExpNode : public ZoneObject {
 
   NodeInfo* info() { return &info_; }
   int eats_at_least() const { return eats_at_least_; }
-  void set_eats_at_least(int eats_at_least) {
-    DCHECK(0 <= eats_at_least && eats_at_least <= kMaxEatsAtLeastValue);
+  void set_eats_at_least(uint32_t eats_at_least) {
+    DCHECK(eats_at_least <= kMaxEatsAtLeastValue);
     eats_at_least_ = eats_at_least;
   }
 

@@ -1536,7 +1536,7 @@ bool QuickCheckDetails::Rationalize(bool asc) {
   return found_useful_op;
 }
 
-int RegExpNode::EatsAtLeast() { return eats_at_least_; }
+uint32_t RegExpNode::EatsAtLeast() { return eats_at_least_; }
 
 bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
                                 Trace* bounds_check_trace, Trace* trace,
@@ -1564,7 +1564,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
     // choices can succeed, so we can just immediately backtrack, rather
     // than go to the next choice. The number of characters preloaded may be
     // less than the number used for the bounds check.
-    int eats_at_least = predecessor->EatsAtLeast();
+    uint32_t eats_at_least = predecessor->EatsAtLeast();
     DCHECK_GE(eats_at_least, details->characters());
     assembler->LoadCurrentCharacter(
         trace->cp_offset(), bounds_check_trace->backtrack(),
@@ -2117,9 +2117,9 @@ EmitResult AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler,
   Trace::TriBool next_is_word_character = Trace::UNKNOWN;
   BoyerMooreLookahead* lookahead = bm_info();
   if (lookahead == nullptr) {
-    int eats_at_least =
-        std::min(int{kMaxLookaheadForBoyerMoore}, EatsAtLeast());
-    if (eats_at_least >= 1) {
+    uint32_t eats_at_least =
+        std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
+    if (eats_at_least >= 1u) {
       BoyerMooreLookahead* bm =
           zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
       FillInBMInfo(isolate, 0, kRecursionBudget, bm);
@@ -3222,7 +3222,7 @@ Trace* ChoiceNode::EmitFixedLengthLoop(
 int ChoiceNode::EmitOptimizedUnanchoredSearch(
     RegExpCompiler* compiler, Trace* trace,
     SpecialLoopState* search_loop_state) {
-  int eats_at_least = PreloadState::kEatsAtLeastNotYetInitialized;
+  uint32_t eats_at_least = PreloadState::kEatsAtLeastNotYetInitialized;
   if (alternatives_->length() != 2) return eats_at_least;
 
   GuardedAlternative alt1 = alternatives_->at(1);
@@ -3252,11 +3252,19 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(
   // not be atoms, they can be any reasonably limited character class or
   // small alternation.
   BoyerMooreLookahead* bm = bm_info();
+<<<<<<< HEAD
   // The --no-regexp-quick-check is for testing.  It disables the compiler's
   // clever optimizations that attempt to eliminate match positions. This
   // way the regular regexp machinery gets more exercise and test coverage.
   if (bm == nullptr && v8_flags.regexp_quick_check) {
     eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
+||||||| parent of 7e39a983763 (Use uint32_t for intermediate eats-at-least values)
+  if (bm == nullptr) {
+    eats_at_least = std::min(int{kMaxLookaheadForBoyerMoore}, EatsAtLeast());
+=======
+  if (bm == nullptr) {
+    eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
+>>>>>>> 7e39a983763 (Use uint32_t for intermediate eats-at-least values)
     if (eats_at_least >= 1) {
       bm = zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
       GuardedAlternative alt0 = alternatives_->at(0);
