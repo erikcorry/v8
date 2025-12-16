@@ -131,6 +131,9 @@ class RegExpNode : public ZoneObject {
   // How many characters must this node consume at a minimum in order to
   // succeed.  If this node has not been analyzed yet, EatsAtLeast returns 0.
   uint32_t EatsAtLeast();
+  // Note that we also use base_saturated_cast<uint8_t> with
+  // eats-at-least-values so this should concord with that.
+  static constexpr int kMaxEatsAtLeastValue = UINT8_MAX;
   // Emits some quick code that checks whether the preloaded characters match.
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
@@ -207,8 +210,9 @@ class RegExpNode : public ZoneObject {
   void set_on_work_list(bool value) { on_work_list_ = value; }
 
   NodeInfo* info() { return &info_; }
-  int eats_at_least_info() const { return eats_at_least_; }
-  void set_eats_at_least_info(int eats_at_least) {
+  int eats_at_least() const { return eats_at_least_; }
+  void set_eats_at_least(int eats_at_least) {
+    DCHECK(0 <= eats_at_least && eats_at_least <= kMaxEatsAtLeastValue);
     eats_at_least_ = eats_at_least;
   }
 
@@ -560,7 +564,7 @@ class EndNode : public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
   EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {
-    if (action == BACKTRACK) set_eats_at_least_info(UINT8_MAX);
+    if (action == BACKTRACK) set_eats_at_least(UINT8_MAX);
   }
   EndNode* AsEndNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;

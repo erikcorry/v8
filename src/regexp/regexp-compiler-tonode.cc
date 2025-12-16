@@ -32,6 +32,9 @@ constexpr uint32_t kMaxUtf16CodeUnitU = 0xffff;
 
 RegExpNode* RegExpTree::ToNode(RegExpCompiler* compiler,
                                RegExpNode* on_success) {
+  // We try to remove entire subbranches of the node structure that can't
+  // succeed by returning backtrack nodes instead of nodes that first match
+  // something and then inevitably backtrack.
   if (on_success->IsBacktrack()) return on_success;
   compiler->ToNodeMaybeCheckForStackOverflow();
   return ToNodeImpl(compiler, on_success);
@@ -1113,7 +1116,7 @@ RegExpNode* RegExpAssertion::ToNodeImpl(RegExpCompiler* compiler,
       return AssertionNode::AfterNewline(on_success);
     case Type::START_OF_INPUT:
       if (compiler->not_at_start()) {
-        return zone->template New<EndNode>(EndNode::BACKTRACK, zone);
+        return zone->New<EndNode>(EndNode::BACKTRACK, zone);
       } else {
         return AssertionNode::AtStart(on_success);
       }

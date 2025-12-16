@@ -626,6 +626,9 @@ class RegExpCompiler {
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
+  // Only used during ToNode. If this returns true then we know we are not at
+  // the start of the input string. If it returns false we don't know either
+  // way.
   bool not_at_start() const { return not_at_start_; }
 
   static const int kNoRegister = -1;
