@@ -2929,10 +2929,9 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
       char_two = char_one;  // Everything below here works for identical chars.
     }
     DCHECK(!found_single_position);
-    if (base::bits::CountPopulation(char_one ^ char_two) > 1) {
-      // For case independent matches we often find two characters that differ
-      // only at one bit positions, but in this case they differed more.  We
-      // don't have a great bytecode for two characters that are too different.
+    if (base::bits::CountPopulation(char_one ^ char_two) > 3) {
+      // If the two characters are too different, perhaps we should be using the
+      // SIMD bitmap search.
       break;
     }
 
