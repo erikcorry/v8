@@ -168,7 +168,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
 }
 
 // If an object is in the read-only space and reachable from the startup
-// serializer then it needs to be added to the startup serializer, which
+// serializer then it needs to be added to the read-only serializer, which
 // is running interleaved with the startup serializer.  This way we can
 // use reachability-based serialization for the read-only snapshot.
 bool StartupSerializer::SerializeReadOnlyObject(Tagged<HeapObject> obj,
