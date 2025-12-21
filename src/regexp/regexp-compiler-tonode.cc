@@ -2103,11 +2103,16 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
     center->AddContinueAlternative(rest_alt);
     center->AddLoopAlternative(body_alt);
   }
-  if (needs_counter) {
-    return ActionNode::SetRegisterForLoop(reg_ctr, 0, center);
-  } else {
-    return center;
+  RegExpNode* result = center;
+  if (min > 0 && body->min_match() > 0 && !compiler->read_backward()) {
+    uint8_t eats = base::saturated_cast<uint8_t>(
+        std::min(256, min) * std::min(256, body->min_match()));
+    result = ActionNode::EatsAtLeast(eats, result);
   }
+  if (needs_counter) {
+    result = ActionNode::SetRegisterForLoop(reg_ctr, 0, result);
+  }
+  return result;
 }
 
 }  // namespace internal

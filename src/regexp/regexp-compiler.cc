@@ -3443,6 +3443,7 @@ EmitResult ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       break;
     }
     case EATS_AT_LEAST:
+      RETURN_IF_ERROR(on_success()->Emit(compiler, trace));
       break;  // Doesn't actually do anything.
     // We don't yet have the ability to defer these.
     case BEGIN_POSITIVE_SUBMATCH:

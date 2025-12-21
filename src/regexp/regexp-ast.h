@@ -338,7 +338,7 @@ class RegExpClassRanges final : public RegExpTree {
   // TODO(yangguo): we should split this class for usage in TextElement, and
   //                make max_match() dependent on the character class content.
   int max_match() override {
-    if (is_certainly_one_code_point() != 0) {
+    if (is_certainly_one_code_point()) {
       return 1;
     }
     return 2;
