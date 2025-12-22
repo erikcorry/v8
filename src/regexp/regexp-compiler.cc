@@ -2971,29 +2971,13 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
       factory->NewByteArray(kSize, AllocationType::kOld);
   Handle<ByteArray> nibble_table;
   const int skip_distance = max_lookahead + 1 - min_lookahead;
-  // Do this before allocating the nibble table because we need its
-  // output to make a decision.
-  GetSkipTable(min_lookahead, max_lookahead, boolean_skip_table, nibble_table);
-  // Count the bits set in the bit table (don't count control characters because
-  // they are very rare).
-  int non_control_chars_that_can_occur = 0;
-  for (int i = ' '; i < kSize; i++) {
-    if (boolean_skip_table->get(i) != 0) non_control_chars_that_can_occur++;
-  }
-  int heuristic_skip_distance = skip_distance;
-  if (skip_distance >= 1 && non_control_chars_that_can_occur <= 4) {
-    // Give a discount to the SIMD heuristic if we have very few chars that can
-    // occur.
-    heuristic_skip_distance--;
-  }
-  if (masm->SkipUntilBitInTableUseSimd(heuristic_skip_distance)) {
+  if (masm->SkipUntilBitInTableUseSimd(skip_distance)) {
     // The current implementation is tailored specifically for 128-bit tables.
     static_assert(kSize == 128);
     nibble_table =
         factory->NewByteArray(kSize / kBitsPerByte, AllocationType::kOld);
-    // Redo now that we have a nibble table to write into.
-    GetSkipTable(min_lookahead, max_lookahead, boolean_skip_table, nibble_table);
   }
+  GetSkipTable(min_lookahead, max_lookahead, boolean_skip_table, nibble_table);
   DCHECK_NE(0, skip_distance);
 
   Label cont;

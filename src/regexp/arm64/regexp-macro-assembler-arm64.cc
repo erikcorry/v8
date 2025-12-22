@@ -764,8 +764,8 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
     Label* on_no_match) {
   Label scalar_repeat;
 
-  if (!nibble_table_array.is_null()) {
-    // Use SIMD.
+  if (SkipUntilBitInTableUseSimd(advance_by)) {
+    DCHECK(!nibble_table_array.is_null());
     Label scalar;
     EmitSkipUntilBitInTableSimdHelper(
         cp_offset, advance_by, nibble_table_array, 0, &scalar,
@@ -802,8 +802,12 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
 bool RegExpMacroAssemblerARM64::SkipUntilBitInTableUseSimd(int advance_by) {
   // We only use SIMD instead of the scalar version if we advance by 1 byte
   // in each iteration. For higher values the scalar version performs better.
+  // The SIMD version does 16 positions at a time, but unlike the scalar
+  // version, it doesn't make use of the advance_by value.  Therefore, we
+  // only use SIMD if advance_by is only 1 or 2 bytes.
+  if (advance_by > 2) return false;
   // We only implemented the SIMD version in one-byte mode.
-  return v8_flags.regexp_simd && advance_by * char_size() == 1;
+  return v8_flags.regexp_simd && char_size() == 1;
 }
 
 void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked(
@@ -811,7 +815,7 @@ void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked(
     int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,
     unsigned mask2, Label* on_match1, Label* on_match2, Label* on_failure) {
   Label scalar_repeat;
-  const bool use_simd = SkipUntilOneOfMaskedUseSimd(advance_by);
+  const bool use_simd = advance_by == 1 && SkipUntilOneOfMaskedUseSimd(1);
   // Number of characters loaded and width of mask/chars to check.
   // TODO(pthier): Support/optimize other variants.
   static constexpr int character_count = 4;
