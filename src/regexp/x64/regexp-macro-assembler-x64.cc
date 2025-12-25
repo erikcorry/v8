@@ -770,12 +770,11 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
 bool RegExpMacroAssemblerX64::SkipUntilBitInTableUseSimd(int advance_by) {
   // To use the SIMD variant we require SSSE3 as there is no shuffle equivalent
   // in older extensions.
-  // The SIMD version does 16 positions at a time, but unlike the scalar
-  // version, it doesn't make use of the advance_by value.  Therefore, we
-  // only use SIMD if advance_by is only 1 or 2 bytes.
-  if (advance_by > 2) return false;
+  // In addition we only use SIMD instead of the scalar version if we advance by
+  // 1 byte in each iteration. For higher values the scalar version performs
+  // better.
   // We only implemented the SIMD version in one-byte mode.
-  return v8_flags.regexp_simd && char_size() == 1 &&
+  return v8_flags.regexp_simd && advance_by * char_size() == 1 &&
          CpuFeatures::IsSupported(SSSE3);
 }
 
@@ -805,7 +804,7 @@ void RegExpMacroAssemblerX64::SkipUntilOneOfMasked(
     int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,
     unsigned mask2, Label* on_match1, Label* on_match2, Label* on_failure) {
   Label scalar_repeat;
-  const bool use_simd = advance_by == 1 && SkipUntilOneOfMaskedUseSimd(1);
+  const bool use_simd = SkipUntilOneOfMaskedUseSimd(advance_by);
   // Number of characters loaded and width of mask/chars to check.
   // TODO(pthier): Support/optimize other variants.
   static constexpr int character_count = 4;
