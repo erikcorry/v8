@@ -848,7 +848,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Helper function to determine BType for branches.
   BType GetBTypeFromInstruction(const Instruction* instr) const;
 
-  bool PcIsInGuardedPage() const { return guard_pages_; }
+  bool PcIsInGuardedPage() const { return false; }
   void SetGuardedPages(bool guard_pages) { guard_pages_ = guard_pages; }
 
   void CheckBTypeForPAuth() {
