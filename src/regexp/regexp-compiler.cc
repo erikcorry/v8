@@ -2800,12 +2800,8 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
 
     // Iterate only over set bits.
     int j;
-    bool comma = false;
-    bool colon = false;
     while ((j = BitsetFirstSetBit(union_bitset)) != -1) {
       DCHECK(union_bitset[j]);  // Sanity check.
-      if (j == ',') comma = true;
-      if (j == ':') colon = true;
       // Add 1 to the frequency to give a small per-character boost for
       // the cases where our sampling is not good enough and many
       // characters have a frequency of zero.  This means the frequency
@@ -2813,10 +2809,6 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
       // a fraction of kSize.
       frequency += compiler_->frequency_collator()->Frequency(j) + 1;
       union_bitset.reset(j);
-    }
-
-    if (length() == 2 && Count(0) == 2 && Count(1) == 7 && comma && colon) {
-      return 0;
     }
 
     // We use the probability of skipping times the distance we are skipping to
