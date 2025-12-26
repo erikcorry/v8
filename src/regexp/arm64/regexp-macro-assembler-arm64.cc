@@ -761,11 +761,10 @@ void RegExpMacroAssemblerARM64::EmitSkipUntilBitInTableSimdHelper(
     //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
     // Note: The hi_nibbles & 0x7 part is implicitly executed, because the
     // input table contains two repeats of the 0x80402010'08040201 pattern.
-    VRegister bitmask = v8;
-    __ Tbl(bitmask.V16B(), hi_nibble_lookup_mask.V16B(), hi_nibbles.V16B());
+    __ Tbl(result.V16B(), hi_nibble_lookup_mask.V16B(), hi_nibbles.V16B());
 
     // result = row & bitmask != 0
-    __ Cmtst(result.V16B(), row.V16B(), bitmask.V16B());
+    __ Cmtst(result.V16B(), row.V16B(), result.V16B());
   }
 
   // Narrow the result to 64 bit.
