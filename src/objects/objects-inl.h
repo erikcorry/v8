@@ -1308,6 +1308,11 @@ Address HeapObject::ReadCodeEntrypointViaCodePointerField(
   return i::ReadCodeEntrypointViaCodePointerField(field_address(offset), tag);
 }
 
+uint32_t HeapObject::GetCodePointerTableEntryViaCodePointerField(
+    size_t offset) const {
+  return i::GetCodePointerTableEntryViaCodePointerField(field_address(offset));
+}
+
 void HeapObject::WriteCodeEntrypointViaCodePointerField(size_t offset,
                                                         Address value,
                                                         CodeEntrypointTag tag) {

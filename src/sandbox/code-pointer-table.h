@@ -17,6 +17,7 @@
 namespace v8 {
 namespace internal {
 
+class ReadOnlySerializer;
 class Isolate;
 class Counters;
 
@@ -186,9 +187,13 @@ class V8_EXPORT_PRIVATE CodePointerTable
   // The base address of this table, for use in JIT compilers.
   Address base_address() const { return base(); }
 
- private:
+  // Used for serializing read-only space.
   inline uint32_t HandleToIndex(CodePointerHandle handle) const;
+
+ private:
   inline CodePointerHandle IndexToHandle(uint32_t index) const;
+
+  friend class ReadOnlySerializer;
 };
 
 }  // namespace internal

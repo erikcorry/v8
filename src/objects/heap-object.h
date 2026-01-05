@@ -448,6 +448,8 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   inline Address ReadCodeEntrypointViaCodePointerField(
       size_t offset, CodeEntrypointTag tag) const;
+  inline uint32_t GetCodePointerTableEntryViaCodePointerField(
+      size_t offset) const;
   inline void WriteCodeEntrypointViaCodePointerField(size_t offset,
                                                      Address value,
                                                      CodeEntrypointTag tag);

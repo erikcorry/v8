@@ -29,7 +29,7 @@ namespace internal {
 // using the instance type as tag works for this scheme as the bits of one
 // instance type may happen to be a superset of those of another instance type,
 // thereby causing the type check to incorrectly pass. As such, the chance of
-// getting "incompabitle" tags increases when adding more tags here so we may
+// getting "incompatible" tags increases when adding more tags here so we may
 // at some point want to consider manually assigning tag values that are
 // guaranteed to work (similar for how we do it for ExternalPointerTags).
 

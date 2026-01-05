@@ -380,10 +380,25 @@ class ObjectPostProcessor final {
     DCHECK(o->is_builtin());
     DCHECK(!o->has_instruction_stream());
     Builtin builtin = o->builtin_id();
-    // Mark disabled builtins as such (RO space serializer resets this flag).
-    DCHECK(!o->is_disabled_builtin());
-    if (Builtins::IsDisabled(builtin)) {
-      o->set_is_disabled_builtin(true);
+    // The RO snapshot has default setting for disabled builtins, but we may be
+    // running with special flags.
+    bool snapshot_disabled_builtin = o->is_disabled_builtin();
+    // Depends on V8 runtime flags.
+    bool should_disable_builtin = Builtins::IsDisabled(builtin);
+    Builtins::JSBuiltinStateFlags flags = Builtins::GetJSBuiltinState(builtin);
+    // TODO(erikcorry): We should only visit the code objects where this is
+    // true.
+    if ((flags & Builtins::JSBuiltinStateFlag::kFlagDependent) != 0) {
+      // Mark disabled builtins as such.
+      if (snapshot_disabled_builtin != should_disable_builtin) {
+        // We only set this if necessary to avoid unneccessarily triggering
+        // copy-on-write for the read-only space page.
+        o->set_is_disabled_builtin(should_disable_builtin);
+      }
+    } else {
+      USE(snapshot_disabled_builtin);
+      USE(should_disable_builtin);
+      DCHECK_EQ(snapshot_disabled_builtin, should_disable_builtin);
     }
     o->SetInstructionStartForOffHeapBuiltin(
         isolate_, EmbeddedData::FromBlob(isolate_).InstructionStartOf(builtin));

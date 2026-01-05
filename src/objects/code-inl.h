@@ -800,6 +800,11 @@ void Code::set_instruction_start(IsolateForSandbox isolate, Address value) {
 #endif
 }
 
+uint32_t Code::GetCodePointerTableIndex() const {
+  return GetCodePointerTableEntryViaCodePointerField(
+      kSelfIndirectPointerOffset);
+}
+
 CodeEntrypointTag Code::entrypoint_tag() const {
   // TODO(40948502, sandbox): cache the unshifted entrypoint_tag value
   // in the Code object to simplify things and avoid the need to execute

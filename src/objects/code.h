@@ -488,6 +488,9 @@ class Code : public ExposedTrustedObject {
   // on the call nodes without overflowing the uint16_t input_count.
   static const int kMaxArguments = (1 << kArgumentsBits) - 10;
 
+  // For serializers.
+  V8_EXPORT_PRIVATE inline uint32_t GetCodePointerTableIndex() const;
+
  private:
   DECL_PRIMITIVE_SETTER(marked_for_deoptimization, bool)
 

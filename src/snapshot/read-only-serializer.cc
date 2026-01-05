@@ -22,8 +22,10 @@ namespace {
 // Preprocess an object to prepare it for serialization.
 class ObjectPreProcessor final {
  public:
-  explicit ObjectPreProcessor(Isolate* isolate)
-      : isolate_(isolate), extref_encoder_(isolate) {}
+  explicit ObjectPreProcessor(Isolate* isolate, Zone* zone)
+      : isolate_(isolate),
+        virtual_code_pointer_table_(zone),
+        extref_encoder_(isolate) {}
 
 #define PRE_PROCESS_TYPE_LIST(V) \
   V(AccessorInfo)                \
@@ -147,10 +149,12 @@ class ObjectPreProcessor final {
   }
 #endif
   void PreProcessCode(Tagged<Code> o) {
-    // Clear disabled builtin flag to make snapshot state predictable.
-    if (o->is_builtin()) {
-      o->set_is_disabled_builtin(false);
-    }
+    // The only Code objects in RO space are the builtin Code objects.
+    DCHECK(o->is_builtin());
+    Builtin builtin = o->builtin_id();
+    o->set_is_disabled_builtin(Builtins::IsDisabled(builtin));
+    uint32_t index = o->GetCodePointerTableIndex();
+    USE(index);
     o->ClearInstructionStartForSerialization(isolate_);
     CHECK(!o->has_source_position_table_or_bytecode_offset_table());
     CHECK(!o->has_deoptimization_data_or_interpreter_data());
@@ -161,6 +165,7 @@ class ObjectPreProcessor final {
   }
 
   Isolate* const isolate_;
+  VirtualCodePointerTable virtual_code_pointer_table_;
   ExternalReferenceEncoder extref_encoder_;
 };
 
@@ -370,15 +375,16 @@ class ReadOnlyHeapImageSerializer {
     size_t size;
   };
 
-  static void Serialize(Isolate* isolate, SnapshotByteSink* sink) {
-    ReadOnlyHeapImageSerializer{isolate, sink}.SerializeImpl();
+  static void Serialize(Isolate* isolate, SnapshotByteSink* sink, Zone* zone) {
+    ReadOnlyHeapImageSerializer{isolate, sink, zone}.SerializeImpl();
   }
 
  private:
   using Bytecode = ro::Bytecode;
 
-  ReadOnlyHeapImageSerializer(Isolate* isolate, SnapshotByteSink* sink)
-      : isolate_(isolate), sink_(sink), pre_processor_(isolate) {}
+  ReadOnlyHeapImageSerializer(Isolate* isolate, SnapshotByteSink* sink,
+                              Zone* zone)
+      : isolate_(isolate), sink_(sink), pre_processor_(isolate, zone) {}
 
   void SerializeImpl() {
     DCHECK_EQ(sink_->Position(), 0);
@@ -555,7 +561,9 @@ class ReadOnlyHeapImageSerializer {
 
 ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
                                        Snapshot::SerializerFlags flags)
-    : RootsSerializer(isolate, flags, RootIndex::kFirstReadOnlyRoot) {}
+    : RootsSerializer(isolate, flags, RootIndex::kFirstReadOnlyRoot),
+      zone_(isolate->allocator(), "ReadOnlySerializerZone"),
+      code_pointer_table_(&zone_) {}
 
 ReadOnlySerializer::~ReadOnlySerializer() {
   OutputStatistics("ReadOnlySerializer");
@@ -563,7 +571,7 @@ ReadOnlySerializer::~ReadOnlySerializer() {
 
 void ReadOnlySerializer::Serialize() {
   DisallowGarbageCollection no_gc;
-  ReadOnlyHeapImageSerializer::Serialize(isolate(), &sink_);
+  ReadOnlyHeapImageSerializer::Serialize(isolate(), &sink_, &zone_);
 
   ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
   for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {

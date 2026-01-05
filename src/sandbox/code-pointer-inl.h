@@ -33,6 +33,17 @@ V8_INLINE Address ReadCodeEntrypointViaCodePointerField(Address field_address,
 #endif  // V8_ENABLE_SANDBOX
 }
 
+V8_INLINE uint32_t
+GetCodePointerTableEntryViaCodePointerField(Address field_address) {
+#ifdef V8_ENABLE_SANDBOX
+  auto location = reinterpret_cast<CodePointerHandle*>(field_address);
+  CodePointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
+  return IsolateGroup::current()->code_pointer_table()->HandleToIndex(handle);
+#else
+  UNREACHABLE();
+#endif
+}
+
 V8_INLINE void WriteCodeEntrypointViaCodePointerField(Address field_address,
                                                       Address value,
                                                       CodeEntrypointTag tag) {
