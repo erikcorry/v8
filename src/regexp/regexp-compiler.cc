@@ -1460,8 +1460,8 @@ void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
   if (action_type_ == BEGIN_POSITIVE_SUBMATCH) {
     // We use the node after the lookaround to fill in the eats_at_least info
     // so we have to use the same node to fill in the QuickCheck info.
-    success_node()->on_success()->GetQuickCheckDetails(
-        details, compiler, filled_in, budget - 1);
+    success_node()->on_success()->GetQuickCheckDetails(details, compiler,
+                                                       filled_in, budget - 1);
   } else if (action_type() != POSITIVE_SUBMATCH_SUCCESS) {
     // We don't use the node after a positive submatch success because it
     // rewinds the position.  Since we returned 0 as the eats_at_least value
@@ -1484,24 +1484,15 @@ void ActionNode::GetQuickCheckDetails(QuickCheckDetails* details,
 
 void AssertionNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
                                  BoyerMooreLookahead* bm) {
-  // Match the behaviour of EatsAtLeast on this node.
   on_success()->FillInBMInfo(isolate, offset, budget - 1, bm);
   SaveBMInfo(bm, offset);
-}
-
-void EndNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
-                           BoyerMooreLookahead* bm) {
-  // For the other actions, returning 0 from EatsAtLeast should ensure we never
-  // get here.
-  CHECK_EQ(BACKTRACK, action_);
 }
 
 void NegativeLookaroundChoiceNode::GetQuickCheckDetails(
     QuickCheckDetails* details, RegExpCompiler* compiler, int filled_in,
     int budget) {
   RegExpNode* node = continue_node();
-  return node->GetQuickCheckDetails(details, compiler, filled_in,
-                                    budget - 1);
+  return node->GetQuickCheckDetails(details, compiler, filled_in, budget - 1);
 }
 
 namespace {
@@ -1619,8 +1610,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
 // generating a quick check.
 void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in,
-                                    int budget) {
+                                    int characters_filled_in, int budget) {
   // Do not collect any quick check details if the text node reads backward,
   // since it reads in the opposite direction than we use for quick checks.
   if (read_backward()) return;
@@ -2038,8 +2028,7 @@ void LoopChoiceNode::FillInBMInfo(Isolate* isolate, int offset, int budget,
 
 void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                       RegExpCompiler* compiler,
-                                      int characters_filled_in,
-                                      int budget) {
+                                      int characters_filled_in, int budget) {
   int choice_count = alternatives_->length();
   DCHECK_LT(0, choice_count);
   budget /= choice_count;
@@ -2203,14 +2192,18 @@ EmitResult AssertionNode::BacktrackIfPrevious(
 void AssertionNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                          RegExpCompiler* compiler,
                                          int filled_in, int budget) {
+  if (assertion_type_ == AT_END) {
+    details->set_cannot_match_from(filled_in);
+    return;
+  }
+  return on_success()->GetQuickCheckDetails(details, compiler, filled_in,
+                                            budget - 1);
 }
 
 void EndNode::GetQuickCheckDetails(QuickCheckDetails* details,
-                                   RegExpCompiler* compiler, int filled_in) {
-  // For the other actions, returning 0 from EatsAtLeast should ensure we never
-  // get here.
-  CHECK_EQ(BACKTRACK, action_);
-  details->set_cannot_match();
+                                   RegExpCompiler* compiler,
+                                   int characters_filled_in, int budget) {
+  details->set_cannot_match_from(characters_filled_in);
 }
 
 EmitResult AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
@@ -3252,19 +3245,11 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(
   // not be atoms, they can be any reasonably limited character class or
   // small alternation.
   BoyerMooreLookahead* bm = bm_info();
-<<<<<<< HEAD
   // The --no-regexp-quick-check is for testing.  It disables the compiler's
   // clever optimizations that attempt to eliminate match positions. This
   // way the regular regexp machinery gets more exercise and test coverage.
   if (bm == nullptr && v8_flags.regexp_quick_check) {
     eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
-||||||| parent of 7e39a983763 (Use uint32_t for intermediate eats-at-least values)
-  if (bm == nullptr) {
-    eats_at_least = std::min(int{kMaxLookaheadForBoyerMoore}, EatsAtLeast());
-=======
-  if (bm == nullptr) {
-    eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
->>>>>>> 7e39a983763 (Use uint32_t for intermediate eats-at-least values)
     if (eats_at_least >= 1) {
       bm = zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
       GuardedAlternative alt0 = alternatives_->at(0);
@@ -3615,8 +3600,6 @@ class EatsAtLeastPropagator : public AllStatic {
   static void VisitText(TextNode* that) {
     // The eats_at_least value is not used if reading backward.
     if (!that->read_backward()) {
-      // We are not at the start after this node, and thus we can use the
-      // successor's from_not_start value.
       uint8_t eats_at_least = base::saturated_cast<uint8_t>(
           that->Length() + that->on_success()->eats_at_least());
       that->set_eats_at_least(eats_at_least);
@@ -3642,12 +3625,12 @@ class EatsAtLeastPropagator : public AllStatic {
       case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
         // We do not propagate eats_at_least data through positive submatch
         // success because it rewinds input.
-        DCHECK_EQ(0, that->eats_at_least());
+        DCHECK(that->eats_at_least() == 0);
         break;
       case ActionNode::EATS_AT_LEAST: {
-        EatsAtLeastInfo eats = *that->on_success()->eats_at_least_info();
-        eats.SetMax(that->stored_eats_at_least());
-        that->set_eats_at_least_info(eats);
+        int eats = that->on_success()->eats_at_least();
+        eats = std::max(eats, that->stored_eats_at_least());
+        that->set_eats_at_least(eats);
         break;
       }
       default:

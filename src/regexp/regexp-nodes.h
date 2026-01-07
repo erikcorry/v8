@@ -133,7 +133,9 @@ class RegExpNode : public ZoneObject {
   uint32_t EatsAtLeast();
   // Note that we also use base::saturated_cast<uint8_t> with
   // eats-at-least-values so this should concord with that.
-  static constexpr int kMaxEatsAtLeastValue = UINT8_MAX;
+  // TODO(erikcorry): Perhaps we should just use 'int' for all these
+  // eats-at-least values to avoid overflow.
+  static constexpr uint32_t kMaxEatsAtLeastValue = UINT8_MAX;
   // Emits some quick code that checks whether the preloaded characters match.
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
@@ -148,8 +150,7 @@ class RegExpNode : public ZoneObject {
   // A comparison success indicates the node may match.
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in,
-                                    int budget) = 0;
+                                    int characters_filled_in, int budget) = 0;
   static const int kNodeIsTooComplexForFixedLengthLoops = kMinInt;
   virtual int FixedLengthLoopLength() {
     return kNodeIsTooComplexForFixedLengthLoops;
@@ -574,7 +575,7 @@ class EndNode : public RegExpNode {
                             RegExpCompiler* compiler, int characters_filled_in,
                             int budget) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
-                    BoyerMooreLookahead* bm) override;
+                    BoyerMooreLookahead* bm) override {}
 
   virtual bool IsBacktrack() const override { return action_ == BACKTRACK; }
 

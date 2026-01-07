@@ -2077,7 +2077,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   int reg_ctr = needs_counter ? compiler->AllocateRegister()
                               : RegExpCompiler::kNoRegister;
   LoopChoiceNode* center = zone->New<LoopChoiceNode>(
-      compiler->read_backward(), zone);
+      body->min_match() == 0, compiler->read_backward(), zone);
   RegExpNode* loop_return = center;
   if (needs_counter) {
     loop_return = ActionNode::IncrementRegister(reg_ctr, loop_return);

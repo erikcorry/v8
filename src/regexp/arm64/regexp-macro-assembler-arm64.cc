@@ -635,27 +635,10 @@ void RegExpMacroAssemblerARM64::CheckBitInTable(
 }
 
 void RegExpMacroAssemblerARM64::EmitSkipUntilBitInTableSimdHelper(
-    int cp_offset, int advance_by, Handle<ByteArray> table,
-    Handle<ByteArray> nibble_table_handle, int max_on_match_lookahead,
-    Label* scalar_fallback,
+    int cp_offset, int advance_by, Handle<ByteArray> nibble_table_handle,
+    int max_on_match_lookahead, Label* scalar_fallback,
     base::FunctionRef<void(Register, Register)> on_match) {
   // This function uses x8, x9, x10, x11 as scratch, and v0-v7 for simd.
-
-  // Find out how many of the positions in the 128-entry table have non-zero
-  // entries.
-  int positions = 0;
-  unsigned char0, char1;
-  for (int i = 0; i < 128; i++) {
-    if (table->get(i) != 0) {
-      if (positions == 0) {
-        char0 = i;
-      } else if (positions == 1) {
-        char1 = i;
-      }
-      positions++;
-      if (positions > 2) break;
-    }
-  }
 
   DCHECK(!nibble_table_handle.is_null());
 
@@ -676,96 +659,55 @@ void RegExpMacroAssemblerARM64::EmitSkipUntilBitInTableSimdHelper(
                     max_on_match_lookahead,
                 scalar_fallback);
 
-  VRegister result = v4;
   // Hoist constants.
   //
   // Load table and mask constants.
   // For a description of the table layout, check the comment on
   // BoyerMooreLookahead::GetSkipTable in regexp-compiler.cc.
-  if (positions <= 2) {
-    bool single_comparison =
-        positions == 1 || base::bits::CountPopulation(char0 ^ char1) == 1;
-    // The table only has 128 entries, so discard top bit.
-    unsigned initial_mask_imm = 0x7f;
-    // Perhaps we can mask away another bit and handle both char0 and char1.
-    if (positions == 2 && single_comparison) {
-      initial_mask_imm &= ~(char0 ^ char1);
-    }
-    VRegister initial_mask = v0;
-    // Put this byte in all 16 positions.
-    __ movi(initial_mask.V16B(), initial_mask_imm);
-    VRegister char0_vector = v1;
-    __ movi(char0_vector.V16B(), char0 & initial_mask_imm);
-    VRegister char1_vector = v2;
-    if (!single_comparison) {
-      __ movi(char1_vector.V16B(), char1);
-    }
+  VRegister nibble_table = v0;
+  __ Mov(x8, Operand(nibble_table_handle));
+  __ Add(x8, x8, OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
+  __ Ld1(nibble_table.V16B(), MemOperand(x8));
+  VRegister nibble_mask = v1;
+  const uint64_t nibble_mask_imm = 0x0f0f0f0f'0f0f0f0f;
+  __ Movi(nibble_mask.V16B(), nibble_mask_imm, nibble_mask_imm);
+  VRegister hi_nibble_lookup_mask = v2;
+  const uint64_t hi_nibble_mask_imm = 0x80402010'08040201;
+  __ Movi(hi_nibble_lookup_mask.V16B(), hi_nibble_mask_imm, hi_nibble_mask_imm);
 
-    __ Bind(&simd_loop);
-    // Load next characters into vector.
-    VRegister input_vec = v3;
-    __ Add(x8, input_end(), Operand(current_input_offset(), SXTW));
-    __ Add(x8, x8, cp_offset * char_size());
-    __ Ld1(input_vec.V16B(), MemOperand(x8));
+  __ Bind(&simd_loop);
+  // Load next characters into vector.
+  VRegister input_vec = v3;
+  __ Add(x8, input_end(), Operand(current_input_offset(), SXTW));
+  __ Add(x8, x8, cp_offset * char_size());
+  __ Ld1(input_vec.V16B(), MemOperand(x8));
 
-    // Discard unused bits.
-    __ And(input_vec.V16B(), input_vec.V16B(), initial_mask.V16B());
+  // Extract low nibbles.
+  // lo_nibbles = input & 0x0f
+  VRegister lo_nibbles = v4;
+  __ And(lo_nibbles.V16B(), nibble_mask.V16B(), input_vec.V16B());
+  // Extract high nibbles.
+  // hi_nibbles = (input >> 4) & 0x0f
+  VRegister hi_nibbles = v5;
+  __ Ushr(hi_nibbles.V16B(), input_vec.V16B(), 4);
+  __ And(hi_nibbles.V16B(), hi_nibbles.V16B(), nibble_mask.V16B());
 
-    // Has ff (match) or 00 (no match) in each byte depending on whether it
-    // matched char0_vector.
-    __ Cmeq(result.V16B(), input_vec.V16B(), char0_vector.V16B());
-    VRegister compare1 = v5;
-    if (!single_comparison) {
-      __ Cmeq(compare1.V16B(), input_vec.V16B(), char1_vector.V16B());
-      __ Orr(result.V16B(), result.V16B(), compare1.V16B());
-    }
-  } else {
-    // More than 2 bits set in the table.
-    VRegister nibble_table = v0;
-    __ Mov(x8, Operand(nibble_table_handle));
-    __ Add(x8, x8, OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag);
-    __ Ld1(nibble_table.V16B(), MemOperand(x8));
+  // Get rows of nibbles table based on low nibbles.
+  // row = nibble_table[lo_nibbles]
+  VRegister row = v6;
+  __ Tbl(row.V16B(), nibble_table.V16B(), lo_nibbles.V16B());
 
-    VRegister nibble_mask = v1;
-    const uint64_t nibble_mask_imm = 0x0f0f0f0f'0f0f0f0f;
-    __ Movi(nibble_mask.V16B(), nibble_mask_imm, nibble_mask_imm);
-    VRegister hi_nibble_lookup_mask = v2;
-    const uint64_t hi_nibble_mask_imm = 0x80402010'08040201;
-    __ Movi(hi_nibble_lookup_mask.V16B(), hi_nibble_mask_imm,
-            hi_nibble_mask_imm);
+  // Check if high nibble is set in row.
+  // bitmask = 1 << (hi_nibbles & 0x7)
+  //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
+  // Note: The hi_nibbles & 0x7 part is implicitly executed, because the
+  // input table contains two repeats of the 0x80402010'08040201 pattern.
+  VRegister bitmask = v7;
+  __ Tbl(bitmask.V16B(), hi_nibble_lookup_mask.V16B(), hi_nibbles.V16B());
 
-    __ Bind(&simd_loop);
-    // Load next characters into vector.
-    VRegister input_vec = v3;
-    __ Add(x8, input_end(), Operand(current_input_offset(), SXTW));
-    __ Add(x8, x8, cp_offset * char_size());
-    __ Ld1(input_vec.V16B(), MemOperand(x8));
-
-    // Extract low nibbles.
-    // lo_nibbles = input & 0x0f
-    VRegister lo_nibbles = v5;
-    __ And(lo_nibbles.V16B(), nibble_mask.V16B(), input_vec.V16B());
-    // Extract high nibbles.
-    // hi_nibbles = (input >> 4) & 0x0f
-    VRegister hi_nibbles = v6;
-    __ Ushr(hi_nibbles.V16B(), input_vec.V16B(), 4);
-    __ And(hi_nibbles.V16B(), hi_nibbles.V16B(), nibble_mask.V16B());
-
-    // Get rows of nibbles table based on low nibbles.
-    // row = nibble_table[lo_nibbles]
-    VRegister row = v7;
-    __ Tbl(row.V16B(), nibble_table.V16B(), lo_nibbles.V16B());
-
-    // Check if high nibble is set in row.
-    // bitmask = 1 << (hi_nibbles & 0x7)
-    //         = hi_nibbles_lookup_mask[hi_nibbles] & 0x7
-    // Note: The hi_nibbles & 0x7 part is implicitly executed, because the
-    // input table contains two repeats of the 0x80402010'08040201 pattern.
-    __ Tbl(result.V16B(), hi_nibble_lookup_mask.V16B(), hi_nibbles.V16B());
-
-    // result = row & bitmask != 0
-    __ Cmtst(result.V16B(), row.V16B(), result.V16B());
-  }
+  // result = row & bitmask != 0
+  VRegister result = ReassignRegister(lo_nibbles);
+  __ Cmtst(result.V16B(), row.V16B(), bitmask.V16B());
 
   // Narrow the result to 64 bit.
   __ Shrn(result.V8B(), result.V8H(), 4);
@@ -826,7 +768,7 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
     DCHECK(!nibble_table_array.is_null());
     Label scalar;
     EmitSkipUntilBitInTableSimdHelper(
-        cp_offset, advance_by, table, nibble_table_array, 0, &scalar,
+        cp_offset, advance_by, nibble_table_array, 0, &scalar,
         [&](Register index, Register callee_saved) {
           // No need to push callee_saved since we never fall through.
           __ Add(current_input_offset(), current_input_offset(), index);
@@ -1049,9 +991,8 @@ void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked3(
       std::max(args.bc2_cp_offset, args.bc5_cp_offset) + kCharsPerLoad;
 
   EmitSkipUntilBitInTableSimdHelper(
-      // TODO(erikcorry): Get the right table somehow.
       args.bc0_cp_offset, args.bc0_advance_by, args.bc0_nibble_table,
-      args.bc0_nibble_table, max_on_match_lookahead, &scalar_fallback,
+      max_on_match_lookahead, &scalar_fallback,
       [&](Register index, Register callee_saved) {
         // SkipUntilBitInTable has matched at offset `index`. Bounds checks
         // have ensured we can safely perform the below loads without checks.
