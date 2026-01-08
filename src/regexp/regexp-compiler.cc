@@ -3600,8 +3600,8 @@ class EatsAtLeastPropagator : public AllStatic {
   static void VisitText(TextNode* that) {
     // The eats_at_least value is not used if reading backward.
     if (!that->read_backward()) {
-      uint8_t eats_at_least = base::saturated_cast<uint8_t>(
-          that->Length() + that->on_success()->eats_at_least());
+      uint32_t eats_at_least =
+          that->Length() + that->on_success()->eats_at_least();
       that->set_eats_at_least(eats_at_least);
     }
   }
@@ -3628,7 +3628,7 @@ class EatsAtLeastPropagator : public AllStatic {
         DCHECK(that->eats_at_least() == 0);
         break;
       case ActionNode::EATS_AT_LEAST: {
-        int eats = that->on_success()->eats_at_least();
+        uint32_t eats = that->on_success()->eats_at_least();
         eats = std::max(eats, that->stored_eats_at_least());
         that->set_eats_at_least(eats);
         break;
@@ -3646,8 +3646,8 @@ class EatsAtLeastPropagator : public AllStatic {
   static void VisitChoice(ChoiceNode* that, int i) {
     // The minimum possible match from a choice node is the minimum of its
     // successors.
-    int eats_at_least =
-        i == 0 ? RegExpNode::kMaxEatsAtLeastValue : that->eats_at_least();
+    uint32_t eats_at_least =
+        i == 0u ? RegExpNode::kLargeEatsAtLeastValue : that->eats_at_least();
     eats_at_least = std::min(
         eats_at_least, that->alternatives()->at(i).node()->eats_at_least());
     that->set_eats_at_least(eats_at_least);
@@ -3676,7 +3676,7 @@ class EatsAtLeastPropagator : public AllStatic {
   }
 
   static void VisitAssertion(AssertionNode* that) {
-    int eats_at_least = that->on_success()->eats_at_least();
+    uint32_t eats_at_least = that->on_success()->eats_at_least();
     that->set_eats_at_least(eats_at_least);
   }
 };

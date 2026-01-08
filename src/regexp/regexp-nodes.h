@@ -131,11 +131,7 @@ class RegExpNode : public ZoneObject {
   // How many characters must this node consume at a minimum in order to
   // succeed.  If this node has not been analyzed yet, EatsAtLeast returns 0.
   uint32_t EatsAtLeast();
-  // Note that we also use base::saturated_cast<uint8_t> with
-  // eats-at-least-values so this should concord with that.
-  // TODO(erikcorry): Perhaps we should just use 'int' for all these
-  // eats-at-least values to avoid overflow.
-  static constexpr uint32_t kMaxEatsAtLeastValue = UINT8_MAX;
+  static constexpr uint32_t kLargeEatsAtLeastValue = 255;
   // Emits some quick code that checks whether the preloaded characters match.
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
@@ -211,9 +207,8 @@ class RegExpNode : public ZoneObject {
   void set_on_work_list(bool value) { on_work_list_ = value; }
 
   NodeInfo* info() { return &info_; }
-  int eats_at_least() const { return eats_at_least_; }
+  uint32_t eats_at_least() const { return eats_at_least_; }
   void set_eats_at_least(uint32_t eats_at_least) {
-    DCHECK(eats_at_least <= kMaxEatsAtLeastValue);
     eats_at_least_ = eats_at_least;
   }
 
@@ -255,7 +250,7 @@ class RegExpNode : public ZoneObject {
 
   // Saved values for EatsAtLeast results, to avoid recomputation. Filled in
   // during analysis (valid if info_.been_analyzed is true).
-  int eats_at_least_ = 0;
+  uint32_t eats_at_least_ = 0;
 
   // This variable keeps track of how many times code has been generated for
   // this node (in different traces).  We don't keep track of where the
@@ -349,7 +344,7 @@ class ActionNode : public SeqRegExpNode {
     DCHECK_EQ(action_type(), BEGIN_POSITIVE_SUBMATCH);
     return data_.u_submatch.success_node;
   }
-  int stored_eats_at_least() {
+  uint32_t stored_eats_at_least() {
     DCHECK_EQ(action_type(), EATS_AT_LEAST);
     return data_.u_eats_at_least.characters;
   }
@@ -565,7 +560,7 @@ class EndNode : public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
   EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {
-    if (action == BACKTRACK) set_eats_at_least(kMaxEatsAtLeastValue);
+    if (action == BACKTRACK) set_eats_at_least(kLargeEatsAtLeastValue);
   }
   EndNode* AsEndNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;

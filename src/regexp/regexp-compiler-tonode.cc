@@ -2117,8 +2117,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   }
   RegExpNode* result = center;
   if (min > 0 && body->min_match() > 0 && !compiler->read_backward()) {
-    uint8_t eats = base::saturated_cast<uint8_t>(
-        std::min(256, min) * std::min(256, body->min_match()));
+    uint32_t eats = std::min(256, min) * std::min(256, body->min_match());
     result = ActionNode::EatsAtLeast(eats, result);
   }
   if (needs_counter) {
