@@ -2104,7 +2104,12 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   }
   RegExpNode* body_node = body->ToNode(compiler, loop_return);
   if (body_node->IsBacktrack()) {
+    // Body can never match. If there is a minimum number of iterations that
+    // means this whole part of the regexp can't match, so we just return the
+    // never-match (backtrack) node.
     if (has_min) return body_node;
+    // Since there is no minimum number of iterations and the body can't match
+    // we can go straight to whatever comes after the quantifier.
     return on_success;
   }
   if (body_can_be_empty) {
