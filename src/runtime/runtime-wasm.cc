@@ -253,7 +253,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowJSTypeError) {
       isolate, NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowWasmSuspendError) {
+RUNTIME_FUNCTION(Runtime_ThrowWasmJSPISuspendError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   MessageTemplate message = MessageTemplate::kWasmSuspendJSFrames;
@@ -266,6 +266,15 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmSuspendError) {
     // Throw with a more precise error message.
     message = MessageTemplate::kWasmSuspendError;
   }
+  DirectHandle<JSObject> error_obj =
+      isolate->factory()->NewWasmSuspendError(message);
+  return isolate->Throw(*error_obj);
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowWasmFXSuspendError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  MessageTemplate message = MessageTemplate::kWasmFXSuspendError;
   DirectHandle<JSObject> error_obj =
       isolate->factory()->NewWasmSuspendError(message);
   return isolate->Throw(*error_obj);
@@ -757,16 +766,18 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   DirectHandle<JSArrayBuffer> array_buffer{
       trusted_instance_data->memory_object(memory_index)->array_buffer(),
       isolate};
+  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
+  DCHECK_EQ(array_buffer->backing_store(), backing_store->buffer_start());
   // Should have trapped if address was OOB.
-  DCHECK_LT(offset, array_buffer->GetByteLength());
+  DCHECK_LT(offset, backing_store->byte_length());
 
   // Trap if memory is not shared, or wait is not allowed on the isolate
-  if (!array_buffer->is_shared() || !isolate->allow_atomics_wait()) {
+  if (!backing_store->is_shared() || !isolate->allow_atomics_wait()) {
     return ThrowWasmError(
         isolate, MessageTemplate::kAtomicsOperationNotAllowed,
         {isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")});
   }
-  return FutexEmulation::WaitWasm32(isolate, array_buffer, offset,
+  return FutexEmulation::WaitWasm32(isolate, backing_store.get(), offset,
                                     expected_value, timeout_ns->AsInt64());
 }
 
@@ -784,16 +795,18 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   DirectHandle<JSArrayBuffer> array_buffer{
       trusted_instance_data->memory_object(memory_index)->array_buffer(),
       isolate};
+  std::shared_ptr<BackingStore> backing_store = array_buffer->GetBackingStore();
+  DCHECK_EQ(array_buffer->backing_store(), backing_store->buffer_start());
   // Should have trapped if address was OOB.
-  DCHECK_LT(offset, array_buffer->GetByteLength());
+  DCHECK_LT(offset, backing_store->byte_length());
 
-  // Trap if memory is not shared, or if wait is not allowed on the isolate
-  if (!array_buffer->is_shared() || !isolate->allow_atomics_wait()) {
+  // Trap if memory is not shared, or wait is not allowed on the isolate
+  if (!backing_store->is_shared() || !isolate->allow_atomics_wait()) {
     return ThrowWasmError(
         isolate, MessageTemplate::kAtomicsOperationNotAllowed,
         {isolate->factory()->NewStringFromAsciiChecked("Atomics.wait")});
   }
-  return FutexEmulation::WaitWasm64(isolate, array_buffer, offset,
+  return FutexEmulation::WaitWasm64(isolate, backing_store.get(), offset,
                                     expected_value->AsInt64(),
                                     timeout_ns->AsInt64());
 }

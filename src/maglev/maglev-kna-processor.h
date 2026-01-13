@@ -85,21 +85,42 @@ class RecomputeKnownNodeAspectsProcessor {
       known_node_aspects_ = next_block->state()->CloneKnownNodeAspects(zone());
     }
     DCHECK_NOT_NULL(known_node_aspects_);
+
+    if (block->has_state()) {
+      // We might now have more accurate types for phi inputs; recompute the phi
+      // types based on them.
+      for (Phi* phi : *block->state()->phis()) {
+        NodeType new_type = NodeType::kNone;
+        for (int i = 0; i < phi->input_count(); ++i) {
+          ValueNode* input = phi->input_node(i)->UnwrapIdentities();
+          NodeType input_type = known_node_aspects_->GetType(broker(), input);
+          new_type = UnionType(new_type, input_type);
+        }
+        known_node_aspects_->EnsureType(broker(), phi, new_type);
+      }
+    }
+
     return BlockProcessResult::kContinue;
   }
   void PostProcessBasicBlock(BasicBlock* block) {}
   void PostPhiProcessing() {}
 
+  template <typename NodeT>
+  void ProcessThrowingNode(NodeT* node) {
+    static_assert(NodeT::kProperties.can_throw());
+    ExceptionHandlerInfo* info = node->exception_handler_info();
+    if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
+      BasicBlock* exception_handler =
+          node->exception_handler_info()->catch_block();
+      reachable_exception_handlers_.insert(exception_handler);
+      Merge(exception_handler);
+    }
+  }
+
   template <IsNodeT NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
     if constexpr (NodeT::kProperties.can_throw()) {
-      ExceptionHandlerInfo* info = node->exception_handler_info();
-      if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
-        BasicBlock* exception_handler =
-            node->exception_handler_info()->catch_block();
-        reachable_exception_handlers_.insert(exception_handler);
-        Merge(exception_handler);
-      }
+      ProcessThrowingNode(node);
     }
     MarkPossibleSideEffect(node);
     return ProcessNode(node);
@@ -132,6 +153,14 @@ class RecomputeKnownNodeAspectsProcessor {
   }
 
   ProcessResult Process(JumpLoop* node, const ProcessingState& state) {
+#ifdef DEBUG
+    known_node_aspects_ = nullptr;
+#endif  // DEBUG
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(Throw* node, const ProcessingState& state) {
+    ProcessThrowingNode(node);
 #ifdef DEBUG
     known_node_aspects_ = nullptr;
 #endif  // DEBUG

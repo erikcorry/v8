@@ -20,8 +20,8 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/protectors.h"
-#include "src/heap/heap-inl.h"  // For MutablePageMetadata. TODO(jkummerow): Drop.
-#include "src/heap/mutable-page-metadata.h"
+#include "src/heap/heap-inl.h"  // For MutablePage. TODO(jkummerow): Drop.
+#include "src/heap/mutable-page.h"
 #include "src/logging/counters.h"
 #include "src/numbers/integer-literal-inl.h"
 #include "src/objects/api-callbacks.h"
@@ -1396,20 +1396,19 @@ void CodeStubAssembler::CheckObjectComparisonAllowed(TNode<AnyTaggedT> a,
   GotoIf(TaggedIsNotStrongHeapObject(b), &done);
   TNode<HeapObject> obj_a = UncheckedCast<HeapObject>(a);
   TNode<HeapObject> obj_b = UncheckedCast<HeapObject>(b);
-  TNode<IntPtrT> metadata_a = MemoryChunkMetadataFromMemoryChunk(
+  TNode<IntPtrT> metadata_a = BasePageFromMemoryChunk(
       MemoryChunkFromAddress(BitcastTaggedToWord(obj_a)));
-  TNode<IntPtrT> metadata_b = MemoryChunkMetadataFromMemoryChunk(
+  TNode<IntPtrT> metadata_b = BasePageFromMemoryChunk(
       MemoryChunkFromAddress(BitcastTaggedToWord(obj_b)));
-  TNode<Uint32T> metadata_flags_a = UncheckedCast<Uint32T>(
-      Load(MachineType::Uint32(), metadata_a,
-           IntPtrConstant(MemoryChunkMetadata::FlagsOffset())));
-  TNode<Uint32T> metadata_flags_b = UncheckedCast<Uint32T>(
-      Load(MachineType::Uint32(), metadata_b,
-           IntPtrConstant(MemoryChunkMetadata::FlagsOffset())));
+  TNode<Uint32T> metadata_flags_a =
+      UncheckedCast<Uint32T>(Load(MachineType::Uint32(), metadata_a,
+                                  IntPtrConstant(BasePage::FlagsOffset())));
+  TNode<Uint32T> metadata_flags_b =
+      UncheckedCast<Uint32T>(Load(MachineType::Uint32(), metadata_b,
+                                  IntPtrConstant(BasePage::FlagsOffset())));
 
   constexpr uint32_t kExecutableAndTrustedMask =
-      MemoryChunkMetadata::IsTrustedField::kMask |
-      MemoryChunkMetadata::IsExecutableField::kMask;
+      BasePage::IsTrustedField::kMask | BasePage::IsExecutableField::kMask;
   // This check might fail when we try to compare objects in different pointer
   // compression cages (e.g. the one used by code space or trusted space) with
   // each other. The main legitimate case when such "mixed" comparison could
@@ -12642,7 +12641,6 @@ TNode<JSAny> CodeStubAssembler::GetInterestingProperty(
   // var_holder's map.
   CSA_DCHECK(this, TaggedEqual(LoadMap((*var_holder).value()),
                                (*var_holder_map).value()));
-  TVARIABLE(Object, var_result, UndefinedConstant());
 
   // Check if all relevant maps (including the prototype maps) don't
   // have any interesting properties (i.e. that none of them have the
@@ -14589,15 +14587,13 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkFromAddress(
                  IntPtrConstant(~MemoryChunk::GetAlignmentMaskForAssembler()));
 }
 
-TNode<IntPtrT> CodeStubAssembler::MemoryChunkMetadataFromMemoryChunk(
+TNode<IntPtrT> CodeStubAssembler::BasePageFromMemoryChunk(
     TNode<IntPtrT> address) {
 #ifdef V8_ENABLE_SANDBOX
   // The metadata entry consists of two system pointers.
-  static constexpr size_t kMemoryChunkMetadataTableEntrySizeLog2 =
-      base::bits::WhichPowerOfTwo(
-          sizeof(IsolateGroup::MemoryChunkMetadataTableEntry));
-  static_assert(kMemoryChunkMetadataTableEntrySizeLog2 ==
-                kSystemPointerSizeLog2 + 1);
+  static constexpr size_t kBasePageTableEntrySizeLog2 =
+      base::bits::WhichPowerOfTwo(sizeof(IsolateGroup::BasePageTableEntry));
+  static_assert(kBasePageTableEntrySizeLog2 == kSystemPointerSizeLog2 + 1);
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::memory_chunk_metadata_table_address());
   TNode<Uint32T> index = Load<Uint32T>(
@@ -14605,13 +14601,13 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkMetadataFromMemoryChunk(
   index = Word32And(index,
                     UniqueUint32Constant(
                         MemoryChunkConstants::kMetadataPointerTableSizeMask));
-  TNode<IntPtrT> offset = ChangeInt32ToIntPtr(Word32Shl(
-      index, UniqueUint32Constant(kMemoryChunkMetadataTableEntrySizeLog2)));
+  TNode<IntPtrT> offset = ChangeInt32ToIntPtr(
+      Word32Shl(index, UniqueUint32Constant(kBasePageTableEntrySizeLog2)));
   TNode<IntPtrT> metadata = Load<IntPtrT>(table, offset);
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index.
-  TNode<IntPtrT> metadata_chunk = MemoryChunkFromAddress(Load<IntPtrT>(
-      metadata, IntPtrConstant(MemoryChunkMetadata::AreaStartOffset())));
+  TNode<IntPtrT> metadata_chunk = MemoryChunkFromAddress(
+      Load<IntPtrT>(metadata, IntPtrConstant(BasePage::AreaStartOffset())));
   CSA_CHECK(this, WordEqual(metadata_chunk, address));
   return metadata;
 #else
@@ -14619,9 +14615,8 @@ TNode<IntPtrT> CodeStubAssembler::MemoryChunkMetadataFromMemoryChunk(
 #endif
 }
 
-TNode<IntPtrT> CodeStubAssembler::MemoryChunkMetadataFromAddress(
-    TNode<IntPtrT> address) {
-  return MemoryChunkMetadataFromMemoryChunk(MemoryChunkFromAddress(address));
+TNode<IntPtrT> CodeStubAssembler::BasePageFromAddress(TNode<IntPtrT> address) {
+  return BasePageFromMemoryChunk(MemoryChunkFromAddress(address));
 }
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
@@ -20211,9 +20206,9 @@ TNode<BoolT> CodeStubAssembler::IsMarked(TNode<Object> object) {
 
 void CodeStubAssembler::GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                                    TNode<IntPtrT>* mask) {
-  TNode<IntPtrT> page = MemoryChunkMetadataFromAddress(object);
-  TNode<IntPtrT> bitmap = IntPtrAdd(
-      page, IntPtrConstant(MutablePageMetadata::MarkingBitmapOffset()));
+  TNode<IntPtrT> page = BasePageFromAddress(object);
+  TNode<IntPtrT> bitmap =
+      IntPtrAdd(page, IntPtrConstant(MutablePage::MarkingBitmapOffset()));
 
   {
     // Temp variable to calculate cell offset in bitmap.

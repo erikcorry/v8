@@ -2170,14 +2170,14 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_BOOL(trace_wasm_revectorize, false, "trace wasm revectorize")
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64
 DEFINE_BOOL(wasm_memory64_trap_handling, true,
             "Use trap handling for Wasm memory64 bounds checks")
 #else
 DEFINE_BOOL_READONLY(wasm_memory64_trap_handling, false,
                      "Use trap handling for Wasm memory64 bounds checks (not "
                      "supported for this architecture)")
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_RISCV64
 
 #ifdef V8_ENABLE_DRUMBRAKE
 // DrumBrake flags.
@@ -2220,6 +2220,10 @@ DEFINE_BOOL(drumbrake_register_optimization, true,
             "enable passing the top stack value in a register in drumbrake")
 DEFINE_BOOL(drumbrake_fuzzing_mode, false,
             "enable drumbrake fuzzer mode (for testing)")
+DEFINE_INT(drumbrake_gc_check_interval, 1000,
+           "number of stack checks between GC threshold checks for wasmgc")
+DEFINE_SIZE_T(drumbrake_gc_threshold, 100 * MB,
+              "old space size threshold in bytes to trigger GC for wasmgc")
 
 // Directly interpret asm.js code as regular JavaScript code, instead of
 // translating it to Wasm bytecode first and then interpreting that with
@@ -2600,6 +2604,11 @@ DEFINE_BOOL(trace_flush_code, false, "trace bytecode flushing")
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
+DEFINE_INT(fixed_margin_for_input_handling, 64,
+           "how much we are allowed to overshoot the heap limit by during "
+           "input mode, in MiB.")
+DEFINE_BOOL(optimize_for_input_handling, false,
+            "whether to use input hints to optimize for responsiveness.")
 DEFINE_BOOL(stress_per_context_marking_worklist, false,
             "Use per-context worklist for marking")
 DEFINE_BOOL(stress_incremental_marking, false,
@@ -2972,7 +2981,7 @@ DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
 // inspector
 DEFINE_BOOL(expose_inspector_scripts, false,
             "expose injected-script-source.js for debugging")
-DEFINE_BOOL(inspector_live_edit, true,
+DEFINE_BOOL(inspector_live_edit, false,
             "Enable the Debugger.setScriptSource CDP command, otherwise it'll "
             "always fail with an error")
 
@@ -3242,12 +3251,17 @@ DEFINE_INT(regexp_tier_up_ticks, 1,
 DEFINE_BOOL(regexp_peephole_optimization, REGEXP_PEEPHOLE_OPTIMIZATION_BOOL,
             "enable peephole optimization for regexp bytecode")
 DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")
-DEFINE_BOOL(regexp_assemble_from_bytecode, false,
+DEFINE_BOOL(regexp_assemble_from_bytecode, true,
             "assemble regexp JIT-code from bytecode")
 DEFINE_NEG_NEG_IMPLICATION(regexp_tier_up, regexp_assemble_from_bytecode)
-DEFINE_WEAK_IMPLICATION(future, regexp_assemble_from_bytecode)
+#ifdef ENABLE_DISASSEMBLER
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
+#else
+DEFINE_BOOL_READONLY(trace_regexp_peephole_optimization, false,
+                     "trace regexp bytecode peephole optimization (requires "
+                     "v8_enable_disassembler = true)")
+#endif
 DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
 DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")

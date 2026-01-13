@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_MEMORY_CHUNK_METADATA_H_
-#define V8_HEAP_MEMORY_CHUNK_METADATA_H_
+#ifndef V8_HEAP_BASE_PAGE_H_
+#define V8_HEAP_BASE_PAGE_H_
 
 #include "src/base/bit-field.h"
 #include "src/base/hashing.h"
@@ -22,22 +22,33 @@ class ReadStringVisitor;
 
 class BaseSpace;
 
-class MemoryChunkMetadata {
+// Base class for all pages of any size or type on the heap.
+//
+// For the purpose of the V8 sandbox the a page always resides in trusted
+// memory.
+class BasePage {
  public:
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.k
-  V8_INLINE static MemoryChunkMetadata* FromAddress(const Isolate* isolate,
-                                                    Address a);
+  // Only correct if the pointer is in the first kPageSize of the MemoryChunk.
+  // This is not necessarily the case for large objects.
+  V8_INLINE static BasePage* FromAddress(Address a);
+  V8_INLINE static BasePage* FromAddress(const Isolate* isolate, Address a);
 
   // Objects pointers always point within the first kPageSize, so these calls
-  // always succeed.
-  V8_INLINE static MemoryChunkMetadata* FromHeapObject(const Isolate* i,
-                                                       Tagged<HeapObject> o);
-  V8_INLINE static MemoryChunkMetadata* FromHeapObject(
-      const Isolate* i, const HeapObjectLayout* o);
+  // are always correct.
+  V8_INLINE static BasePage* FromHeapObject(Tagged<HeapObject> o);
+  V8_INLINE static BasePage* FromHeapObject(const Isolate* i,
+                                            Tagged<HeapObject> o);
+  V8_INLINE static BasePage* FromHeapObject(const Isolate* i,
+                                            const HeapObjectLayout* o);
 
+  // Updates the high-water mark of the page that corresponds to `mark`. Can be
+  // passed a limit which points one byte past the current page.
   V8_INLINE static void UpdateHighWaterMark(Address mark);
 
-  ~MemoryChunkMetadata();
+  ~BasePage();
+
+  bool IsReadOnlyPage() const { return IsReadOnlyPageField::decode(flags_); }
+  bool IsMutablePage() const { return !IsReadOnlyPage(); }
 
   Address ChunkAddress() const { return Chunk()->address(); }
   Address MetadataAddress() const { return reinterpret_cast<Address>(this); }
@@ -62,25 +73,15 @@ class MemoryChunkMetadata {
     return heap_;
   }
 
-  // Gets the chunk's owner or null if the space has been detached.
+  // Gets the page's owner or null if the page has been detached from relevant
+  // spaces.
   BaseSpace* owner() const { return owner_; }
   void set_owner(BaseSpace* space) { owner_ = space; }
-  // Gets the chunk's allocation space, potentially dealing with a null owner_
-  // (like read-only chunks have).
-  inline AllocationSpace owner_identity() const {
-    if (!owner()) {
-      return RO_SPACE;
-    }
-    return owner()->identity();
-  }
+  // Gets the chunk's allocation space, potentially dealing with a null
+  // `owner()` (like read-only chunks have).
+  inline AllocationSpace owner_identity() const;
 
   inline bool IsWritable() const;
-
-  bool IsReadOnlyPageMetadata() const {
-    return IsReadOnlyPageField::decode(flags_);
-  }
-
-  bool IsMutablePageMetadata() const { return !IsReadOnlyPageMetadata(); }
 
   bool Contains(Address addr) const {
     return addr >= area_start() && addr < area_end();
@@ -213,16 +214,16 @@ class MemoryChunkMetadata {
  protected:
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race in
-  // mark-bit initialization. See MutablePageMetadata::Initialize for the
+  // mark-bit initialization. See MutablePage::Initialize for the
   // corresponding release store.
   void SynchronizedHeapLoad() const;
   void SynchronizedHeapStore();
   friend class MemoryChunk;
 #endif
 
-  MemoryChunkMetadata(Heap* heap, BaseSpace* space, size_t chunk_size,
-                      Address area_start, Address area_end,
-                      VirtualMemory reservation, Executability executability);
+  BasePage(Heap* heap, BaseSpace* space, size_t chunk_size, Address area_start,
+           Address area_end, VirtualMemory reservation,
+           Executability executability);
 
   void set_evacuation_was_aborted(bool value) {
     // Only support toggling the value as we should always know which state we
@@ -271,8 +272,7 @@ class MemoryChunkMetadata {
   Address area_end_;
 
   // The most accessed fields start at heap_ and end at
-  // MutablePageMetadata::slot_set_. See
-  // MutablePageMetadata::MutablePageMetadata() for details.
+  // MutablePage::slot_set_. See MutablePage::MutablePage() for details.
 
   // The heap this chunk belongs to. May be null for read-only chunks.
   Heap* heap_;
@@ -336,17 +336,13 @@ class MemoryChunkMetadata {
   // The memory chunk belongs to a read-only space.
   using IsReadOnlyPageField = IsSealedReadOnlySpaceField::Next<bool, 1>;
 
-  static constexpr intptr_t HeapOffset() {
-    return offsetof(MemoryChunkMetadata, heap_);
-  }
+  static constexpr intptr_t HeapOffset() { return offsetof(BasePage, heap_); }
 
   static constexpr intptr_t AreaStartOffset() {
-    return offsetof(MemoryChunkMetadata, area_start_);
+    return offsetof(BasePage, area_start_);
   }
 
-  static constexpr intptr_t FlagsOffset() {
-    return offsetof(MemoryChunkMetadata, flags_);
-  }
+  static constexpr intptr_t FlagsOffset() { return offsetof(BasePage, flags_); }
 
   // For HeapOffset().
   friend class debug_helper_internal::ReadStringVisitor;
@@ -361,26 +357,25 @@ namespace base {
 
 // Define special hash function for chunk pointers, to be used with std data
 // structures, e.g.
-// std::unordered_set<MemoryChunkMetadata*, base::hash<MemoryChunkMetadata*>
+// std::unordered_set<BasePage*, base::hash<BasePage*>
 // This hash function discards the trailing zero bits (chunk alignment).
 // Notice that, when pointer compression is enabled, it also discards the
 // cage base.
 template <>
-struct hash<const i::MemoryChunkMetadata*> {
-  V8_INLINE size_t
-  operator()(const i::MemoryChunkMetadata* chunk_metadata) const {
+struct hash<const i::BasePage*> {
+  V8_INLINE size_t operator()(const i::BasePage* chunk_metadata) const {
     return hash<const i::MemoryChunk*>()(chunk_metadata->Chunk());
   }
 };
 
 template <>
-struct hash<i::MemoryChunkMetadata*> {
-  V8_INLINE size_t operator()(i::MemoryChunkMetadata* chunk_metadata) const {
-    return hash<const i::MemoryChunkMetadata*>()(chunk_metadata);
+struct hash<i::BasePage*> {
+  V8_INLINE size_t operator()(i::BasePage* chunk_metadata) const {
+    return hash<const i::BasePage*>()(chunk_metadata);
   }
 };
 
 }  // namespace base
 }  // namespace v8
 
-#endif  // V8_HEAP_MEMORY_CHUNK_METADATA_H_
+#endif  // V8_HEAP_BASE_PAGE_H_

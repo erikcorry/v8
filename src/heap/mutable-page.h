@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_MUTABLE_PAGE_METADATA_H_
-#define V8_HEAP_MUTABLE_PAGE_METADATA_H_
+#ifndef V8_HEAP_MUTABLE_PAGE_H_
+#define V8_HEAP_MUTABLE_PAGE_H_
 
 #include <atomic>
 
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/heap/base-page.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/list.h"
 #include "src/heap/marking-progress-tracker.h"
 #include "src/heap/marking.h"
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/slot-set.h"
 #include "src/sandbox/check.h"
 
@@ -41,49 +41,45 @@ enum RememberedSetType {
   NUMBER_OF_REMEMBERED_SET_TYPES
 };
 
-// MutablePageMetadata represents a memory region owned by a specific space.
-// It is divided into the header and the body. Chunk start is always
-// 1MB aligned. Start of the body is aligned so it can accommodate
-// any heap object.
-class MutablePageMetadata : public MemoryChunkMetadata {
+// A mutable page that represents a memory region owned by a specific space.
+class MutablePage : public BasePage {
  public:
-  // |kDone|: The page state when sweeping is complete or sweeping must not be
-  //   performed on that page. Sweeper threads that are done with their work
-  //   will set this value and not touch the page anymore.
-  // |kPendingSweeping|: This page is ready for parallel sweeping.
-  // |kPendingIteration|: This page is ready for parallel promoted page
-  // iteration. |kInProgress|: This page is currently swept by a sweeper thread.
   enum class ConcurrentSweepingState : intptr_t {
+    // The page state when sweeping is complete or sweeping must not be
+    // performed on that page. Sweeper threads that are done with their work
+    // will set this value and not touch the page anymore.
     kDone,
+    // This page is ready for parallel sweeping.
     kPendingSweeping,
+    // This page is ready for parallel promoted page.
     kPendingIteration,
+    // This page is currently swept by a sweeper thread.
     kInProgress,
   };
-
-  // Page size in bytes.  This must be a multiple of the OS page size.
-  static const int kPageSize = kRegularPageSize;
 
   static PageAllocator::Permission GetCodeModificationPermission() {
     return v8_flags.jitless ? PageAllocator::kReadWrite
                             : PageAllocator::kReadWriteExecute;
   }
 
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromAddress(const Isolate* i,
-                                                    Address a);
+  // Only correct if the pointer is in the first kPageSize of the MemoryChunk.
+  // This is not necessarily the case for large objects.
+  V8_INLINE static MutablePage* FromAddress(Address a);
+  V8_INLINE static MutablePage* FromAddress(const Isolate* i, Address a);
 
-  // Only works if the object is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromHeapObject(const Isolate* i,
-                                                       Tagged<HeapObject> o);
+  // Objects pointers always point within the first kPageSize, so these calls
+  // are always correct.
+  V8_INLINE static MutablePage* FromHeapObject(const Isolate* i,
+                                               Tagged<HeapObject> o);
 
-  static MutablePageMetadata* cast(MemoryChunkMetadata* metadata) {
-    SBXCHECK(metadata->IsMutablePageMetadata());
-    return static_cast<MutablePageMetadata*>(metadata);
+  static MutablePage* cast(BasePage* metadata) {
+    SBXCHECK(metadata->IsMutablePage());
+    return static_cast<MutablePage*>(metadata);
   }
 
-  static const MutablePageMetadata* cast(const MemoryChunkMetadata* metadata) {
-    SBXCHECK(metadata->IsMutablePageMetadata());
-    return static_cast<const MutablePageMetadata*>(metadata);
+  static const MutablePage* cast(const BasePage* metadata) {
+    SBXCHECK(metadata->IsMutablePage());
+    return static_cast<const MutablePage*>(metadata);
   }
 
   static MemoryChunk::MainThreadFlags OldGenerationPageFlags(
@@ -137,8 +133,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   const SlotSet* slot_set() const {
-    return const_cast<MutablePageMetadata*>(this)
-        ->slot_set<type, access_mode>();
+    return const_cast<MutablePage*>(this)->slot_set<type, access_mode>();
   }
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
@@ -150,8 +145,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   const TypedSlotSet* typed_slot_set() const {
-    return const_cast<MutablePageMetadata*>(this)
-        ->typed_slot_set<type, access_mode>();
+    return const_cast<MutablePage*>(this)->typed_slot_set<type, access_mode>();
   }
 
   template <RememberedSetType type>
@@ -201,14 +195,10 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return marking_progress_tracker_;
   }
 
-  Space* owner() const {
-    return reinterpret_cast<Space*>(MemoryChunkMetadata::owner());
-  }
+  Space* owner() const { return reinterpret_cast<Space*>(BasePage::owner()); }
 
-  heap::ListNode<MutablePageMetadata>& list_node() { return list_node_; }
-  const heap::ListNode<MutablePageMetadata>& list_node() const {
-    return list_node_;
-  }
+  heap::ListNode<MutablePage>& list_node() { return list_node_; }
+  const heap::ListNode<MutablePage>& list_node() const { return list_node_; }
 
   PossiblyEmptyBuckets* possibly_empty_buckets() {
     return &possibly_empty_buckets_;
@@ -230,7 +220,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   size_t AgeInNewSpace() const { return age_in_new_space_; }
 
   void ResetAllocationStatistics() {
-    MemoryChunkMetadata::ResetAllocationStatistics();
+    BasePage::ResetAllocationStatistics();
     allocated_lab_size_ = 0;
   }
 
@@ -242,12 +232,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   }
 
   MarkingBitmap* marking_bitmap() {
-    DCHECK(!IsReadOnlyPageMetadata());
+    DCHECK(!IsReadOnlyPage());
     return &marking_bitmap_;
   }
 
   const MarkingBitmap* marking_bitmap() const {
-    DCHECK(!IsReadOnlyPageMetadata());
+    DCHECK(!IsReadOnlyPage());
     return &marking_bitmap_;
   }
 
@@ -273,10 +263,9 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   bool IsLivenessClear() const;
 
  protected:
-  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
-                      Address area_start, Address area_end,
-                      VirtualMemory reservation, PageSize page_size,
-                      Executability executability);
+  MutablePage(Heap* heap, BaseSpace* space, size_t size, Address area_start,
+              Address area_end, VirtualMemory reservation, PageSize page_size,
+              Executability executability);
 
   MemoryChunk::MainThreadFlags ComputeInitialFlags(
       Executability executable) const;
@@ -328,7 +317,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   std::atomic<ConcurrentSweepingState> concurrent_sweeping_{
       ConcurrentSweepingState::kDone};
 
-  heap::ListNode<MutablePageMetadata> list_node_;
+  heap::ListNode<MutablePage> list_node_;
 
   FreeListCategory** categories_ = nullptr;
 
@@ -367,12 +356,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   V8_INLINE void ClearFlagsUnlocked(MemoryChunk::MainThreadFlags flags);
 
   static constexpr intptr_t MarkingBitmapOffset() {
-    return offsetof(MutablePageMetadata, marking_bitmap_);
+    return offsetof(MutablePage, marking_bitmap_);
   }
 
   static constexpr intptr_t SlotSetOffset(
       RememberedSetType remembered_set_type) {
-    return offsetof(MutablePageMetadata, slot_set_) +
+    return offsetof(MutablePage, slot_set_) +
            sizeof(void*) * remembered_set_type;
   }
 
@@ -395,15 +384,13 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
 namespace base {
 // Define special hash function for chunk pointers, to be used with std data
-// structures, e.g. std::unordered_set<MutablePageMetadata*,
-// base::hash<MutablePageMetadata*>
+// structures, e.g. std::unordered_set<MutablePage*, base::hash<MutablePage*>
 template <>
-struct hash<i::MutablePageMetadata*> : hash<i::MemoryChunkMetadata*> {};
+struct hash<i::MutablePage*> : hash<i::BasePage*> {};
 template <>
-struct hash<const i::MutablePageMetadata*>
-    : hash<const i::MemoryChunkMetadata*> {};
+struct hash<const i::MutablePage*> : hash<const i::BasePage*> {};
 }  // namespace base
 
 }  // namespace v8
 
-#endif  // V8_HEAP_MUTABLE_PAGE_METADATA_H_
+#endif  // V8_HEAP_MUTABLE_PAGE_H_
