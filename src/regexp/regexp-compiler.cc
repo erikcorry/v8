@@ -2955,13 +2955,12 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
 
   int bm_points = FindBestIntervalForBM(&min_lookahead, &max_lookahead);
   int skip_points = FindBestOffsetForSkip(&skip_offset, &must_fail);
-  int mask_compare_points =
-      FindBestOffsetForMaskCompare(&mask_compare_offset, &mask, &value);
-
   if (must_fail) {
     masm->Fail();
     return;
   }
+  int mask_compare_points =
+      FindBestOffsetForMaskCompare(&mask_compare_offset, &mask, &value);
 
   // We can pick one of:
   // * Boyer-Moore-Horspool
