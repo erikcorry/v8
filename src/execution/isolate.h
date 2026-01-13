@@ -2084,6 +2084,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_ENABLE_ETW_STACK_WALKING
 
   void SetIsLoading(bool is_loading);
+  void SetIsInputHandling(bool is_input_handling);
 
   void set_code_coverage_mode(debug::CoverageMode coverage_mode) {
     code_coverage_mode_.store(coverage_mode, std::memory_order_relaxed);
@@ -2172,8 +2173,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // before such a mode change to ensure that this cannot happen.
   void CollectSourcePositionsForAllBytecodeArrays();
 
-  void AddCodeMemoryChunk(MutablePageMetadata* chunk);
-  void RemoveCodeMemoryChunk(MutablePageMetadata* chunk);
+  void AddCodeMemoryChunk(MutablePage* chunk);
+  void RemoveCodeMemoryChunk(MutablePage* chunk);
   void AddCodeRange(Address begin, size_t length_in_bytes);
 
   bool RequiresCodeRange() const;

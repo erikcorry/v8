@@ -57,6 +57,16 @@ ValueNode* Value(ValueNode* node) { return node; }
     DCHECK(IsFail(result));                 \
   } while (false)
 
+#define REMOVE_AND_RETURN_IF_DONE(result)   \
+  do {                                      \
+    auto res = (result);                    \
+    if (res.IsDoneWithAbort()) {            \
+      return ProcessResult::kTruncateBlock; \
+    } else if (res.IsDone()) {              \
+      return ProcessResult::kRemove;        \
+    }                                       \
+  } while (false)
+
 namespace {
 constexpr ValueRepresentation ValueRepresentationFromUse(
     UseRepresentation repr) {
@@ -421,13 +431,25 @@ ReduceResult MaglevGraphOptimizer::EmitUnconditionalDeopt(
   return ReduceResult::DoneWithAbort();
 }
 
-ProcessResult MaglevGraphOptimizer::EmitAbort(AbortReason reason) {
+ReduceResult MaglevGraphOptimizer::EmitThrow(Throw::Function function,
+                                             ValueNode* input) {
+  bool has_input;
+  if (input == nullptr) {
+    has_input = false;
+    // To avoid a nullptr input, we use Smi(0) as dummy input.
+    input = reducer_.GetSmiConstant(0);
+  } else {
+    has_input = true;
+  }
+
   BasicBlock* block = reducer_.current_block();
   ControlNode* control = block->reset_control_node();
+  block->set_deferred(true);
   block->RemovePredecessorFollowing(control);
-  ReduceResult result = reducer_.AddNewControlNode<Abort>({}, reason);
+  ReduceResult result =
+      reducer_.AddNewControlNode<Throw>({input}, function, has_input);
   CHECK(!result.IsDoneWithAbort());
-  return ProcessResult::kTruncateBlock;
+  return ReduceResult::DoneWithAbort();
 }
 
 template <typename NodeT>
@@ -437,6 +459,19 @@ ProcessResult MaglevGraphOptimizer::ProcessLoadContextSlot(NodeT* node) {
       node->is_const() ? ContextSlotMutability::kImmutable
                        : ContextSlotMutability::kMutable));
   return ProcessResult::kContinue;
+}
+
+MaybeReduceResult MaglevGraphOptimizer::EnsureType(ValueNode* node,
+                                                   NodeType type,
+                                                   DeoptimizeReason reason) {
+  if (IsEmptyNodeType(
+          IntersectType(known_node_aspects().GetType(broker(), node), type))) {
+    return EmitUnconditionalDeopt(reason);
+  }
+  if (!known_node_aspects().EnsureType(broker(), node, type)) {
+    return {};
+  }
+  return ReduceResult::Done();
 }
 
 ProcessResult MaglevGraphOptimizer::VisitAssertInt32(
@@ -512,7 +547,8 @@ ProcessResult MaglevGraphOptimizer::VisitCheckHoleyFloat64IsSmi(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckHeapObject(
     CheckHeapObject* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REMOVE_AND_RETURN_IF_DONE(EnsureType(
+      node->input_node(0), NodeType::kAnyHeapObject, DeoptimizeReason::kSmi));
   return ProcessResult::kContinue;
 }
 
@@ -710,6 +746,13 @@ ProcessResult MaglevGraphOptimizer::VisitCheckInstanceType(
       return ProcessResult::kRemove;
     }
   }
+
+  if (node->first_instance_type() == FIRST_JS_RECEIVER_TYPE &&
+      node->last_instance_type() == LAST_JS_RECEIVER_TYPE) {
+    REMOVE_AND_RETURN_IF_DONE(EnsureType(input, NodeType::kJSReceiver,
+                                         DeoptimizeReason::kWrongInstanceType));
+  }
+
   return ProcessResult::kContinue;
 }
 
@@ -903,16 +946,8 @@ ProcessResult MaglevGraphOptimizer::VisitThrowReferenceErrorIfHole(
     ThrowReferenceErrorIfHole* node, const ProcessingState& state) {
   switch (node->ValueInput().node()->IsTheHole()) {
     case Tribool::kTrue: {
-      ValueNode* throw_input = reducer_.GetConstant(node->name());
-      Throw* throw_node = node->OverwriteWith<Throw>();
-      throw_node->UpdateBitfield(Throw::kThrowAccessedUninitializedVariable,
-                                 /*has_input*/ true);
-      throw_node->change_input(0, throw_input);
-      // TODO(victorgomes): Ideally we should emit abort and truncate the graph
-      // here, however, if this node is the only reference to the catch
-      // block, KNA processor will not visit the newly added node above, we
-      // would have no references to catch block and we would then remove it.
-      return ProcessResult::kContinue;
+      return ThrowAndTruncate(Throw::kThrowAccessedUninitializedVariable,
+                              node->ValueInput().node());
     }
     case Tribool::kFalse:
       // Not the hole; removing.
@@ -926,12 +961,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperNotCalledIfHole(
     ThrowSuperNotCalledIfHole* node, const ProcessingState& state) {
   switch (node->ValueInput().node()->IsTheHole()) {
     case Tribool::kTrue: {
-      Throw* throw_node = node->OverwriteWith<Throw>();
-      throw_node->UpdateBitfield(Throw::kThrowSuperNotCalled,
-                                 /*has_input*/ false);
-      // TODO(victorgomes): Ideally we should emit abort here,
-      // see VisitThrowReferenceErrorIfHole.
-      return ProcessResult::kContinue;
+      return ThrowAndTruncate(Throw::kThrowSuperNotCalled);
     }
     case Tribool::kFalse:
       // Not the hole; removing.
@@ -949,12 +979,7 @@ ProcessResult MaglevGraphOptimizer::VisitThrowSuperAlreadyCalledIfNotHole(
       // It is the hole; removing.
       return ProcessResult::kRemove;
     case Tribool::kFalse: {
-      Throw* throw_node = node->OverwriteWith<Throw>();
-      throw_node->UpdateBitfield(Throw::kThrowSuperAlreadyCalledError,
-                                 /*has_input*/ false);
-      // TODO(victorgomes): Ideally we should emit abort here,
-      // see VisitThrowReferenceErrorIfHole.
-      return ProcessResult::kContinue;
+      return ThrowAndTruncate(Throw::kThrowSuperAlreadyCalledError);
     }
     case Tribool::kMaybe:
       return ProcessResult::kContinue;
@@ -981,6 +1006,12 @@ ProcessResult MaglevGraphOptimizer::VisitTransitionElementsKindOrCheckMap(
 
 ProcessResult MaglevGraphOptimizer::VisitSetContinuationPreservedEmbedderData(
     SetContinuationPreservedEmbedderData* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitFulfillPromise(
+    FulfillPromise* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -1241,7 +1272,16 @@ ProcessResult MaglevGraphOptimizer::VisitHasInPrototypeChain(
 
 ProcessResult MaglevGraphOptimizer::VisitInitialValue(
     InitialValue* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  // Set the type for the `this` register in sloppy mode.
+  const MaglevCompilationUnit* unit =
+      reducer_.graph()->compilation_info()->toplevel_compilation_unit();
+  if (node->source() == interpreter::Register::FromParameterIndex(0) &&
+      is_sloppy(unit->shared_function_info().language_mode())) {
+    DCHECK(unit->shared_function_info().IsUserJavaScript());
+    NodeInfo* node_info =
+        known_node_aspects().GetOrCreateInfoFor(broker(), node);
+    node_info->IntersectType(NodeType::kJSReceiver);
+  }
   return ProcessResult::kContinue;
 }
 
@@ -1621,6 +1661,18 @@ ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToInt32(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToInt32(
     CheckedHoleyFloat64ToInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedFloat64ToSmiSizedInt32(
+    CheckedFloat64ToSmiSizedInt32* node, const ProcessingState& state) {
+  // TODO(b/424157317): Optimize.
+  return ProcessResult::kContinue;
+}
+
+ProcessResult MaglevGraphOptimizer::VisitCheckedHoleyFloat64ToSmiSizedInt32(
+    CheckedHoleyFloat64ToSmiSizedInt32* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
   return ProcessResult::kContinue;
 }
@@ -2696,6 +2748,12 @@ ProcessResult MaglevGraphOptimizer::VisitBranchIfRootConstant(
 ProcessResult MaglevGraphOptimizer::VisitBranchIfToBooleanTrue(
     BranchIfToBooleanTrue* node, const ProcessingState& state) {
   if (IsConstantNode(node->input_node(0)->opcode())) {
+    // Holes shouldn't flow up to here: there should be either a ThrowXXXIfHole
+    // or a CheckNotHole before, which should have been constant-folded into
+    // unconditional deopt/throw if their input is a hole.
+    DCHECK_IMPLIES(node->input_node(0)->Is<Constant>(),
+                   !node->input_node(0)->Cast<Constant>()->IsTheHole());
+
     bool condition =
         FromConstantToBool(reducer_.local_isolate(), node->input_node(0));
     FoldBranch(state.block(), node, condition);

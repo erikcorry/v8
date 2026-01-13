@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <limits>
 #include <optional>
+#include <type_traits>
 #include <utility>
 
 #include "src/base/bits.h"
@@ -68,6 +69,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
+#include "src/objects/js-generator.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
@@ -425,8 +427,6 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScopeBase {
                                : builder->zone()->CloneVector(parameters),
             builder->GetContext(), maybe_js_target}) {
     builder->current_interpreter_frame().virtual_objects().Snapshot();
-    builder->AddDeoptUse(
-        data_.get<DeoptFrame::BuiltinContinuationFrameData>().context);
     if (parameters.size() > 0) {
       if (InlinedAllocation* receiver =
               parameters[0]->TryCast<InlinedAllocation>()) {
@@ -434,10 +434,6 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScopeBase {
         // trigger a stack iteration, which expects the receiver to be a
         // meterialized object.
         receiver->ForceEscaping();
-      }
-      for (ValueNode* node :
-           data_.get<DeoptFrame::BuiltinContinuationFrameData>().parameters) {
-        builder->AddDeoptUse(node);
       }
     } else {
       DCHECK(data_.get<DeoptFrame::BuiltinContinuationFrameData>()
@@ -451,10 +447,6 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScopeBase {
             *builder->compilation_unit(), builder->GetCurrentSourcePosition(),
             receiver, builder->GetContext()}) {
     builder_->current_interpreter_frame().virtual_objects().Snapshot();
-    builder_->AddDeoptUse(
-        data_.get<DeoptFrame::ConstructInvokeStubFrameData>().receiver);
-    builder_->AddDeoptUse(
-        data_.get<DeoptFrame::ConstructInvokeStubFrameData>().context);
   }
 
   ~DeoptFrameScopeBase() {
@@ -1560,8 +1552,9 @@ DeoptFrame* MaglevGraphBuilder::GetLatestCheckpointedFrame() {
         [&](ValueNode* node, interpreter::Register) { AddDeoptUse(node); });
     AddDeoptUse(latest_checkpointed_frame_->as_interpreted().closure());
 
-    const EagerDeoptFrameScope* deopt_scope = current_eager_deopt_scope_;
+    EagerDeoptFrameScope* deopt_scope = current_eager_deopt_scope_;
     if (deopt_scope != nullptr) {
+      AddDeoptUseToScopeData(deopt_scope->data());
       latest_checkpointed_frame_ = zone()->New<DeoptFrame>(
           deopt_scope->data(),
           RecursivelyWrapDeoptFrameWithContinuations(
@@ -1585,6 +1578,27 @@ MaglevGraphBuilder::GetDeoptFrameForLazyDeopt(bool can_throw) {
                              result_location, result_size,
                              current_lazy_deopt_scope_, false, can_throw),
                          result_location, result_size);
+}
+
+void MaglevGraphBuilder::AddDeoptUseToScopeData(DeoptFrame::FrameData& data) {
+  switch (data.tag()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      // These frames are never created as deopt scope.
+      UNREACHABLE();
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+      AddDeoptUse(
+          data.get<DeoptFrame::ConstructInvokeStubFrameData>().receiver);
+      AddDeoptUse(data.get<DeoptFrame::ConstructInvokeStubFrameData>().context);
+      break;
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      AddDeoptUse(data.get<DeoptFrame::BuiltinContinuationFrameData>().context);
+      for (ValueNode* node :
+           data.get<DeoptFrame::BuiltinContinuationFrameData>().parameters) {
+        AddDeoptUse(node);
+      }
+      break;
+  }
 }
 
 DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
@@ -1662,6 +1676,8 @@ DeoptFrame* MaglevGraphBuilder::GetDeoptFrameForLazyDeoptHelper(
   // the accumulator
   DCHECK(interpreter::Bytecodes::WritesOrClobbersAccumulator(
       iterator_.current_bytecode()));
+
+  AddDeoptUseToScopeData(scope->data());
 
   // Mark the accumulator dead in parent frames since we know that the
   // continuation will write it.
@@ -4507,13 +4523,15 @@ ReduceResult MaglevGraphBuilder::ConvertForField(
 void MaglevGraphBuilder::BuildInitializeStore(vobj::Field desc,
                                               InlinedAllocation* object,
                                               AllocationType allocation_type,
-                                              ValueNode* value) {
+                                              ValueNode* value,
+                                              StoreTaggedMode store_mode) {
   DCHECK_EQ(value->Is<TrustedConstant>(),
             desc.type == vobj::FieldType::kTrustedPointer);
 
   switch (desc.type) {
     case vobj::FieldType::kTagged:
-      BuildInitializeStore_Tagged(desc, object, allocation_type, value);
+      BuildInitializeStore_Tagged(desc, object, allocation_type, value,
+                                  store_mode);
       break;
     case vobj::FieldType::kTrustedPointer:
       BuildInitializeStore_TrustedPointer(desc, object, allocation_type, value);
@@ -4531,7 +4549,7 @@ void MaglevGraphBuilder::BuildInitializeStore(vobj::Field desc,
 
 void MaglevGraphBuilder::BuildInitializeStore_Tagged(
     vobj::Field desc, InlinedAllocation* object, AllocationType allocation_type,
-    ValueNode* value) {
+    ValueNode* value, StoreTaggedMode store_mode) {
   DCHECK_EQ(desc.type, vobj::FieldType::kTagged);
 
   // Intercept stores of constant map objects here.
@@ -4559,8 +4577,8 @@ void MaglevGraphBuilder::BuildInitializeStore_Tagged(
 
   // Since `value` is tagged, BuildStoreTaggedField doesn't need to do
   // input conversions and won't abort.
-  ReduceResult result = BuildStoreTaggedField(object, value, desc.offset,
-                                              StoreTaggedMode::kInitializing);
+  ReduceResult result =
+      BuildStoreTaggedField(object, value, desc.offset, store_mode);
   CHECK(!result.IsDoneWithAbort());
 }
 
@@ -4707,9 +4725,8 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedField(
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
-  DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
-                 !value->is_conversion());
-  if (store_mode != StoreTaggedMode::kInitializing) {
+  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
+  if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
   if (CanElideWriteBarrier(object, value)) {
@@ -4739,10 +4756,9 @@ ReduceResult MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   // It should NOT be a conversion node, UNLESS it's an initializing value.
   // Initializing values are tagged before allocation, since conversion nodes
   // may allocate, and are not used to set a VO.
-  DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
-                 !value->is_conversion());
+  DCHECK_IMPLIES(!IsInitializing(store_mode), !value->is_conversion());
   DCHECK(CanElideWriteBarrier(object, value));
-  if (store_mode != StoreTaggedMode::kInitializing) {
+  if (!IsInitializing(store_mode)) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
   return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
@@ -5045,8 +5061,9 @@ LoadType FieldRepresentationToLoadType(Representation repr) {
   switch (repr.kind()) {
     case Representation::kSmi:
       return LoadType::kSmi;
-    case Representation::kDouble:
     case Representation::kHeapObject:
+      return LoadType::kAnyHeapObject;
+    case Representation::kDouble:
     case Representation::kNone:
     case Representation::kTagged:
     case Representation::kWasmValue:
@@ -5122,11 +5139,10 @@ ReduceResult MaglevGraphBuilder::BuildLoadField(
                                 load_source, field_index.offset(), type,
                                 AccessInfoGuaranteedConst(access_info), name));
   // Insert stable field information if present.
+  NodeInfo* known_info = GetOrCreateInfoFor(value);
   if (access_info.field_representation().IsSmi()) {
-    NodeInfo* known_info = GetOrCreateInfoFor(value);
     known_info->IntersectType(NodeType::kSmi);
   } else if (access_info.field_representation().IsHeapObject()) {
-    NodeInfo* known_info = GetOrCreateInfoFor(value);
     if (access_info.field_map().has_value() &&
         access_info.field_map().value().is_stable()) {
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
@@ -12571,39 +12587,139 @@ ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwait(
   return ReduceResult::Done();
 }
 
+MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionEnter(
+    ValueNode* closure, ValueNode* receiver) {
+  if (!broker()->dependencies()->DependOnPromiseHookProtector()) return {};
+
+  // We check that we'll be able to allocate the register file here at the start
+  // rather than later so that we don't allocate the promise object for nothing.
+  int register_count = bytecode().parameter_count_without_receiver() +
+                       bytecode().register_count();
+  bool can_allocate_array =
+      FixedArray::SizeFor(register_count) <= kMaxRegularHeapObjectSize;
+  if (!can_allocate_array) return {};
+
+  // Creating the Promise object.
+  VirtualObject* promise = CreateJSPromiseObject();
+
+  // Creating the AsyncFunction object.
+  // Create the register file.
+  auto undefined = GetRootConstant(RootIndex::kUndefinedValue);
+  base::SmallVector<ValueNode*, 16> values(register_count, undefined);
+  VirtualObject* register_file = CreateFixedArray(base::VectorOf(values));
+  VirtualObject* async_function = CreateJSAsyncFunctionObject(
+      GetContext(), closure, receiver, register_file, promise);
+
+  return BuildInlinedAllocation(async_function, AllocationType::kYoung);
+}
+
 ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionEnter(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
-  ValueNode* tagged_arg_0;
-  GET_VALUE_OR_ABORT(tagged_arg_0, GetTaggedValue(args[0]));
-  ValueNode* tagged_arg_1;
-  GET_VALUE_OR_ABORT(tagged_arg_1, GetTaggedValue(args[1]));
-  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionEnter>(
-      {tagged_arg_0, tagged_arg_1}));
+
+  ValueNode* closure;
+  GET_VALUE_OR_ABORT(closure, GetTaggedValue(args[0]));
+  ValueNode* receiver;
+  GET_VALUE_OR_ABORT(receiver, GetTaggedValue(args[1]));
+
+  PROCESS_AND_RETURN_IF_DONE(TryReduceAsyncFunctionEnter(closure, receiver),
+                             SetAccumulator);
+
+  SetAccumulator(
+      BuildCallBuiltin<Builtin::kAsyncFunctionEnter>({closure, receiver}));
   return ReduceResult::Done();
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionReject(
+    ValueNode* async_function_object, ValueNode* reason) {
+  if (!broker()->dependencies()->DependOnPromiseHookProtector()) return {};
+
+  ValueNode* promise;
+  GET_VALUE_OR_ABORT(
+      promise, BuildLoadTaggedField(async_function_object,
+                                    JSAsyncFunctionObject::kPromiseOffset));
+
+  // Create a nested frame state inside the current method's most-recent
+  // {frame_state} that will ensure that lazy deoptimizations at this
+  // point will still return the {promise} instead of the result of the
+  // JSRejectPromise operation (which yields undefined).
+  LazyDeoptFrameScope deopt_continuation(
+      this, Builtin::kAsyncFunctionLazyDeoptContinuation, {},
+      base::VectorOf<ValueNode*>({promise}));
+
+  // Disable the additional debug event for the rejection since a
+  // debug event already happened for the exception that got us here.
+  ValueNode* debug_event = GetRootConstant(RootIndex::kFalseValue);
+  BuildCallBuiltin<Builtin::kRejectPromise>({promise, reason, debug_event});
+
+  return promise;
 }
 
 ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionReject(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
-  ValueNode* tagged_arg_0;
-  GET_VALUE_OR_ABORT(tagged_arg_0, GetTaggedValue(args[0]));
-  ValueNode* tagged_arg_1;
-  GET_VALUE_OR_ABORT(tagged_arg_1, GetTaggedValue(args[1]));
+
+  ValueNode* async_function_object;
+  GET_VALUE_OR_ABORT(async_function_object, GetTaggedValue(args[0]));
+  ValueNode* reason;
+  GET_VALUE_OR_ABORT(reason, GetTaggedValue(args[1]));
+
+  PROCESS_AND_RETURN_IF_DONE(
+      TryReduceAsyncFunctionReject(async_function_object, reason),
+      SetAccumulator);
+
   SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionReject>(
-      {tagged_arg_0, tagged_arg_1}));
+      {async_function_object, reason}));
+
   return ReduceResult::Done();
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceAsyncFunctionResolve(
+    ValueNode* async_function_object, ValueNode* value) {
+  if (!broker()->dependencies()->DependOnPromiseHookProtector()) return {};
+
+  ValueNode* promise;
+  GET_VALUE_OR_ABORT(
+      promise, BuildLoadTaggedField(async_function_object,
+                                    JSAsyncFunctionObject::kPromiseOffset));
+
+  if (NodeTypeIs(GetType(value), NodeType::kJSPrimitive)) {
+    // We can strength-reduce JSResolvePromise to JSFulfillPromise  if the
+    // {resolution} is known to be a primitive, as in that case we don't perform
+    // the implicit chaining (via "then").
+    AddNewNodeNoInputConversion<FulfillPromise>({promise, value});
+  } else {
+    // Create a nested frame state inside the current method's most-recent
+    // {frame_state} that will ensure that lazy deoptimizations at this
+    // point will still return the {promise} instead of the result of the
+    // JSResolvePromise operation (which yields undefined).
+    LazyDeoptFrameScope deopt_continuation(
+        this, Builtin::kAsyncFunctionLazyDeoptContinuation, {},
+        base::VectorOf<ValueNode*>({promise}));
+
+    // TODO(dmercadier): optimize-away to FulfillPromise if possible; cf
+    // JSNativeContextSpecialization::ReduceJSResolvePromise in Turboshaft.
+    BuildCallBuiltin<Builtin::kResolvePromise>({promise, value});
+  }
+
+  return promise;
 }
 
 ReduceResult MaglevGraphBuilder::VisitIntrinsicAsyncFunctionResolve(
     interpreter::RegisterList args) {
   DCHECK_EQ(args.register_count(), 2);
-  ValueNode* tagged_arg_0;
-  GET_VALUE_OR_ABORT(tagged_arg_0, GetTaggedValue(args[0]));
-  ValueNode* tagged_arg_1;
-  GET_VALUE_OR_ABORT(tagged_arg_1, GetTaggedValue(args[1]));
+
+  ValueNode* async_function_object;
+  GET_VALUE_OR_ABORT(async_function_object, GetTaggedValue(args[0]));
+  ValueNode* value;
+  GET_VALUE_OR_ABORT(value, GetTaggedValue(args[1]));
+
+  PROCESS_AND_RETURN_IF_DONE(
+      TryReduceAsyncFunctionResolve(async_function_object, value),
+      SetAccumulator);
+
   SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionResolve>(
-      {tagged_arg_0, tagged_arg_1}));
+      {async_function_object, value}));
   return ReduceResult::Done();
 }
 
@@ -14513,6 +14629,71 @@ VirtualObject* MaglevGraphBuilder::CreateJSGeneratorObject(
   return vobj;
 }
 
+VirtualObject* MaglevGraphBuilder::CreateJSAsyncFunctionObject(
+    ValueNode* context, ValueNode* closure, ValueNode* receiver,
+    ValueNode* register_file, ValueNode* promise) {
+  compiler::MapRef map =
+      broker()->target_native_context().async_function_object_map(broker());
+  const vobj::ObjectLayout* object_layout =
+      &VirtualJSAsyncFunctionObjectShape::kObjectLayout;
+
+  constexpr int slot_count = JSAsyncFunctionObject::kHeaderSize / kTaggedSize;
+  static_assert(slot_count == 13,
+                "If the number of slots in JSAsyncFunctionObject changes, then "
+                "the additional slots need to be initialized below");
+
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this, object_layout, map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(map));
+  vobj->set(JSAsyncFunctionObject::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSAsyncFunctionObject::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSAsyncFunctionObject::kContextOffset, context);
+  vobj->set(JSAsyncFunctionObject::kFunctionOffset, closure);
+  vobj->set(JSAsyncFunctionObject::kReceiverOffset, receiver);
+  vobj->set(JSAsyncFunctionObject::kInputOrDebugPosOffset,
+            GetRootConstant(RootIndex::kUndefinedValue));
+  vobj->set(JSAsyncFunctionObject::kResumeModeOffset,
+            GetInt32Constant(JSGeneratorObject::kNext));
+  vobj->set(JSAsyncFunctionObject::kContinuationOffset,
+            GetInt32Constant(JSGeneratorObject::kGeneratorExecuting));
+  vobj->set(JSAsyncFunctionObject::kParametersAndRegistersOffset,
+            register_file);
+  vobj->set(JSAsyncFunctionObject::kPromiseOffset, promise);
+  vobj->set(JSAsyncFunctionObject::kAwaitResolveClosureOffset,
+            GetRootConstant(RootIndex::kUndefinedValue));
+  vobj->set(JSAsyncFunctionObject::kAwaitRejectClosureOffset,
+            GetRootConstant(RootIndex::kUndefinedValue));
+
+  return vobj;
+}
+
+VirtualObject* MaglevGraphBuilder::CreateJSPromiseObject() {
+  compiler::MapRef promise_map =
+      broker()->target_native_context().promise_function(broker()).initial_map(
+          broker());
+  int instance_size = promise_map.instance_size();
+  int slot_count = instance_size / kTaggedSize;
+  VirtualObject* vobj = NodeBase::New<VirtualObject>(
+      zone(), 0, NewObjectId(), this,
+      &VirtualJSPromiseObjectShape::kObjectLayout, promise_map, slot_count);
+  vobj->set(HeapObject::kMapOffset, GetConstant(promise_map));
+  vobj->set(JSPromise::kPropertiesOrHashOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSPromise::kElementsOffset,
+            GetRootConstant(RootIndex::kEmptyFixedArray));
+  vobj->set(JSPromise::kReactionsOrResultOffset, GetSmiConstant(0));
+  static_assert(v8::Promise::kPending == 0);
+  vobj->set(JSPromise::kFlagsOffset, GetSmiConstant(0));
+  static_assert(JSPromise::kHeaderSize == 5 * kTaggedSize);
+  for (int offset = JSPromise::kHeaderSize;
+       offset < JSPromise::kSizeWithEmbedderFields; offset += kTaggedSize) {
+    vobj->set(offset, GetSmiConstant(0));
+  }
+  return vobj;
+}
+
 VirtualObject* MaglevGraphBuilder::CreateJSIteratorResult(compiler::MapRef map,
                                                           ValueNode* value,
                                                           ValueNode* done) {
@@ -14645,9 +14826,13 @@ ReduceResult MaglevGraphBuilder::BuildInlinedAllocation(
   allocation =
       ExtendOrReallocateCurrentAllocationBlock(allocation_type, vobject);
   AddNonEscapingUses(allocation, static_cast<int>(values.size()));
+  StoreTaggedMode store_mode =
+      vobject->has_static_map() && vobject->map()->IsContextMap()
+          ? StoreTaggedMode::kInitializingToContext
+          : StoreTaggedMode::kInitializing;
   for (uint32_t i = 0; i < values.size(); i++) {
     const auto [value, desc] = values[i];
-    BuildInitializeStore(desc, allocation, allocation_type, value);
+    BuildInitializeStore(desc, allocation, allocation_type, value, store_mode);
   }
   if (is_loop_effect_tracking()) {
     loop_effects_->allocations.insert(allocation);
@@ -16398,6 +16583,9 @@ ReduceResult MaglevGraphBuilder::VisitSuspendGenerator() {
   // <suspend_id>
   ValueNode* generator = LoadRegister(0);
   ValueNode* context = GetContext();
+  last_suspend_scope_info_ =
+      graph()->TryGetScopeInfo(context, /* for suspend */ true);
+
   interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
   uint32_t suspend_id = iterator_.GetUnsignedImmediateOperand(3);
 
@@ -16492,6 +16680,8 @@ ReduceResult MaglevGraphBuilder::VisitResumeGenerator() {
       }
     }
   }
+  graph()->record_scope_info(GetContext(), last_suspend_scope_info_);
+  last_suspend_scope_info_ = {};
   return SetAccumulator(BuildLoadTaggedField(
       generator, JSGeneratorObject::kInputOrDebugPosOffset));
 }
@@ -17121,6 +17311,8 @@ template <typename NodeT, typename Function, typename... Args>
 ReduceResult MaglevGraphBuilder::AddNewNode(
     size_t input_count, Function&& post_create_input_initializer,
     Args&&... args) {
+  static_assert(!std::is_base_of_v<ControlNode, NodeT>,
+                "Use FinishBlock instead of AddNewNode to add control nodes");
   return reducer_.AddNewNode<NodeT>(
       input_count, std::forward<Function>(post_create_input_initializer),
       std::forward<Args>(args)...);
@@ -17130,12 +17322,16 @@ ReduceResult MaglevGraphBuilder::AddNewNode(
 template <typename NodeT, typename... Args>
 ReduceResult MaglevGraphBuilder::AddNewNode(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  static_assert(!std::is_base_of_v<ControlNode, NodeT>,
+                "Use FinishBlock instead of AddNewNode to add control nodes");
   return reducer_.AddNewNode<NodeT>(inputs, std::forward<Args>(args)...);
 }
 
 template <typename NodeT, typename... Args>
 NodeT* MaglevGraphBuilder::AddNewNodeNoInputConversion(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
+  static_assert(!std::is_base_of_v<ControlNode, NodeT>,
+                "Use FinishBlock instead of AddNewNode to add control nodes");
   return reducer_.AddNewNodeNoInputConversion<NodeT>(
       inputs, std::forward<Args>(args)...);
 }
@@ -17387,8 +17583,7 @@ ReduceResult MaglevGraphBuilder::BuildThrow(Throw::Function function,
   } else {
     has_input = true;
   }
-  RETURN_IF_ABORT(AddNewNode<Throw>({input}, function, has_input));
-  FinishBlockNoAbort<Abort>({}, AbortReason::kUnexpectedReturnFromThrow);
+  FinishBlockNoAbort<Throw>({input}, function, has_input);
   return ReduceResult::DoneWithAbort();
 }
 
@@ -17528,7 +17723,7 @@ void MaglevGraphBuilder::StoreRegisterPair(
                  value->lazy_deopt_info()->IsResultRegister(target1));
 }
 
-void MaglevGraphBuilder::AttachExceptionHandlerInfo(Node* node) {
+void MaglevGraphBuilder::AttachExceptionHandlerInfo(NodeBase* node) {
   CatchBlockDetails catch_block = GetCurrentTryCatchBlock();
   if (catch_block.ref) {
     if (!catch_block.exception_handler_was_used) {
