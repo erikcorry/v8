@@ -656,47 +656,17 @@ class ReadOnlyPromotionImpl final : public AllStatic {
     void VisitCodePointer(Tagged<HeapObject> host, IndirectPointerSlot slot) {
       CHECK_EQ(kCodeIndirectPointerTag, slot.tag());
       IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      auto it = code_pointer_moves_.find(old_handle);
-      if (it == code_pointer_moves_.end()) return;
-
-      // If we reach here, `host` is a moved object with a code pointer slot
-      // located in RO space. To preserve the 1:1 relation between slots and
-      // table entries, we need to use the relocated code pointer table entry.
-      RecordProcessedSlotIfDebug(slot.address());
-      IndirectPointerHandle new_handle = it->second;
-      slot.Relaxed_StoreHandle(new_handle);
-
-      if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
-        LogUpdatedCodePointerTableEntry(host, slot, old_handle, new_handle);
-      }
+      CHECK_EQ(kNullCodePointerHandle, old_handle);
     }
 
     void PromoteCodePointerEntryFor(Tagged<Code> code) {
       // If we reach here, `code` is a moved Code object located in RO space.
       CHECK(HeapLayout::InReadOnlySpace(code));
 
-      IndirectPointerSlot slot = code->RawIndirectPointerField(
-          Code::kSelfIndirectPointerOffset, kCodeIndirectPointerTag);
-      CodeEntrypointTag entrypoint_tag = code->entrypoint_tag();
-
-      IndirectPointerHandle old_handle = slot.Relaxed_LoadHandle();
-      CodePointerTable* cpt = IsolateGroup::current()->code_pointer_table();
-
-      // To preserve the 1:1 relation between slots and code table entries,
-      // allocate a new entry (in the code_pointer_space of the RO heap) now.
-      // The slot will be updated later, when the Code object is visited.
-      CodePointerTable::Space* space =
-          IsolateForSandbox(isolate_).GetCodePointerTableSpaceFor(
-              slot.address());
-      IndirectPointerHandle new_handle = cpt->AllocateAndInitializeEntry(
-          space, code.address(), cpt->GetEntrypoint(old_handle, entrypoint_tag),
-          entrypoint_tag);
-
-      code_pointer_moves_.emplace(old_handle, new_handle);
-
-      if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
-        LogPromotedCodePointerTableEntry(code, old_handle, new_handle);
-      }
+      DCHECK(code->is_builtin());
+      // To avoid having two different code objects using the same slot
+      // we clear it here. The slot is updated later.
+      code->ClearInstructionStartForSerialization(isolate_);
     }
 #endif  // V8_ENABLE_SANDBOX
 
