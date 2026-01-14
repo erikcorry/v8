@@ -734,7 +734,7 @@ void RegExpMacroAssemblerX64::SkipUntilBitInTable(
 
   const bool use_simd = !nibble_table_array.is_null();
   if (use_simd) {
-    DCHECK(SkipUntilBitInTableUseSimd(advance_by);
+    DCHECK(SkipUntilBitInTableUseSimd(advance_by));
     Label scalar;
     EmitSkipUntilBitInTableSimdHelper(
         cp_offset, advance_by, nibble_table_array, 0, &scalar,
