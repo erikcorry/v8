@@ -2789,6 +2789,10 @@ int BoyerMooreLookahead::FindBestOffsetForSkip(int* offset, bool* must_fail) {
     int points = kSize - frequency;
     // Points may be negative here, in which case the offset has no chance of
     // being selected as a good offset.
+    if (v8_flags.regexp_skip_with_simd) {
+      // Even more eager to use skip if at all feasible.
+      if (-50 < points && points <= 0) points = 1;
+    }
     if (points > biggest_points) {
       *offset = i;
       biggest_points = points;
@@ -2873,6 +2877,10 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
     // be outside the 0-kSize range.
     int probability = kSize - frequency;
     int points = (i - remembered_from) * probability;
+    if (v8_flags.regexp_skip_with_boyer_moore) {
+      // Even more eager to use B-M if at all feasible.
+      if (-50 < points && points <= 0) points = 1;
+    }
     if (points > biggest_points) {
       *from = remembered_from;
       *to = i - 1;
