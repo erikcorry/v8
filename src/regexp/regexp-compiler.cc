@@ -2941,8 +2941,18 @@ int BoyerMooreLookahead::GetSkipTable(
   return skip;
 }
 
+int BoyerMooreLookahead::EvaluateQuickCheck(QuickCheckDetails* details) {
+  uint32_t mask = details->mask();
+  uint32_t low_bits = mask & 0x1f1f1f1f;     // High entropy bits.
+  uint32_t medium_bits = mask & 0x60606060;  // Medium entropy bits.
+  // Ignore the high bits in each byte, which are almost always 0.
+  return base::bits::CountPopulation(low_bits) * 6 +
+         base::bits::CountPopulation(medium_bits) * 3;
+}
+
 // See comment above on the implementation of GetSkipTable.
-void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
+void BoyerMooreLookahead::EmitSkipInstructions(
+    RegExpMacroAssembler* masm, QuickCheckDetails* quick_check_details) {
   const int kSize = RegExpMacroAssembler::kTableSize;
 
   int min_lookahead = 0;
@@ -2953,6 +2963,7 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   base::uc16 mask;
   base::uc16 value;
 
+  int quick_check_points = EvaluateQuickCheck(quick_check_details);
   int bm_points = FindBestIntervalForBM(&min_lookahead, &max_lookahead);
   int skip_points = FindBestOffsetForSkip(&skip_offset, &must_fail);
   if (must_fail) {
@@ -2979,10 +2990,9 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   //   least as fast.
 
   int max_quick_check = compiler_->one_byte() ? 4 : 2;
-  int bm_limit =
-      (bm_points > 0 && max_lookahead >= max_quick_check) ? 100 : 150;
-  int simd_limit =
-      (skip_points > 0 && skip_offset >= max_quick_check) ? 75 : 100;
+  int limit = (skip_points > 0 && skip_offset >= max_quick_check)
+                  ? 75
+                  : (quick_check_points > 25 ? 100 : 75);
   // Boost at high end where setup is worth it.
   if (skip_points >= 120) skip_points += 4 * (skip_points - 120);
 
@@ -2990,10 +3000,10 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   // SIMD macro assembler instructions for mask-compare we will want to
   // rename this and evaluate separately when to trigger the SIMD variant
   // of the mask-compare.
-  bool use_simd = masm->SkipUntilBitInTableUseSimd(1) &&
-                  skip_points > simd_limit && skip_points > bm_points;
-  bool use_bm = !use_simd && bm_points > skip_points && bm_points > bm_limit &&
-                bm_points > mask_compare_points;
+  bool use_simd = masm->SkipUntilBitInTableUseSimd(1) && skip_points > limit &&
+                  skip_points >= bm_points;
+  bool use_bm =
+      !use_simd && bm_points > limit && bm_points >= mask_compare_points;
   bool use_mask_compare = !use_bm && !use_simd && mask_compare_points > 0 &&
                           mask_compare_offset > max_quick_check;
   // We must have at least one point to select a strategy because otherwise
@@ -3310,16 +3320,23 @@ int ChoiceNode::EmitOptimizedUnanchoredSearch(
   // The --no-regexp-quick-check is for testing.  It disables the compiler's
   // clever optimizations that attempt to eliminate match positions. This
   // way the regular regexp machinery gets more exercise and test coverage.
+  GuardedAlternative alt0 = alternatives_->at(0);
+  eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
   if (bm == nullptr && v8_flags.regexp_quick_check) {
-    eats_at_least = std::min(kMaxLookaheadForBoyerMoore, EatsAtLeast());
     if (eats_at_least >= 1) {
       bm = zone()->New<BoyerMooreLookahead>(eats_at_least, compiler, zone());
-      GuardedAlternative alt0 = alternatives_->at(0);
       alt0.node()->FillInBMInfo(isolate, 0, kRecursionBudget, bm);
     }
   }
   if (bm != nullptr) {
-    bm->EmitSkipInstructions(macro_assembler);
+    QuickCheckDetails quick_check_details;
+    int quick_check_eats =
+        ChoiceNode::CalculatePreloadCharacters(compiler, eats_at_least);
+    quick_check_details.set_characters(quick_check_eats);
+    alt0.node()->GetQuickCheckDetails(&quick_check_details, compiler, 0,
+                                      kRecursionBudget);
+    quick_check_details.Rationalize(compiler->one_byte());
+    bm->EmitSkipInstructions(macro_assembler, &quick_check_details);
   }
   return eats_at_least;
 }

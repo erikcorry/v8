@@ -221,7 +221,8 @@ class BoyerMooreLookahead : public ZoneObject {
   void SetRest(int from_map) {
     for (int i = from_map; i < length_; i++) SetAll(i);
   }
-  void EmitSkipInstructions(RegExpMacroAssembler* masm);
+  void EmitSkipInstructions(RegExpMacroAssembler* masm,
+                            QuickCheckDetails* quick_check_details);
 
  private:
   // This is the value obtained by EatsAtLeast.  If we do not have at least this
@@ -238,6 +239,7 @@ class BoyerMooreLookahead : public ZoneObject {
       int min_lookahead, int max_lookahead,
       DirectHandle<ByteArray> boolean_skip_table,
       DirectHandle<ByteArray> nibble_table = DirectHandle<ByteArray>{});
+  int EvaluateQuickCheck(QuickCheckDetails* quick_check_details);
   int FindBestOffsetForSkip(int* offset, bool* must_fail);
   int FindBestOffsetForMaskCompare(int* offset, base::uc16* mask,
                                    base::uc16* value);
