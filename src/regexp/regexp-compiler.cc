@@ -3001,7 +3001,7 @@ void BoyerMooreLookahead::EmitSkipInstructions(
   // rename this and evaluate separately when to trigger the SIMD variant
   // of the mask-compare.
   bool use_simd = masm->SkipUntilBitInTableUseSimd(1) && skip_points > limit &&
-                  skip_points >= bm_points;
+                  skip_points > bm_points;
   bool use_bm =
       !use_simd && bm_points > limit && bm_points >= mask_compare_points;
   bool use_mask_compare = !use_bm && !use_simd && mask_compare_points > 0 &&
