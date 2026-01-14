@@ -2789,7 +2789,7 @@ int BoyerMooreLookahead::FindBestOffsetForSkip(int* offset, bool* must_fail) {
     int points = kSize - frequency;
     // Points may be negative here, in which case the offset has no chance of
     // being selected as a good offset.
-    if (v8_flags.regexp_skip_with_simd) {
+    if (V8_UNLIKELY(v8_flags.regexp_skip_with_simd)) {
       // Even more eager to use skip if at all feasible.
       if (-50 < points && points <= 0) points = 1;
     }
@@ -2877,7 +2877,7 @@ int BoyerMooreLookahead::FindBestInterval(int max_number_of_chars,
     // be outside the 0-kSize range.
     int probability = kSize - frequency;
     int points = (i - remembered_from) * probability;
-    if (v8_flags.regexp_skip_with_boyer_moore) {
+    if (V8_UNLIKELY(v8_flags.regexp_skip_with_boyer_moore)) {
       // Even more eager to use B-M if at all feasible.
       if (-50 < points && points <= 0) points = 1;
     }
@@ -3032,17 +3032,17 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   bool use_mask_compare = !use_bm && !use_simd && mask_compare_points > 0 &&
                           mask_compare_offset > max_quick_check;
 
-  if (v8_flags.regexp_skip_with_simd && skip_points > 0) {
+  if (V8_UNLIKELY(v8_flags.regexp_skip_with_simd && skip_points > 0)) {
     use_simd = true;
     use_bm = false;
     use_mask_compare = false;
   }
-  if (v8_flags.regexp_skip_with_boyer_moore && bm_points > 0) {
+  if (V8_UNLIKELY(v8_flags.regexp_skip_with_boyer_moore && bm_points > 0)) {
     use_simd = false;
     use_bm = true;
     use_mask_compare = false;
   }
-  if (!v8_flags.regexp_skip) {
+  if (V8_UNLIKELY(!v8_flags.regexp_skip)) {
     use_simd = false;
     use_bm = false;
     use_mask_compare = false;
