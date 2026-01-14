@@ -3023,6 +3023,23 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
                 bm_points > mask_compare_points;
   bool use_mask_compare = !use_bm && !use_simd && mask_compare_points > 0 &&
                           mask_compare_offset > max_quick_check;
+
+  if (v8_flags.regexp_skip_with_simd && skip_points > 0) {
+    use_simd = true;
+    use_bm = false;
+    use_mask_compare = false;
+  }
+  if (v8_flags.regexp_skip_with_boyer_moore && bm_points > 0) {
+    use_simd = false;
+    use_bm = true;
+    use_mask_compare = false;
+  }
+  if (!v8_flags.regexp_skip) {
+    use_simd = false;
+    use_bm = false;
+    use_mask_compare = false;
+  }
+
   // We must have at least one point to select a strategy because otherwise
   // the offsets have not been  set by the relevant FindBest* function.
   DCHECK_IMPLIES(use_simd, skip_points > 0);
