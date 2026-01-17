@@ -1130,11 +1130,7 @@ RegExpNode* RegExpAssertion::ToNodeImpl(RegExpCompiler* compiler,
     case Type::START_OF_LINE:
       return AssertionNode::AfterNewline(on_success);
     case Type::START_OF_INPUT:
-      if (compiler->not_at_start()) {
-        return zone->New<EndNode>(EndNode::BACKTRACK, zone);
-      } else {
-        return AssertionNode::AtStart(on_success);
-      }
+      return AssertionNode::AtStart(on_success);
     case Type::BOUNDARY:
       return NeedsUnicodeCaseEquivalents(compiler->flags())
                  ? BoundaryAssertionAsLookaround(compiler, on_success,
@@ -2006,7 +2002,8 @@ class RegExpExpansionLimiter {
 
 RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
                                      RegExpTree* body, RegExpCompiler* compiler,
-                                     RegExpNode* on_success) {
+                                     RegExpNode* on_success,
+                                     bool not_at_start) {
   // x{f, t} becomes this:
   //
   //             (r++)<-.
@@ -2053,7 +2050,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
         // Recurse once to get the loop or optional matches after the fixed
         // ones.
         RegExpNode* answer =
-            ToNode(0, new_max, is_greedy, body, compiler, on_success);
+            ToNode(0, new_max, is_greedy, body, compiler, on_success, true);
         // Unroll the forced matches from 0 to min.  This can cause chains of
         // TextNodes (which the parser does not generate).  These should be
         // combined if it turns out they hinder good code generation.
@@ -2071,15 +2068,19 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
         RegExpNode* answer = on_success;
         for (int i = 0; i < max; i++) {
           ChoiceNode* alternation = zone->New<ChoiceNode>(2, zone);
-          RegExpNode* body_node = body->ToNode(compiler, answer);
           if (is_greedy) {
-            alternation->AddAlternative(GuardedAlternative(body_node));
+            alternation->AddAlternative(
+                GuardedAlternative(body->ToNode(compiler, answer)));
             alternation->AddAlternative(GuardedAlternative(on_success));
           } else {
             alternation->AddAlternative(GuardedAlternative(on_success));
-            alternation->AddAlternative(GuardedAlternative(body_node));
+            alternation->AddAlternative(
+                GuardedAlternative(body->ToNode(compiler, answer)));
           }
           answer = alternation;
+          if (not_at_start && !compiler->read_backward()) {
+            alternation->set_not_at_start();
+          }
         }
         return answer;
       }
@@ -2140,7 +2141,8 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   }
   RegExpNode* result = center;
   if (min > 0 && body->min_match() > 0 && !compiler->read_backward()) {
-    uint32_t eats = std::min(256, min) * std::min(256, body->min_match());
+    uint8_t eats = base::saturated_cast<uint8_t>(
+        std::min(256, min) * std::min(256, body->min_match()));
     result = ActionNode::EatsAtLeast(eats, result);
   }
   if (needs_counter) {

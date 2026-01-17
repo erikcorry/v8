@@ -44,10 +44,8 @@ struct RegExpCompileData {
   // regexp features, and can be implemented as a standard string search.
   bool simple = true;
 
-  // True, iff the pattern contains a '^' anchor, not necessarily at the start
-  // of the pattern.
+  // True, iff the pattern is anchored at the start of the string with '^'.
   bool contains_anchor = false;
-  bool contains_anchor_in_lookbehind = false;
 
   // Only set if the pattern contains named captures.
   // Note: the lifetime equals that of the parse/compile zone.

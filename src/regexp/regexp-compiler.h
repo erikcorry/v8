@@ -263,6 +263,7 @@ class Trace {
   Trace()
       : cp_offset_(0),
         flush_budget_(100),  // Note: this is a 16 bit field.
+        at_start_(UNKNOWN),
         has_any_actions_(false),
         action_(nullptr),
         backtrack_(nullptr),
@@ -274,6 +275,7 @@ class Trace {
   Trace(const Trace& other) V8_NOEXCEPT
       : cp_offset_(other.cp_offset_),
         flush_budget_(other.flush_budget_),
+        at_start_(other.at_start_),
         has_any_actions_(other.has_any_actions_),
         action_(nullptr),
         backtrack_(other.backtrack_),
@@ -325,8 +327,10 @@ class Trace {
   bool is_trivial() const {
     return backtrack_ == nullptr && !has_any_actions_ && cp_offset_ == 0 &&
            characters_preloaded_ == 0 && bound_checked_up_to_ == 0 &&
-           quick_check_performed_.characters() == 0;
+           quick_check_performed_.characters() == 0 && at_start_ == UNKNOWN;
   }
+  TriBool at_start() const { return at_start_; }
+  void set_at_start(TriBool at_start) { at_start_ = at_start; }
   Label* backtrack() const { return backtrack_; }
   SpecialLoopState* special_loop_state() const { return special_loop_state_; }
   int characters_preloaded() const { return characters_preloaded_; }
@@ -410,6 +414,7 @@ class Trace {
 
   int cp_offset_;
   uint16_t flush_budget_;
+  TriBool at_start_ : 8;      // Whether we are at the start of the string.
   bool has_any_actions_ : 8;  // Whether any trace in the chain has an action.
   ActionNode* action_;
   Label* backtrack_;
@@ -425,7 +430,7 @@ class Trace {
 // regexp).
 class SpecialLoopState {
  public:
-  explicit SpecialLoopState(ChoiceNode* loop_choice_node);
+  explicit SpecialLoopState(bool not_at_start, ChoiceNode* loop_choice_node);
 
   void BindStepLabel(RegExpMacroAssembler* macro_assembler);
   void BindLoopTopLabel(RegExpMacroAssembler* macro_assembler);
@@ -626,11 +631,6 @@ class RegExpCompiler {
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
-  // Only used during ToNode. If this returns true then we know we are not at
-  // the start of the input string. If it returns false we don't know either
-  // way.
-  bool not_at_start() const { return not_at_start_; }
-
   static const int kNoRegister = -1;
 
  private:
@@ -646,7 +646,6 @@ class RegExpCompiler {
   bool reg_exp_too_big_;
   bool limiting_recursion_;
   int to_node_overflow_check_ticks_ = 0;
-  bool not_at_start_ = false;
   bool optimize_;
   bool read_backward_;
   int current_expansion_factor_;
