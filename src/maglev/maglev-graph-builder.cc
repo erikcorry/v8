@@ -4910,7 +4910,7 @@ bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
   for (compiler::MapRef receiver_map : receiver_maps) {
     compiler::ObjectRef receiver_prototype = receiver_map.prototype(broker());
     if (!receiver_prototype.IsJSObject() ||
-        !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {
+        !receiver_prototype.AsJSObject().IsArrayOrObjectPrototype(broker())) {
       return false;
     }
   }
@@ -5291,7 +5291,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
   compiler::OptionalMapRef original_map;
   if (access_info.HasTransitionMap()) {
     compiler::MapRef transition = access_info.transition_map().value();
-    original_map = transition.GetBackPointer(broker()).AsMap();
+    auto back_pointer = transition.GetBackPointer(broker());
+    if (!back_pointer.has_value()) {
+      return ReduceResult::Fail();
+    }
+    original_map = back_pointer->AsMap();
 
     if (original_map->UnusedPropertyFields() == 0) {
       DCHECK(!field_index.is_inobject());
@@ -8099,7 +8103,8 @@ bool MaglevGraphBuilder::HasValidInitialMap(
   if (!new_target.map(broker()).has_prototype_slot()) return false;
   if (!new_target.has_initial_map(broker())) return false;
   compiler::MapRef initial_map = new_target.initial_map(broker());
-  return initial_map.GetConstructor(broker()).equals(constructor);
+  compiler::OptionalObjectRef ctor = initial_map.GetConstructor(broker());
+  return ctor.has_value() && ctor->equals(constructor);
 }
 
 MaybeReduceResult
@@ -12842,12 +12847,13 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildAndAllocateJSGeneratorObject(
   compiler::JSFunctionRef function = maybe_constant.value();
   if (!function.has_initial_map(broker())) return {};
 
+  // The shared function info of this JSFunction should be the same as the
+  // current one we are compiling.
+  DCHECK_EQ(compilation_unit()->shared_function_info(),
+            function.shared(broker()));
+
   // Create the register file.
-  compiler::SharedFunctionInfoRef shared = function.shared(broker());
-  DCHECK(shared.HasBytecodeArray());
-  compiler::BytecodeArrayRef bytecode_array = shared.GetBytecodeArray(broker());
-  int parameter_count_no_receiver = bytecode_array.parameter_count() - 1;
-  int length = parameter_count_no_receiver + bytecode_array.register_count();
+  int length = parameter_count_without_receiver() + register_count();
   if (FixedArray::SizeFor(length) > kMaxRegularHeapObjectSize) {
     return {};
   }
@@ -12891,7 +12897,8 @@ compiler::OptionalMapRef TryGetDerivedMap(compiler::JSHeapBroker* broker,
     return {};
   }
   compiler::MapRef initial_map = new_target.initial_map(broker);
-  if (!initial_map.GetConstructor(broker).equals(target)) {
+  compiler::OptionalObjectRef ctor = initial_map.GetConstructor(broker);
+  if (!ctor.has_value() || !ctor->equals(target)) {
     return {};
   }
   DCHECK(target.map(broker).is_constructor());
@@ -13885,6 +13892,7 @@ ReduceResult MaglevGraphBuilder::VisitToName() {
 ReduceResult MaglevGraphBuilder::BuildToString(ValueNode* value,
                                                ToString::ConversionMode mode) {
   if (CheckType(value, NodeType::kString)) return value;
+  RETURN_IF_DONE(reducer_.TryFoldNumberToString(value));
   // TODO(victorgomes): Add fast path for constant primitives.
   if (CheckType(value, NodeType::kSmi)) {
     ValueNode* smi_value;
@@ -17437,6 +17445,11 @@ MaybeHandle<String> MaglevGraphBuilder::TryGetStringConstant(ValueNode* value) {
     if (constant->object().IsString()) {
       return handle(Cast<String>(*constant->object().object()),
                     local_isolate());
+    }
+  } else if (RootConstant* root = value->TryCast<RootConstant>()) {
+    Handle<Object> handle = local_isolate_->root_handle(root->index());
+    if (IsString(*handle)) {
+      return Cast<String>(handle);
     }
   }
   return {};

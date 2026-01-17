@@ -1331,6 +1331,15 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
       case LookupIterator::ACCESS_CHECK:
         if (it->HasAccess()) continue;
         return JSObject::GetPropertyWithFailedAccessCheck(it);
+      case LookupIterator::MODULE_NAMESPACE: {
+        if (JSDeferredModuleNamespace::TriggersEvaluation(it)) {
+          Isolate* isolate = it->isolate();
+          JSDeferredModuleNamespace::EvaluateModuleSync(
+              isolate, it->GetHolder<JSDeferredModuleNamespace>());
+          RETURN_EXCEPTION_IF_EXCEPTION(isolate);
+        }
+        continue;
+      }
       case LookupIterator::ACCESSOR:
         return GetPropertyWithAccessor(it);
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
@@ -2435,7 +2444,12 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         }
         return Object::SetSuperProperty(it, value, store_origin, should_throw);
       }
-
+      case LookupIterator::MODULE_NAMESPACE: {
+        Isolate* isolate = it->isolate();
+        RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                       NewTypeError(MessageTemplate::kStrictCannotSetProperty,
+                                    it->GetName(), it->GetReceiver()));
+      }
       case LookupIterator::ACCESSOR: {
         if (it->IsReadOnly()) {
           return WriteToReadOnlyProperty(it, value, should_throw);
@@ -2650,6 +2664,12 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it,
         RETURN_FAILURE(it->isolate(), kThrowOnError,
                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
 
+      case LookupIterator::MODULE_NAMESPACE: {
+        RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                       NewTypeError(MessageTemplate::kStrictCannotSetProperty,
+                                    it->GetName(), it->GetReceiver()));
+      }
+
       case LookupIterator::TRANSITION:
         UNREACHABLE();
     }
@@ -2840,7 +2860,8 @@ Maybe<bool> Object::TransitionAndWriteDataProperty(
     LookupIterator* it, DirectHandle<Object> value,
     PropertyAttributes attributes, Maybe<ShouldThrow> should_throw,
     StoreOrigin store_origin) {
-  DirectHandle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
+  DirectHandle<JSTransitionableReceiver> receiver =
+      it->GetStoreTarget<JSTransitionableReceiver>();
   it->UpdateProtector();
   // Migrate to the most up-to-date map that will be able to store |value|
   // under it->name() with |attributes|.

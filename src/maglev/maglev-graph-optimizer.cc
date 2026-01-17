@@ -650,7 +650,9 @@ ProcessResult MaglevGraphOptimizer::VisitCheckDetectableCallable(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckJSReceiverOrNullOrUndefined(
     CheckJSReceiverOrNullOrUndefined* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  ValueNode* input = node->input_node(0);
+  REMOVE_AND_RETURN_IF_DONE(
+      EnsureType(input, NodeType::kJSReceiverOrNullOrUndefined));
   return ProcessResult::kContinue;
 }
 
@@ -1105,6 +1107,12 @@ ProcessResult MaglevGraphOptimizer::VisitCallKnownApiFunction(
 ProcessResult MaglevGraphOptimizer::VisitCallKnownJSFunction(
     CallKnownJSFunction* node, const ProcessingState& state) {
   // TODO(b/424157317): Optimize.
+  if (!node->NewTargetInput().node()->IsUndefinedValue() &&
+      node->shared_function_info().object()->construct_as_builtin()) {
+    // The invariant of such builtin targets is that the return value is a
+    // JSReceiver. Set the type accordingly here.
+    known_node_aspects().EnsureType(broker(), node, NodeType::kJSReceiver);
+  }
   return ProcessResult::kContinue;
 }
 
@@ -1128,7 +1136,10 @@ ProcessResult MaglevGraphOptimizer::VisitConstruct(
 
 ProcessResult MaglevGraphOptimizer::VisitCheckConstructResult(
     CheckConstructResult* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  // TODO(b/424157317): Consider optimizing other cases, too.
+  if (node->ConstructResultInput().node()->IsUndefinedValue()) {
+    return ReplaceWith(node->ImplicitReceiverInput().node());
+  }
   return ProcessResult::kContinue;
 }
 
@@ -2098,25 +2109,29 @@ ProcessResult MaglevGraphOptimizer::VisitTransitionElementsKind(
 
 ProcessResult MaglevGraphOptimizer::VisitInt32ToString(
     Int32ToString* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldNumberToString(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitFloat64ToString(
     Float64ToString* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldNumberToString(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitSmiToString(
     SmiToString* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldNumberToString(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 
 ProcessResult MaglevGraphOptimizer::VisitNumberToString(
     NumberToString* node, const ProcessingState& state) {
-  // TODO(b/424157317): Optimize.
+  REPLACE_AND_RETURN_IF_DONE(
+      reducer_.TryFoldNumberToString(node->input_node(0)));
   return ProcessResult::kContinue;
 }
 

@@ -254,18 +254,23 @@ void PrintResult(std::ostream& os, const ValueNode* node,
          << node_info->live_range().end << "]";
     }
   } else {
-    os << ", " << node->use_count() << " uses";
-    if (const InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
-      os << " (" << alloc->non_escaping_use_count() << " non escaping uses)";
-      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
-        os << " 🪦";
-      }
-    } else if (!node->is_used()) {
-      if (node->opcode() != Opcode::kAllocationBlock &&
-          node->properties().is_required_when_unused()) {
-        os << ", but required";
-      } else {
-        os << " 🪦";
+    if (node->unused_inputs_were_visited()) {
+      // This node is dead, node sweeper will remove it.
+      os << "🪦";
+    } else {
+      os << ", " << node->use_count() << " uses";
+      if (const InlinedAllocation* alloc = node->TryCast<InlinedAllocation>()) {
+        os << " (" << alloc->non_escaping_use_count() << " non escaping uses)";
+        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+          os << " 🪦";
+        }
+      } else if (!node->is_used()) {
+        if (node->opcode() != Opcode::kAllocationBlock &&
+            node->properties().is_required_when_unused()) {
+          os << ", but required";
+        } else {
+          os << " 🪦";
+        }
       }
     }
     // Don't print to tagged nodes, nor to nodes that we bypass the flag.
@@ -587,8 +592,12 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
       return NodeType::kNumberOrOddball;
     case ValueRepresentation::kTagged:
       break;
-    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
+      if (opcode() == Opcode::kIdentity) {
+        return UnwrapIdentities()->GetStaticType(broker);
+      }
+      [[fallthrough]];
+    case ValueRepresentation::kRawPtr:
       UNREACHABLE();
   }
   switch (opcode()) {
