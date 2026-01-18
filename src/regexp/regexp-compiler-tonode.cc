@@ -2093,6 +2093,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
                               : RegExpCompiler::kNoRegister;
   LoopChoiceNode* center = zone->New<LoopChoiceNode>(
       body->min_match() == 0, compiler->read_backward(), zone);
+  if (not_at_start && !compiler->read_backward()) center->set_not_at_start();
   RegExpNode* loop_return = center;
   if (needs_counter) {
     loop_return = ActionNode::IncrementRegister(reg_ctr, loop_return);
