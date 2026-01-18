@@ -48,7 +48,7 @@ RegExpNode* RegExpAtom::ToNodeImpl(RegExpCompiler* compiler,
   TextNode* result =
       zone->New<TextNode>(elms, compiler->read_backward(), on_success);
   if (compiler->one_byte() && !result->CanMatchLatin1(compiler)) {
-    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+    return zone->New<BacktrackNode>(zone);
   }
 
   return result;
@@ -60,7 +60,7 @@ RegExpNode* RegExpText::ToNodeImpl(RegExpCompiler* compiler,
   TextNode* result =
       zone->New<TextNode>(elements(), compiler->read_backward(), on_success);
   if (compiler->one_byte() && !result->CanMatchLatin1(compiler)) {
-    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+    return zone->New<BacktrackNode>(zone);
   }
 
   return result;
@@ -492,7 +492,7 @@ RegExpNode* RegExpClassRanges::ToNodeImpl(RegExpCompiler* compiler,
     TextNode* result =
         zone->New<TextNode>(this, compiler->read_backward(), on_success);
     if (compiler->one_byte() && !result->CanMatchLatin1(compiler)) {
-      return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+      return zone->New<BacktrackNode>(zone);
     }
 
     return result;
@@ -516,7 +516,7 @@ RegExpNode* RegExpClassRanges::ToNodeImpl(RegExpCompiler* compiler,
   }
 
   if (ranges->length() == 0) {
-    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+    return zone->New<BacktrackNode>(zone);
   }
 
   if (set_.is_standard() &&
@@ -554,7 +554,7 @@ RegExpNode* RegExpClassSetOperand::ToNodeImpl(RegExpCompiler* compiler,
   if (size == 0) {
     // If neither ranges nor strings are present, the operand is equal to an
     // empty range (matching nothing).
-    return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+    return zone->New<BacktrackNode>(zone);
   }
   ZoneList<RegExpTree*>* alternatives =
       zone->New<ZoneList<RegExpTree*>>(size, zone);
@@ -1075,7 +1075,7 @@ RegExpNode* RegExpDisjunction::ToNodeImpl(RegExpCompiler* compiler,
   if (node_length >= 2) return result;
   if (node_length == 1) return result->alternatives()->at(0).node();
   Zone* zone = on_success->zone();
-  return zone->New<EndNode>(EndNode::BACKTRACK, zone);
+  return zone->New<BacktrackNode>(zone);
 }
 
 RegExpNode* RegExpQuantifier::ToNodeImpl(RegExpCompiler* compiler,

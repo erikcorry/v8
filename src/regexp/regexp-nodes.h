@@ -579,9 +579,9 @@ class BackReferenceNode : public SeqRegExpNode {
 class EndNode : public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
-  EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {
-    EatsAtLeastInfo large(kLargeEatsAtLeastValue);
-    if (action == BACKTRACK) set_eats_at_least_info(large);
+  // Constructor just forwards to protected constructor and checks.
+  EndNode(Action action, Zone* zone) : EndNode(zone, action) {
+    DCHECK_NE(action, BACKTRACK);  // Use the BacktrackNode constructor
   }
   EndNode* AsEndNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
@@ -593,10 +593,23 @@ class EndNode : public RegExpNode {
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override {}
 
-  virtual bool IsBacktrack() const override { return action_ == BACKTRACK; }
+ protected:
+  EndNode(Zone* zone, Action action) : RegExpNode(zone), action_(action) {
+    EatsAtLeastInfo large(kLargeEatsAtLeastValue);
+    if (action == BACKTRACK) set_eats_at_least_info(large);
+  }
 
  private:
   Action action_;
+};
+
+class BacktrackNode : public EndNode {
+ public:
+  BacktrackNode(Zone* zone) : EndNode(zone, BACKTRACK) {
+    EatsAtLeastInfo large(kLargeEatsAtLeastValue);
+    set_eats_at_least_info(large);
+  }
+  bool IsBacktrack() const override { return true; }
 };
 
 class NegativeSubmatchSuccess : public EndNode {
