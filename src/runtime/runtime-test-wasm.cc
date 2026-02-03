@@ -135,8 +135,6 @@ RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-namespace {
-
 int WasmStackSize(Isolate* isolate) {
   // TODO(wasm): Fix this for mixed JS/Wasm stacks with both --trace and
   // --trace-wasm.
@@ -146,8 +144,6 @@ int WasmStackSize(Isolate* isolate) {
   }
   return n;
 }
-
-}  // anonymous namespace
 
 // TODO(jkummerow): I think this should just iterate the WasmCodePointerTable
 // directly, not individual dispatch tables.

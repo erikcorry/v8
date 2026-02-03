@@ -2,20 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
-#include "src/base/strings.h"
-#include "src/regexp/special-case.h"
+#include "src/regexp/regexp-canonicalize.h"
+#include "unicode/uniset.h"
 
 namespace v8 {
 namespace internal {
 
-static const base::uc32 kSurrogateStart = 0xd800;
-static const base::uc32 kSurrogateEnd = 0xdfff;
-static const base::uc32 kNonBmpStart = 0x10000;
+static const UChar32 kSurrogateStart = 0xd800;
+static const UChar32 kSurrogateEnd = 0xdfff;
+static const UChar32 kNonBmpStart = 0x10000;
 
 // The following code generates "src/regexp/special-case.cc".
 void PrintSet(std::ofstream& out, const char* name,
@@ -53,7 +54,7 @@ void PrintSpecial(std::ofstream& out) {
   icu::UnicodeSet ignore;
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeSet upper("[\\p{Lu}]", status);
-  CHECK(U_SUCCESS(status));
+  assert(U_SUCCESS(status));
 
   // Iterate through all chars in BMP except surrogates.
   for (UChar32 i = 0; i < static_cast<UChar32>(kNonBmpStart); i++) {
@@ -67,7 +68,7 @@ void PrintSpecial(std::ofstream& out) {
     // Check to see if all characters in the case-folding equivalence
     // class as defined by UnicodeSet::closeOver all map to the same
     // canonical value.
-    UChar32 canonical = RegExpCaseFolding::Canonicalize(i);
+    UChar32 canonical = RegExpCanonicalize(i);
     bool class_has_matching_canonical_char = false;
     bool class_has_non_matching_canonical_char = false;
     for (int32_t j = 0; j < current.getRangeCount(); j++) {
@@ -76,7 +77,7 @@ void PrintSpecial(std::ofstream& out) {
         if (c == i) {
           continue;
         }
-        UChar32 other_canonical = RegExpCaseFolding::Canonicalize(c);
+        UChar32 other_canonical = RegExpCanonicalize(c);
         if (canonical == other_canonical) {
           class_has_matching_canonical_char = true;
         } else {
@@ -109,14 +110,14 @@ void PrintSpecial(std::ofstream& out) {
   for (int32_t i = 0; i < special_add.getRangeCount(); i++) {
     for (UChar32 c = special_add.getRangeStart(i);
          c <= special_add.getRangeEnd(i); c++) {
-      UChar32 canonical = RegExpCaseFolding::Canonicalize(c);
+      [[maybe_unused]] UChar32 canonical = RegExpCanonicalize(c);
       current.set(c, c);
       current.closeOver(USET_CASE_INSENSITIVE);
       current.removeAll(ignore);
       for (int32_t j = 0; j < current.getRangeCount(); j++) {
         for (UChar32 c2 = current.getRangeStart(j);
              c2 <= current.getRangeEnd(j); c2++) {
-          CHECK_EQ(canonical, RegExpCaseFolding::Canonicalize(c2));
+          assert(canonical == RegExpCanonicalize(c2));
         }
       }
     }

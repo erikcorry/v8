@@ -25,7 +25,7 @@
 namespace cppgc {
 namespace internal {
 
-namespace {
+namespace concurrent_sweeper_unittest {
 
 size_t g_destructor_callcount;
 
@@ -61,8 +61,6 @@ class NonFinalizable : public GarbageCollected<NonFinalizable<Size>> {
 
 using NormalNonFinalizable = NonFinalizable<32>;
 using LargeNonFinalizable = NonFinalizable<kLargeObjectSizeThreshold * 2>;
-
-}  // namespace
 
 class ConcurrentSweeperTest : public testing::TestWithHeap {
  public:
@@ -411,6 +409,8 @@ TEST_F(ConcurrentSweeperTest, SweepOnAllocationReturnEmptyPage) {
             NormalPage::FromInnerAddress(&HeapBase::From(GetHeapHandle()),
                                          allocated_after_sweeping));
 }
+
+}  // namespace concurrent_sweeper_unittest
 
 }  // namespace internal
 }  // namespace cppgc

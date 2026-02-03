@@ -20,6 +20,7 @@ using testing::AnyOf;
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace linear_scheduler_test {
 
 class LinearSchedulerTest : public TestWithIsolateAndZone {
  public:
@@ -172,6 +173,7 @@ TARGET_TEST_F(LinearSchedulerTest, LoopedFloatingDiamond) {
   EXPECT_FALSE(simple_scheduler.SameBasicBlock(loop, m1));
 }
 
+}  // namespace linear_scheduler_test
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

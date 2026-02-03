@@ -21,8 +21,7 @@ class CustomSpace2 : public CustomSpace<CustomSpace2> {
 };
 
 namespace internal {
-
-namespace {
+namespace custom_spaces_unittest {
 
 size_t g_destructor_callcount;
 
@@ -85,32 +84,34 @@ class alignas(kDoubleWord) CustomGCedWithDoubleWordAlignment final
   void Trace(Visitor*) const {}
 };
 
-}  // namespace
-
+}  // namespace custom_spaces_unittest
 }  // namespace internal
 
 template <>
-struct SpaceTrait<internal::CustomGCed1> {
+struct SpaceTrait<internal::custom_spaces_unittest::CustomGCed1> {
   using Space = CustomSpace1;
 };
 
 template <>
-struct SpaceTrait<internal::CustomGCed2> {
+struct SpaceTrait<internal::custom_spaces_unittest::CustomGCed2> {
   using Space = CustomSpace2;
 };
 
 template <typename T>
-struct SpaceTrait<
-    T, std::enable_if_t<std::is_base_of_v<internal::CustomGCedBase, T>>> {
+struct SpaceTrait<T,
+                  std::enable_if_t<std::is_base_of_v<
+                      internal::custom_spaces_unittest::CustomGCedBase, T>>> {
   using Space = CustomSpace1;
 };
 
 template <>
-struct SpaceTrait<internal::CustomGCedWithDoubleWordAlignment> {
+struct SpaceTrait<
+    internal::custom_spaces_unittest::CustomGCedWithDoubleWordAlignment> {
   using Space = CustomSpace1;
 };
 
 namespace internal {
+namespace custom_spaces_unittest {
 
 TEST_F(TestWithHeapWithCustomSpaces, AllocateOnCustomSpaces) {
   auto* regular =
@@ -173,11 +174,12 @@ TEST_F(TestWithHeapWithCustomSpaces, SweepCustomSpace) {
   EXPECT_EQ(4u, g_destructor_callcount);
 }
 
+}  // namespace custom_spaces_unittest
 }  // namespace internal
 
 // Test custom space compactability.
 
-class CompactableCustomSpace : public CustomSpace<CompactableCustomSpace> {
+class CompactableCustomSpace2 : public CustomSpace<CompactableCustomSpace2> {
  public:
   static constexpr size_t kSpaceIndex = 0;
   static constexpr bool kSupportsCompaction = true;
@@ -198,7 +200,7 @@ class DefaultCompactableCustomSpace
 };
 
 namespace internal {
-namespace {
+namespace custom_spaces_unittest {
 
 class TestWithHeapWithCompactableCustomSpaces
     : public testing::TestWithPlatform {
@@ -206,7 +208,7 @@ class TestWithHeapWithCompactableCustomSpaces
   TestWithHeapWithCompactableCustomSpaces() {
     Heap::HeapOptions options;
     options.custom_spaces.emplace_back(
-        std::make_unique<CompactableCustomSpace>());
+        std::make_unique<CompactableCustomSpace2>());
     options.custom_spaces.emplace_back(
         std::make_unique<NotCompactableCustomSpace>());
     options.custom_spaces.emplace_back(
@@ -241,23 +243,24 @@ class DefaultCompactableGCed final
   void Trace(Visitor*) const {}
 };
 
-}  // namespace
+}  // namespace custom_spaces_unittest
 }  // namespace internal
 
 template <>
-struct SpaceTrait<internal::CompactableGCed> {
-  using Space = CompactableCustomSpace;
+struct SpaceTrait<internal::custom_spaces_unittest::CompactableGCed> {
+  using Space = CompactableCustomSpace2;
 };
 template <>
-struct SpaceTrait<internal::NotCompactableGCed> {
+struct SpaceTrait<internal::custom_spaces_unittest::NotCompactableGCed> {
   using Space = NotCompactableCustomSpace;
 };
 template <>
-struct SpaceTrait<internal::DefaultCompactableGCed> {
+struct SpaceTrait<internal::custom_spaces_unittest::DefaultCompactableGCed> {
   using Space = DefaultCompactableCustomSpace;
 };
 
 namespace internal {
+namespace custom_spaces_unittest {
 
 TEST_F(TestWithHeapWithCompactableCustomSpaces,
        AllocateOnCompactableCustomSpaces) {
@@ -274,6 +277,7 @@ TEST_F(TestWithHeapWithCompactableCustomSpaces,
       NormalPage::FromPayload(default_compactable)->space().is_compactable());
 }
 
+}  // namespace custom_spaces_unittest
 }  // namespace internal
 
 }  // namespace cppgc

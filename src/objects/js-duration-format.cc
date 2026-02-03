@@ -45,7 +45,7 @@ namespace {
 
 // #sec-getdurationunitoptions
 enum class StylesList { k3Styles, k4Styles, k5Styles };
-enum class Unit {
+enum class DurationUnit {
   kYears,
   kMonths,
   kWeeks,
@@ -89,7 +89,7 @@ const std::initializer_list<JSDurationFormat::FieldStyle>
         JSDurationFormat::FieldStyle::k2Digit};
 
 Maybe<DurationUnitOptions> GetDurationUnitOptions(
-    Isolate* isolate, Unit unit, DirectHandle<String> unit_string,
+    Isolate* isolate, DurationUnit unit, DirectHandle<String> unit_string,
     DirectHandle<String> display_field, DirectHandle<JSReceiver> options,
     JSDurationFormat::Style base_style,
     const std::span<const std::string_view> value_strings,
@@ -114,8 +114,8 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
     // a. If baseStyle is "digital", then
     if (base_style == JSDurationFormat::Style::kDigital) {
       // i. If unit is not one of "hours", "minutes", or "seconds", then
-      if (unit != Unit::kHours && unit != Unit::kMinutes &&
-          unit != Unit::kSeconds) {
+      if (unit != DurationUnit::kHours && unit != DurationUnit::kMinutes &&
+          unit != DurationUnit::kSeconds) {
         // a. Set displayDefault to "auto".
         display_default = JSDurationFormat::Display::kAuto;
       }
@@ -128,7 +128,7 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
           prev_style == JSDurationFormat::FieldStyle::kNumeric ||
           prev_style == JSDurationFormat::FieldStyle::k2Digit) {
         // 1. If unit is not one of "minutes" or "seconds", then
-        if (unit != Unit::kMinutes && unit != Unit::kSeconds) {
+        if (unit != DurationUnit::kMinutes && unit != DurationUnit::kSeconds) {
           // a. Set displayDefault to "auto".
           display_default = JSDurationFormat::Display::kAuto;
         }
@@ -159,8 +159,9 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
   if (style == JSDurationFormat::FieldStyle::kNumeric) {
     // a. If unit is one of "milliseconds", "microseconds", or "nanoseconds",
     // then
-    if (unit == Unit::kMilliseconds || unit == Unit::kMicroseconds ||
-        unit == Unit::kNanoseconds) {
+    if (unit == DurationUnit::kMilliseconds ||
+        unit == DurationUnit::kMicroseconds ||
+        unit == DurationUnit::kNanoseconds) {
       // i. Set style to "fractional".
       style = JSDurationFormat::FieldStyle::kFractional;
       // ii. Set displayDefault to "auto".
@@ -210,7 +211,7 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
                                  isolate->factory()->object_string(), options));
     }
     // b. If unit is "minutes" or "seconds", then
-    if (unit == Unit::kMinutes || unit == Unit::kSeconds) {
+    if (unit == DurationUnit::kMinutes || unit == DurationUnit::kSeconds) {
       // i. Set style to "2-digit".
       style = JSDurationFormat::FieldStyle::k2Digit;
     }
@@ -361,7 +362,7 @@ MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
   ASSIGN_RETURN_ON_EXCEPTION(                                                  \
       isolate, property##_option,                                              \
       GetDurationUnitOptions(                                                  \
-          isolate, Unit::unit, factory->property##_string(),                   \
+          isolate, DurationUnit::unit, factory->property##_string(),           \
           factory->property##Display_string(), options, style, strings, enums, \
           JSDurationFormat::FieldStyle::digital_base, prev_style));
 

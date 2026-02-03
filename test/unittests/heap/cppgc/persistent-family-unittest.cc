@@ -24,8 +24,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace persistent_family_unittest {
 
 struct GCed : GarbageCollected<GCed> {
   static size_t trace_call_count;
@@ -113,8 +112,6 @@ class TestRootVisitor final : public RootVisitorBase {
 
 class PersistentTest : public testing::TestWithHeap {};
 class PersistentDeathTest : public testing::TestWithHeap {};
-
-}  // namespace
 
 template <template <typename> class PersistentType>
 void NullStateCtor(cppgc::Heap* heap) {
@@ -641,8 +638,6 @@ TEST_F(PersistentTest, HeterogeneousConversion) {
   HeterogeneousConversion<WeakPersistent, Persistent>(heap);
 }
 
-namespace {
-
 class Parent : public GarbageCollected<Parent> {
  public:
   virtual void Trace(Visitor*) const {}
@@ -669,8 +664,6 @@ void ExplicitDowncast(cppgc::Heap* heap) {
   child->ChildFoo();
 }
 
-}  // namespace
-
 TEST_F(PersistentTest, ImplicitUpcast) {
   auto* heap = GetHeap();
   ImplicitUpcast<Persistent>(heap);
@@ -687,7 +680,6 @@ TEST_F(PersistentTest, ExplicitDowncast) {
   ExplicitDowncast<subtle::WeakCrossThreadPersistent>(heap);
 }
 
-namespace {
 template <template <typename> class PersistentType1,
           template <typename> class PersistentType2>
 void EqualityTest(cppgc::Heap* heap) {
@@ -710,7 +702,6 @@ void EqualityTest(cppgc::Heap* heap) {
     EXPECT_FALSE(persistent1 == persistent2);
   }
 }
-}  // namespace
 
 TEST_F(PersistentTest, EqualityTest) {
   cppgc::Heap* heap = GetHeap();
@@ -921,8 +912,6 @@ TEST_F(PersistentTest, LocalizedPersistent) {
   }
 }
 
-namespace {
-
 class ExpectingLocationVisitor final : public RootVisitorBase {
  public:
   explicit ExpectingLocationVisitor(SourceLocation expected_location)
@@ -940,8 +929,6 @@ class ExpectingLocationVisitor final : public RootVisitorBase {
   SourceLocation expected_loc_;
 };
 
-}  // namespace
-
 TEST_F(PersistentTest, PersistentTraceLocation) {
   GCed* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   {
@@ -956,9 +943,7 @@ TEST_F(PersistentTest, PersistentTraceLocation) {
   }
 }
 
-namespace {
 class IncompleteType;
-}  // namespace
 
 TEST_F(PersistentTest, EmptyPersistentConstructDestructWithoutCompleteType) {
   // Test ensures that empty constructor and destructor compile without having
@@ -973,8 +958,6 @@ TEST_F(PersistentTest, Lock) {
   subtle::WeakCrossThreadPersistent<GCed> weak;
   auto strong = weak.Lock();
 }
-
-namespace {
 
 class TraceCounter final : public GarbageCollected<TraceCounter> {
  public:
@@ -997,8 +980,6 @@ class DestructionCounter final : public GarbageCollected<DestructionCounter> {
   void Trace(cppgc::Visitor*) const {}
 };
 size_t DestructionCounter::destructor_calls_;
-
-}  // namespace
 
 TEST_F(PersistentTest, PersistentRetainsObject) {
   Persistent<TraceCounter> trace_counter =
@@ -1038,8 +1019,6 @@ TEST_F(PersistentTest, ObjectReclaimedAfterClearedPersistent) {
   EXPECT_FALSE(weak_finalized);
 }
 
-namespace {
-
 class PersistentAccessOnBackgroundThread : public v8::base::Thread {
  public:
   explicit PersistentAccessOnBackgroundThread(GCed* raw_gced)
@@ -1056,8 +1035,6 @@ class PersistentAccessOnBackgroundThread : public v8::base::Thread {
   void* raw_gced_;
 };
 
-}  // namespace
-
 TEST_F(PersistentDeathTest, CheckCreationThread) {
 #ifdef DEBUG
   // In DEBUG mode, every Persistent creation should check whether the handle
@@ -1072,5 +1049,6 @@ TEST_F(PersistentDeathTest, CheckCreationThread) {
   thread.Join();
 }
 
+}  // namespace persistent_family_unittest
 }  // namespace internal
 }  // namespace cppgc

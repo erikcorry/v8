@@ -17,6 +17,8 @@
 namespace cppgc {
 namespace internal {
 
+namespace heap_object_header_unittest {
+
 TEST(HeapObjectHeaderTest, Constructor) {
   constexpr GCInfoIndex kGCInfoIndex = 17;
   constexpr size_t kSize = kAllocationGranularity;
@@ -120,8 +122,6 @@ TEST(HeapObjectHeaderTest, Unmark) {
   EXPECT_FALSE(header2.IsMarked());
 }
 
-namespace {
-
 struct Payload {
   volatile size_t value{5};
 };
@@ -144,8 +144,6 @@ class ConcurrentGCThread final : public v8::base::Thread {
   HeapObjectHeader* header_;
   Payload* payload_;
 };
-
-}  // namespace
 
 TEST(HeapObjectHeaderTest, ConstructionBitProtectsNonAtomicWrites) {
   // Object publishing: Test checks that non-atomic stores in the payload can be
@@ -179,6 +177,8 @@ TEST(HeapObjectHeaderDeathTest, ConstructorTooLargeGCInfoIndex) {
 }
 
 #endif  // DEBUG
+
+}  // namespace heap_object_header_unittest
 
 }  // namespace internal
 }  // namespace cppgc

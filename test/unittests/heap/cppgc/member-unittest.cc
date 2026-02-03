@@ -20,8 +20,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace member_unittest {
 
 struct GCed : GarbageCollected<GCed> {
   double d;
@@ -137,8 +136,6 @@ using MemberWithCustomChecking =
                 CustomCheckingPolicy>;
 
 class MemberTest : public testing::TestSupportingAllocationOnly {};
-
-}  // namespace
 
 template <template <typename> class MemberType>
 void EmptyTest() {
@@ -521,8 +518,6 @@ TEST_F(MemberTest, CheckingPolicy) {
             CustomCheckingPolicy::ChecksTriggered);
 }
 
-namespace {
-
 class MemberHeapTest : public testing::TestWithHeap {};
 
 class GCedWithMembers final : public GarbageCollected<GCedWithMembers> {
@@ -549,8 +544,6 @@ class GCedWithMembers final : public GarbageCollected<GCedWithMembers> {
   WeakMember<GCedWithMembers> weak_nested_;
 };
 size_t GCedWithMembers::live_count_ = 0;
-
-}  // namespace
 
 TEST_F(MemberHeapTest, MemberRetainsObject) {
   EXPECT_EQ(0u, GCedWithMembers::live_count_);
@@ -593,7 +586,6 @@ TEST_F(MemberHeapTest, WeakMemberDoesNotRetainObject) {
   EXPECT_TRUE(gced_with_members->WasNestedCleared());
 }
 
-namespace {
 class GCedWithConstWeakMember
     : public GarbageCollected<GCedWithConstWeakMember> {
  public:
@@ -607,7 +599,6 @@ class GCedWithConstWeakMember
  private:
   const WeakMember<const GCedWithMembers> weak_member_;
 };
-}  // namespace
 
 TEST_F(MemberHeapTest, ConstWeakRefIsClearedOnGC) {
   const WeakPersistent<const GCedWithMembers> weak_persistent =
@@ -622,7 +613,6 @@ TEST_F(MemberHeapTest, ConstWeakRefIsClearedOnGC) {
 
 #if V8_ENABLE_CHECKS
 
-namespace {
 class MemberHeapDeathTest : public testing::TestWithHeap {};
 
 class LinkedNode final : public GarbageCollected<LinkedNode> {
@@ -635,8 +625,6 @@ class LinkedNode final : public GarbageCollected<LinkedNode> {
  private:
   Member<LinkedNode> next_;
 };
-
-}  // namespace
 
 // The following tests create multiple heaps per thread, which is not supported
 // with pointer compression enabled.
@@ -814,5 +802,6 @@ TEST_F(MemberTest, TaggedUncompressedMemberTryGetAs) {
   EXPECT_EQ(nullptr, member_null.TryGetAs<TestTag2>());
 }
 
+}  // namespace member_unittest
 }  // namespace internal
 }  // namespace cppgc

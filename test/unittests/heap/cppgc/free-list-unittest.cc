@@ -16,7 +16,7 @@
 
 namespace cppgc {
 namespace internal {
-namespace {
+namespace free_list_unittest {
 
 class Block {
  public:
@@ -65,8 +65,6 @@ FreeList CreatePopulatedFreeList(const std::vector<Block>& blocks) {
   }
   return list;
 }
-
-}  // namespace
 
 TEST(FreeListTest, Empty) {
   FreeList list;
@@ -193,5 +191,6 @@ TEST(FreeListTest, Allocate) {
   EXPECT_EQ(0u, empty_block.size);
 }
 
+}  // namespace free_list_unittest
 }  // namespace internal
 }  // namespace cppgc

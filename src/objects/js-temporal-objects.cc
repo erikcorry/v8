@@ -40,10 +40,6 @@ namespace v8::internal {
 
 namespace {
 
-// Shorten enums with `using`
-using temporal_rs::RoundingMode;
-using temporal_rs::Unit;
-
 /**
  * This header declare the Abstract Operations defined in the
  * Temporal spec with the enum and struct for them.
@@ -750,10 +746,11 @@ Maybe<temporal_rs::Precision> GetTemporalFractionalSecondDigitsOption(
 }
 
 // https://tc39.es/proposal-temporal/#sec-temporal-gettemporalunitvaluedoption
-Maybe<std::optional<Unit>> GetTemporalUnitValuedOption(
+Maybe<std::optional<temporal_rs::Unit>> GetTemporalUnitValuedOption(
     Isolate* isolate, DirectHandle<JSReceiver> normalized_options,
     DirectHandle<String> key, DefaultValue default_value,
     const char* method_name) {
+  using Unit = temporal_rs::Unit;
   // 1. Let allowedStrings be a List containing all values in the "Singular
   // property name" and "Plural property name" columns of Table 21, except the
   // header row.
@@ -809,8 +806,10 @@ Maybe<std::optional<Unit>> GetTemporalUnitValuedOption(
 }
 
 Maybe<void> ValidateTemporalUnitValue(
-    Isolate* isolate, std::optional<Unit> value_or_unset, UnitGroup unit_group,
-    std::optional<Unit> extra_values = std::nullopt) {
+    Isolate* isolate, std::optional<temporal_rs::Unit> value_or_unset,
+    UnitGroup unit_group,
+    std::optional<temporal_rs::Unit> extra_values = std::nullopt) {
+  using Unit = temporal_rs::Unit;
   // 1. If value is unset, return unused.
   if (!value_or_unset.has_value()) {
     return JustVoid();
@@ -902,10 +901,10 @@ Maybe<uint32_t> GetRoundingIncrementOption(
 }
 
 // sec-temporal-getroundingmodeoption
-Maybe<RoundingMode> GetRoundingModeOption(Isolate* isolate,
-                                          DirectHandle<JSReceiver> options,
-                                          RoundingMode fallback,
-                                          const char* method_name) {
+Maybe<temporal_rs::RoundingMode> GetRoundingModeOption(
+    Isolate* isolate, DirectHandle<JSReceiver> options,
+    temporal_rs::RoundingMode fallback, const char* method_name) {
+  using RoundingMode = temporal_rs::RoundingMode;
   // 1. Return ? GetOption(normalizedOptions, "roundingMode", "string", «
   // "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand",
   // "halfTrunc", "halfEven" », fallback).
@@ -962,7 +961,10 @@ Maybe<temporal_rs::DisplayTimeZone> GetTemporalShowTimeZoneNameOption(
 // to construct a DifferenceSettings object. temporal_rs handles the rest
 Maybe<temporal_rs::DifferenceSettings> GetDifferenceSettingsWithoutChecks(
     Isolate* isolate, DirectHandle<Object> options_obj, UnitGroup unit_group,
-    std::optional<Unit> fallback_smallest_unit, const char* method_name) {
+    std::optional<temporal_rs::Unit> fallback_smallest_unit,
+    const char* method_name) {
+  using RoundingMode = temporal_rs::RoundingMode;
+  using Unit = temporal_rs::Unit;
   DirectHandle<JSReceiver> options;
   // 1. Set options to ? GetOptionsObject(options).
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -3416,9 +3418,10 @@ template <typename JSType, typename... ProviderArg>
 MaybeDirectHandle<JSTemporalDuration> GenericDifferenceTemporal(
     Isolate* isolate,
     DifferenceOperation<typename JSType::RustType, ProviderArg...> operation,
-    UnitGroup group, Unit fallback_smallest_unit, DirectHandle<JSType> handle,
-    DirectHandle<Object> other_obj, DirectHandle<Object> options,
-    const char* method_name, const ProviderArg&... provider) {
+    UnitGroup group, temporal_rs::Unit fallback_smallest_unit,
+    DirectHandle<JSType> handle, DirectHandle<Object> other_obj,
+    DirectHandle<Object> options, const char* method_name,
+    const ProviderArg&... provider) {
   // Steps are written for PlainDate, but are similar for other types
 
   // 1. Set other to ?ToTemporalDate(other).

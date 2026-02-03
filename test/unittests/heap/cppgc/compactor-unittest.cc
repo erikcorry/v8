@@ -26,7 +26,7 @@ class CompactableCustomSpace : public CustomSpace<CompactableCustomSpace> {
 
 namespace internal {
 
-namespace {
+namespace compactor_unittest {
 
 struct CompactableGCed : public GarbageCollected<CompactableGCed> {
  public:
@@ -107,16 +107,18 @@ class CompactorTest : public testing::TestWithPlatform {
   std::unique_ptr<cppgc::Heap> heap_;
 };
 
-}  // namespace
+}  // namespace compactor_unittest
 
 }  // namespace internal
 
 template <>
-struct SpaceTrait<internal::CompactableGCed> {
+struct SpaceTrait<internal::compactor_unittest::CompactableGCed> {
   using Space = CompactableCustomSpace;
 };
 
 namespace internal {
+
+namespace compactor_unittest {
 
 TEST_F(CompactorTest, NothingToCompact) {
   StartCompaction();
@@ -249,6 +251,8 @@ TEST_F(CompactorTest, OnStackSlotShouldBeFiltered) {
   heap()->marker()->Visitor().RegisterMovableReference(&compactable_object);
   EndGC();
 }
+
+}  // namespace compactor_unittest
 
 }  // namespace internal
 }  // namespace cppgc

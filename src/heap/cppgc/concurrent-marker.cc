@@ -19,10 +19,10 @@ namespace {
 static constexpr double kMarkingScheduleRatioBeforeConcurrentPriorityIncrease =
     0.5;
 
-static constexpr size_t kDefaultDeadlineCheckInterval = 750u;
+static constexpr size_t kDefaultConcurrentDeadlineCheckInterval = 750u;
 
 template <StatsCollector::ConcurrentScopeId scope_id,
-          size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
+          size_t kDeadlineCheckInterval = kDefaultConcurrentDeadlineCheckInterval,
           typename WorklistLocal, typename Callback>
 bool DrainWorklistWithYielding(JobDelegate* job_delegate,
                                StatsCollector* stats_collector,

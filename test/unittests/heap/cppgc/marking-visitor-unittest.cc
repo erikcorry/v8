@@ -18,8 +18,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace marking_visitor_unittest {
 
 class MarkingVisitorTest : public testing::TestWithHeap {
  public:
@@ -65,8 +64,6 @@ class TestRootMarkingVisitor : public RootMarkingVisitor {
 
   MutatorMarkingState& marking_state() { return mutator_marking_state_; }
 };
-
-}  // namespace
 
 TEST_F(MarkingVisitorTest, MarkedBytesAreInitiallyZero) {
   EXPECT_EQ(0u, GetMarker()->MutatorMarkingStateForTesting().marked_bytes());
@@ -191,8 +188,6 @@ TEST_F(MarkingVisitorTest, DontMarkWeakPersistentMixin) {
 
 // In construction objects are not marked.
 
-namespace {
-
 class GCedWithInConstructionCallback
     : public GarbageCollected<GCedWithInConstructionCallback> {
  public:
@@ -219,8 +214,6 @@ class GCedWithMixinWithInConstructionCallback
       : MixinWithInConstructionCallback(callback) {}
   void Trace(cppgc::Visitor*) const override {}
 };
-
-}  // namespace
 
 TEST_F(MarkingVisitorTest, MarkMemberInConstruction) {
   TestMarkingVisitor visitor(GetMarker());
@@ -327,8 +320,6 @@ TEST_F(MarkingVisitorTest, StrongTracingMarksWeakMember) {
   EXPECT_TRUE(header.IsMarked());
 }
 
-namespace {
-
 struct GCedWithDestructor : GarbageCollected<GCedWithDestructor> {
   explicit GCedWithDestructor(bool is_child = false) : is_child_(is_child) {}
   ~GCedWithDestructor() { ++g_finalized; }
@@ -370,8 +361,6 @@ void GCedWithDestructor::Trace(Visitor* v) const {
 struct ConservativeTracerTest : public testing::TestWithHeap {
   ConservativeTracerTest() { GCedWithDestructor::g_finalized = 0; }
 };
-
-}  // namespace
 
 TEST_F(ConservativeTracerTest, TraceConservativelyInConstructionObject) {
   auto* volatile gced =
@@ -417,5 +406,6 @@ TEST_F(ConservativeTracerTest, TraceConservativelyStack) {
             GCInfoTrait<GCedWithDestructor>::Index());
 }
 
+}  // namespace marking_visitor_unittest
 }  // namespace internal
 }  // namespace cppgc

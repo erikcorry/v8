@@ -7,6 +7,8 @@
 #include "src/base/strings.h"
 #include "test/cctest/test-api.h"
 
+namespace test_api_stack_traces {
+
 using ::v8::Array;
 using ::v8::Context;
 using ::v8::Local;
@@ -1244,3 +1246,5 @@ TEST(CurrentScriptNameOrSourceURL_SourceURL) {
 
   CHECK(CompileRunWithOrigin(source, "")->IsUndefined());
 }
+
+}  // Namespace test_api_stack_traces.

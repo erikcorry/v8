@@ -4918,7 +4918,7 @@ class PageEvacuationJob : public v8::JobTask {
   const uint64_t trace_id_;
 };
 
-namespace {
+namespace mark_compact_internal {
 size_t CreateAndExecuteEvacuationTasks(
     Heap* heap, MarkCompactCollector* collector,
     std::vector<std::pair<ParallelWorkItem, MutablePage*>> evacuation_items) {
@@ -5001,7 +5001,7 @@ void TraceEvacuation(Isolate* isolate, size_t pages_count,
                aborted_pages);
 }
 
-}  // namespace
+}  // namespace mark_compact_internal
 
 class PrecisePagePinningVisitor final : public RootVisitor {
  public:
@@ -5090,6 +5090,7 @@ void MarkCompactCollector::PinPreciseRootsIfNeeded() {
 }
 
 void MarkCompactCollector::EvacuatePagesInParallel() {
+  using namespace mark_compact_internal;
   std::vector<std::pair<ParallelWorkItem, MutablePage*>> evacuation_items;
   intptr_t live_bytes = 0;
 

@@ -22,8 +22,8 @@ wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
     wasm::CompilationEnv* env, compiler::WasmCompilationData& data,
     wasm::WasmDetectedFeatures* detected,
     DelayedCounterUpdates* counter_updates) {
-  wasm::WasmCompilationResult result =
-      Pipeline::GenerateWasmCode(env, data, detected, counter_updates);
+  wasm::WasmCompilationResult result = compiler::Pipeline::GenerateWasmCode(
+      env, data, detected, counter_updates);
   DCHECK(result.succeeded());
   DCHECK_EQ(wasm::ExecutionTier::kTurbofan, result.result_tier);
   DCHECK_NULL(result.assumptions);

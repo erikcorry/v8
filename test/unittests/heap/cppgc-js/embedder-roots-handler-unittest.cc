@@ -91,10 +91,10 @@ enum class SurvivalMode { kSurvives, kDies };
 
 template <typename ModifierFunction, typename ConstructTracedReferenceFunction,
           typename GCFunction>
-void TracedReferenceTest(v8::Isolate* isolate,
-                         ConstructTracedReferenceFunction construct_function,
-                         ModifierFunction modifier_function,
-                         GCFunction gc_function, SurvivalMode survives) {
+void RunTracedReferenceTest(v8::Isolate* isolate,
+                            ConstructTracedReferenceFunction construct_function,
+                            ModifierFunction modifier_function,
+                            GCFunction gc_function, SurvivalMode survives) {
   auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ManualGCScope manual_gc_scope(i_isolate);
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(
@@ -132,7 +132,7 @@ TEST_F(EmbedderRootsHandlerTest,
 
   ClearingEmbedderRootsHandler handler(v8_isolate());
   TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
-  TracedReferenceTest(
+  RunTracedReferenceTest(
       v8_isolate(), ConstructNonDroppableJSObject,
       [](const TracedReference<v8::Object>&) {}, [this]() { InvokeMajorGC(); },
       SurvivalMode::kDies);
@@ -146,7 +146,7 @@ TEST_F(EmbedderRootsHandlerTest,
   // The TracedReference itself will die as it's not found by the full GC. The
   // pointee will be kept alive through other means.
   v8::Global<v8::Object> strong_global;
-  TracedReferenceTest(
+  RunTracedReferenceTest(
       v8_isolate(), ConstructNonDroppableJSObject,
       [this, &strong_global](const TracedReference<v8::Object>& handle) {
         v8::HandleScope scope(v8_isolate());
@@ -167,7 +167,7 @@ TEST_F(EmbedderRootsHandlerTest,
   ManualGCScope manual_gc(i_isolate());
   ClearingEmbedderRootsHandler handler(v8_isolate());
   TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
-  TracedReferenceTest(
+  RunTracedReferenceTest(
       v8_isolate(), ConstructNonDroppableJSObject,
       [](const TracedReference<v8::Object>&) {}, [this]() { InvokeMinorGC(); },
       SurvivalMode::kSurvives);
@@ -180,7 +180,7 @@ TEST_F(EmbedderRootsHandlerTest,
   ManualGCScope manual_gc(i_isolate());
   ClearingEmbedderRootsHandler handler(v8_isolate());
   TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
-  TracedReferenceTest(
+  RunTracedReferenceTest(
       v8_isolate(), ConstructNonDroppableJSApiObject,
       [](const TracedReference<v8::Object>&) {}, [this]() { InvokeMinorGC(); },
       SurvivalMode::kSurvives);
@@ -194,7 +194,7 @@ TEST_F(EmbedderRootsHandlerTest,
   ManualGCScope manual_gc(i_isolate());
   ClearingEmbedderRootsHandler handler(v8_isolate());
   TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
-  TracedReferenceTest(
+  RunTracedReferenceTest(
       v8_isolate(), ConstructDroppableJSApiObject,
       [](TracedReference<v8::Object>& handle) {}, [this]() { InvokeMinorGC(); },
       SurvivalMode::kDies);

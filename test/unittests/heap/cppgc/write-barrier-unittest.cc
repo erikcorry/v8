@@ -20,8 +20,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace write_barrier_unittest {
 
 class V8_NODISCARD IncrementalMarkingScope {
  public:
@@ -157,8 +156,6 @@ class GCed : public GarbageCollected<GCed> {
   Member<GCed> next_ = nullptr;
 };
 
-}  // namespace
-
 class WriteBarrierTest : public testing::TestWithHeap {
  public:
   WriteBarrierTest() : internal_heap_(Heap::From(GetHeap())) {
@@ -269,8 +266,6 @@ TEST_F(WriteBarrierTest, MemberCopySentinelValueNoBarrier) {
 // Mixin support. ==============================================================
 // =============================================================================
 
-namespace {
-
 class Mixin : public GarbageCollectedMixin {
  public:
   void Trace(cppgc::Visitor* visitor) const override { visitor->Trace(next_); }
@@ -310,8 +305,6 @@ class ParentWithMixinPointer : public GarbageCollected<ParentWithMixinPointer> {
  protected:
   Member<Mixin> mixin_;
 };
-
-}  // namespace
 
 TEST_F(WriteBarrierTest, WriteBarrierOnUnmarkedMixinApplication) {
   ParentWithMixinPointer* parent =
@@ -394,8 +387,6 @@ TEST_F(WriteBarrierTest, DijkstraWriteBarrierBailoutIfMarked) {
   }
 }
 
-namespace {
-
 struct InlinedObject {
   CPPGC_DISALLOW_NEW();
 
@@ -420,8 +411,6 @@ class GCedWithInlinedArray : public GarbageCollected<GCedWithInlinedArray> {
 
   InlinedObject objects[kNumReferences];
 };
-
-}  // namespace
 
 TEST_F(WriteBarrierTest, DijkstraWriteBarrierRangeTriggersWhenMarkingIsOn) {
   auto* object1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
@@ -489,5 +478,6 @@ TEST_F(WriteBarrierTest, SteeleWriteBarrierBailoutIfNotMarked) {
   }
 }
 
+}  // namespace write_barrier_unittest
 }  // namespace internal
 }  // namespace cppgc

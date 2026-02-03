@@ -34,6 +34,8 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
+namespace test_accessors {
+
 using ::v8::ObjectTemplate;
 using ::v8::Value;
 using ::v8::Context;
@@ -989,3 +991,5 @@ TEST(ObjectTemplateSetLazyPropertySurvivesIC) {
   f->Call(context, context->Global(), 1, &obj).ToLocalChecked();
   CHECK_EQ(getter_call_count, 2);
 }
+
+}  // Namespace test_accessors.

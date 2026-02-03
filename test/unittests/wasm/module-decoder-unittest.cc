@@ -2867,14 +2867,14 @@ class WasmSignatureDecodeTest : public TestWithPlatform {
     return {};
   }
 
-  V8_NODISCARD testing::AssertionResult DecodeSigError(
+  V8_NODISCARD ::testing::AssertionResult DecodeSigError(
       base::Vector<const uint8_t> bytes) {
     Result<std::pair<WasmModuleSignatureStorage, const FunctionSig*>> res =
         DecodeWasmSignatureForTesting(enabled_features_, bytes);
     if (res.ok()) {
-      return testing::AssertionFailure() << "unexpected valid signature";
+      return ::testing::AssertionFailure() << "unexpected valid signature";
     }
-    return testing::AssertionSuccess();
+    return ::testing::AssertionSuccess();
   }
 };
 
@@ -4215,8 +4215,6 @@ TEST_F(WasmModuleVerifyTest, ContTypesNotSubtype) {
 #undef SIG_ENTRY_i_k
 #undef SIG_ENTRY_k_i
 #undef UNKNOWN_SECTION
-#undef ADD_COUNT
-#undef SECTION
 #undef TYPE_SECTION
 #undef FUNCTION_SECTION
 #undef FOO_STRING

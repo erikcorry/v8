@@ -41,7 +41,7 @@ bool IsConstant(Node* node) {
          node->opcode() == IrOpcode::kHeapConstant;
 }
 
-bool MayAlias(Node* lhs, Node* rhs) {
+bool WasmMayAlias(Node* lhs, Node* rhs) {
   if (lhs == rhs) return true;
   if (TypesUnrelated(lhs, rhs) || (IsFresh(lhs) && IsFresh(rhs)) ||
       (IsFresh(lhs) && IsConstant(rhs)) || (IsConstant(lhs) && IsFresh(rhs))) {
@@ -509,7 +509,7 @@ WasmLoadElimination::HalfState const* WasmLoadElimination::HalfState::KillField(
   const InnerMap& same_index_map = fields_.Get(field_index);
   InnerMap new_map(same_index_map);
   for (std::pair<Node*, FieldOrElementValue> pair : same_index_map) {
-    if (MayAlias(pair.first, object)) {
+    if (WasmMayAlias(pair.first, object)) {
       new_map.Set(pair.first, FieldOrElementValue());
     }
   }

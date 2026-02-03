@@ -20,9 +20,9 @@ using ConcurrentDescriptorArrayTest = TestWithContext;
 
 namespace internal {
 
-static constexpr int kNumHandles = kHandleBlockSize * 2 + kHandleBlockSize / 2;
+namespace concurrent_descriptor_array_test {
 
-namespace {
+static constexpr int kNumHandles = kHandleBlockSize * 2 + kHandleBlockSize / 2;
 
 class ConcurrentSearchThread final : public v8::base::Thread {
  public:
@@ -179,7 +179,7 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject_ManyElements) {
   thread->Join();
 }
 
-}  // anonymous namespace
+}  // namespace concurrent_descriptor_array_test
 
 }  // namespace internal
 }  // namespace v8

@@ -21,7 +21,7 @@ using ConcurrentTransitionArrayTest = TestWithContext;
 
 namespace internal {
 
-namespace {
+namespace concurrent_transition_array_test {
 
 // Background search thread class
 class ConcurrentSearchThread : public v8::base::Thread {
@@ -451,7 +451,7 @@ TEST_F(ConcurrentTransitionArrayTest,
   thread->Join();
 }
 
-}  // anonymous namespace
+}  // namespace concurrent_transition_array_test
 
 }  // namespace internal
 }  // namespace v8

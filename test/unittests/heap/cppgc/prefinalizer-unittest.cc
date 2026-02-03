@@ -14,8 +14,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace prefinalizer_unittest {
 
 class PrefinalizerTest : public testing::TestWithHeap {};
 
@@ -29,8 +28,6 @@ class GCed : public GarbageCollected<GCed> {
   static size_t prefinalizer_callcount;
 };
 size_t GCed::prefinalizer_callcount = 0;
-
-}  // namespace
 
 TEST_F(PrefinalizerTest, PrefinalizerCalledOnDeadObject) {
   GCed::prefinalizer_callcount = 0;
@@ -55,8 +52,6 @@ TEST_F(PrefinalizerTest, PrefinalizerNotCalledOnLiveObject) {
   EXPECT_EQ(1u, GCed::prefinalizer_callcount);
 }
 
-namespace {
-
 class Mixin : public GarbageCollectedMixin {
   CPPGC_USING_PRE_FINALIZER(Mixin, PreFinalizer);
 
@@ -68,8 +63,6 @@ class Mixin : public GarbageCollectedMixin {
 size_t Mixin::prefinalizer_callcount = 0;
 
 class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {};
-
-}  // namespace
 
 TEST_F(PrefinalizerTest, PrefinalizerCalledOnDeadMixinObject) {
   Mixin::prefinalizer_callcount = 0;
@@ -94,8 +87,6 @@ TEST_F(PrefinalizerTest, PrefinalizerNotCalledOnLiveMixinObject) {
   PreciseGC();
   EXPECT_EQ(1u, Mixin::prefinalizer_callcount);
 }
-
-namespace {
 
 class BaseMixin : public GarbageCollectedMixin {
   CPPGC_USING_PRE_FINALIZER(BaseMixin, PreFinalizer);
@@ -148,7 +139,6 @@ void GCedWithMixins::PreFinalizer() {
   EXPECT_EQ(0u, BaseMixin::prefinalizer_callcount);
   GCedWithMixins::prefinalizer_callcount = true;
 }
-}  // namespace
 
 TEST_F(PrefinalizerTest, PrefinalizerInvocationPreservesOrder) {
   BaseMixin::prefinalizer_callcount = 0;
@@ -168,8 +158,6 @@ TEST_F(PrefinalizerTest, PrefinalizerInvocationPreservesOrder) {
   EXPECT_EQ(1u, InheritingMixin::prefinalizer_callcount);
   EXPECT_EQ(1u, BaseMixin::prefinalizer_callcount);
 }
-
-namespace {
 
 class LinkedNode final : public GarbageCollected<LinkedNode> {
  public:
@@ -213,8 +201,6 @@ class MutatingPrefinalizer final
   Member<LinkedNode> parent_node_;
 };
 
-}  // namespace
-
 TEST_F(PrefinalizerTest, PrefinalizerCanRewireGraphWithLiveObjects) {
   Persistent<LinkedNode> root{MakeGarbageCollected<LinkedNode>(
       GetAllocationHandle(),
@@ -225,8 +211,6 @@ TEST_F(PrefinalizerTest, PrefinalizerCanRewireGraphWithLiveObjects) {
   MakeGarbageCollected<MutatingPrefinalizer>(GetAllocationHandle(), root.Get());
   PreciseGC();
 }
-
-namespace {
 
 class PrefinalizerDeathTest : public testing::TestWithHeap {};
 
@@ -243,8 +227,6 @@ class AllocatingPrefinalizer : public GarbageCollected<AllocatingPrefinalizer> {
  private:
   cppgc::Heap* heap_;
 };
-
-}  // namespace
 
 #ifdef CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
 TEST_F(PrefinalizerTest, PrefinalizerDoesNotFailOnAllcoation) {
@@ -263,8 +245,6 @@ TEST_F(PrefinalizerDeathTest, PrefinalizerFailsOnAllcoation) {
 }
 #endif  // DEBUG
 #endif  // CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS
-
-namespace {
 
 template <template <typename T> class RefType>
 class RessurectingPrefinalizer
@@ -288,8 +268,6 @@ class GCedHolder : public GarbageCollected<GCedHolder> {
 
   Member<GCed> member_;
 };
-
-}  // namespace
 
 #if DEBUG
 #ifdef CPPGC_VERIFY_HEAP
@@ -373,5 +351,6 @@ TEST_F(PrefinalizerTest, VirtualPrefinalizer) {
   EXPECT_LT(0u, GCedInherited::prefinalizer_count_);
 }
 
+}  // namespace prefinalizer_unittest
 }  // namespace internal
 }  // namespace cppgc

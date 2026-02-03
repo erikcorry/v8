@@ -16,11 +16,10 @@
 
 namespace cppgc {
 namespace internal {
+namespace stack_unittest {
 
 using heap::base::Stack;
 using heap::base::StackVisitor;
-
-namespace {
 
 class GCStackTest : public ::testing::Test {
  public:
@@ -31,8 +30,6 @@ class GCStackTest : public ::testing::Test {
  private:
   std::unique_ptr<Stack> stack_;
 };
-
-}  // namespace
 
 #if !V8_OS_FUCHSIA
 TEST_F(GCStackTest, IsOnStackForStackValue) {
@@ -45,8 +42,6 @@ TEST_F(GCStackTest, IsOnStackForHeapValue) {
   auto dummy = std::make_unique<int>();
   EXPECT_FALSE(GetStack()->IsOnStack(dummy.get()));
 }
-
-namespace {
 
 class StackScanner final : public StackVisitor {
  public:
@@ -70,8 +65,6 @@ class StackScanner final : public StackVisitor {
   std::unique_ptr<Container> container_;
   bool found_ = false;
 };
-
-}  // namespace
 
 TEST_F(GCStackTest, IteratePointersFindsOnStackValue) {
   auto scanner = std::make_unique<StackScanner>();
@@ -100,8 +93,6 @@ TEST_F(GCStackTest, IteratePointersFindsOnStackValuePotentiallyUnaligned) {
     EXPECT_TRUE(scanner->found());
   }
 }
-
-namespace {
 
 // Prevent inlining as that would allow the compiler to prove that the parameter
 // must not actually be materialized.
@@ -192,8 +183,6 @@ V8_NOINLINE void* RecursivelyPassOnParameter(size_t num, void* parameter,
   UNREACHABLE();
 }
 
-}  // namespace
-
 TEST_F(GCStackTest, IteratePointersFindsParameterNesting0) {
   auto scanner = std::make_unique<StackScanner>();
   void* needle = RecursivelyPassOnParameter(0, scanner->needle(), GetStack(),
@@ -269,7 +258,6 @@ TEST_F(GCStackTest, IteratePointersFindsParameterNesting8) {
 }
 #endif  // !_MSC_VER || __clang__
 
-namespace {
 // We manually call into this function from inline assembly. Therefore we need
 // to make sure that:
 // 1) there is no .plt indirection (i.e. visibility is hidden);
@@ -290,7 +278,6 @@ extern "C" V8_NOINLINE
     IteratePointersNoMangling(Stack* stack, StackVisitor* visitor) {
   stack->IteratePointersForTesting(visitor);
 }
-}  // namespace
 
 // The following tests use inline assembly and have been checked to work on
 // clang to verify that the stack-scanning trampoline pushes callee-saved
@@ -470,5 +457,6 @@ TEST_F(GCStackTest, StackAlignment) {
 }
 #endif  // V8_OS_LINUX && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 
+}  // namespace stack_unittest
 }  // namespace internal
 }  // namespace cppgc

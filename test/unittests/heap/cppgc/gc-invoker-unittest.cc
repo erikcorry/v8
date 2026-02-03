@@ -15,7 +15,7 @@
 
 namespace cppgc::internal {
 
-namespace {
+namespace gc_invoker_unittest {
 
 class MockGarbageCollector : public GarbageCollector {
  public:
@@ -77,8 +77,6 @@ class MockPlatform : public cppgc::Platform {
   std::shared_ptr<TaskRunner> runner_;
   std::unique_ptr<TracingController> tracing_controller_;
 };
-
-}  // namespace
 
 TEST(GCInvokerTest, PrecideGCIsInvokedSynchronously) {
   MockPlatform platform(nullptr);
@@ -149,5 +147,7 @@ TEST(GCInvokerTest, IncrementalGCIsStarted) {
   invoker_without_support.StartIncrementalGarbageCollection(
       GCConfig::ConservativeIncrementalConfig());
 }
+
+}  // namespace gc_invoker_unittest
 
 }  // namespace cppgc::internal

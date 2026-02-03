@@ -10,6 +10,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace sloppy_equality_test {
 
 using SloppyEqualityTest = TestWithContextAndZone;
 
@@ -137,6 +138,7 @@ TEST_F(SloppyEqualityTest, SloppyEqualityTest) {
   }
 }
 
+}  // namespace sloppy_equality_test
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

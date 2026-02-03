@@ -14,6 +14,7 @@
 
 namespace cppgc {
 namespace internal {
+namespace sanitizer_unittest {
 
 #if defined(LEAK_SANITIZER)
 
@@ -55,5 +56,6 @@ TEST_F(AsanTest, ObjectPoisoningInDestructor) {
 
 #endif  // V8_USE_ADDRESS_SANITIZER
 
+}  // namespace sanitizer_unittest
 }  // namespace internal
 }  // namespace cppgc

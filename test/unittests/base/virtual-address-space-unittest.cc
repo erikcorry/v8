@@ -4,6 +4,7 @@
 
 #include "src/base/virtual-address-space.h"
 
+#include "include/v8-internal.h"
 #include "src/base/emulated-virtual-address-subspace.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -14,8 +15,8 @@
 namespace v8 {
 namespace base {
 
-constexpr size_t KB = 1024;
-constexpr size_t MB = KB * 1024;
+using v8::internal::KB;
+using v8::internal::MB;
 
 void TestRandomPageAddressGeneration(v8::VirtualAddressSpace* space) {
   space->SetRandomSeed(GTEST_FLAG_GET(random_seed));

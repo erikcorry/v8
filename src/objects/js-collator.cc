@@ -26,6 +26,7 @@ namespace v8 {
 namespace internal {
 
 namespace {
+namespace js_collator_internal {
 
 enum class Usage {
   SORT,
@@ -54,9 +55,9 @@ Maybe<CaseFirst> GetCaseFirst(Isolate* isolate,
 }
 
 // TODO(gsathya): Consider internalizing the value strings.
-void CreateDataPropertyForOptions(Isolate* isolate,
-                                  DirectHandle<JSObject> options,
-                                  DirectHandle<String> key, const char* value) {
+void CreateCollatorDataProperty(Isolate* isolate,
+                                DirectHandle<JSObject> options,
+                                DirectHandle<String> key, const char* value) {
   DCHECK_NOT_NULL(value);
   DirectHandle<String> value_str =
       isolate->factory()->NewStringFromAsciiChecked(value);
@@ -69,9 +70,9 @@ void CreateDataPropertyForOptions(Isolate* isolate,
   USE(maybe);
 }
 
-void CreateDataPropertyForOptions(Isolate* isolate,
-                                  DirectHandle<JSObject> options,
-                                  DirectHandle<String> key, bool value) {
+void CreateCollatorDataProperty(Isolate* isolate,
+                                DirectHandle<JSObject> options,
+                                DirectHandle<String> key, bool value) {
   DirectHandle<Object> value_obj = isolate->factory()->ToBoolean(value);
 
   // This is a brand new JSObject that shouldn't already have the same
@@ -82,11 +83,13 @@ void CreateDataPropertyForOptions(Isolate* isolate,
   USE(maybe);
 }
 
-}  // anonymous namespace
+}  // namespace js_collator_internal
+}  // namespace
 
 // static
 DirectHandle<JSObject> JSCollator::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSCollator> collator) {
+  using namespace js_collator_internal;
   DirectHandle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
@@ -230,27 +233,28 @@ DirectHandle<JSObject> JSCollator::ResolvedOptions(
   } else {
     // Just return from the collator for most of the cases that we can recover
     // from the collator.
-    CreateDataPropertyForOptions(
+    CreateCollatorDataProperty(
         isolate, options, isolate->factory()->locale_string(), locale.c_str());
   }
 
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->usage_string(), usage);
-  CreateDataPropertyForOptions(
+  CreateCollatorDataProperty(isolate, options,
+                             isolate->factory()->usage_string(), usage);
+  CreateCollatorDataProperty(
       isolate, options, isolate->factory()->sensitivity_string(), sensitivity);
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->ignorePunctuation_string(),
-                               ignore_punctuation);
-  CreateDataPropertyForOptions(
-      isolate, options, isolate->factory()->collation_string(), collation);
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->numeric_string(), numeric);
-  CreateDataPropertyForOptions(
+  CreateCollatorDataProperty(isolate, options,
+                             isolate->factory()->ignorePunctuation_string(),
+                             ignore_punctuation);
+  CreateCollatorDataProperty(isolate, options,
+                             isolate->factory()->collation_string(), collation);
+  CreateCollatorDataProperty(isolate, options,
+                             isolate->factory()->numeric_string(), numeric);
+  CreateCollatorDataProperty(
       isolate, options, isolate->factory()->caseFirst_string(), case_first);
   return options;
 }
 
 namespace {
+using namespace js_collator_internal;
 
 CaseFirst ToCaseFirst(const char* str) {
   if (strcmp(str, "upper") == 0) return CaseFirst::kUpper;

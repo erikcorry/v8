@@ -12,6 +12,7 @@
 
 namespace cppgc {
 namespace internal {
+namespace page_memory_unittest {
 
 TEST(MemoryRegionTest, Construct) {
   constexpr size_t kSize = 17;
@@ -22,13 +23,9 @@ TEST(MemoryRegionTest, Construct) {
   EXPECT_EQ(dummy + kSize, region.end());
 }
 
-namespace {
-
 Address AtOffset(uint8_t* base, intptr_t offset) {
   return reinterpret_cast<Address>(reinterpret_cast<intptr_t>(base) + offset);
 }
-
-}  // namespace
 
 TEST(MemoryRegionTest, ContainsAddress) {
   constexpr size_t kSize = 7;
@@ -54,11 +51,7 @@ TEST(MemoryRegionTest, ContainsMemoryRegion) {
   EXPECT_FALSE(region.Contains(not_contained_region2));
 }
 
-namespace {
-
 V8_NOINLINE uint8_t access(volatile const uint8_t& u) { return u; }
-
-}  // namespace
 
 TEST(PageBackendDeathTest, ReservationIsFreed) {
   // Full sequence as part of the death test macro as otherwise, the macro
@@ -283,5 +276,6 @@ TEST(PageBackendDeathTest, DestructingBackendDestroysPageMemory) {
   EXPECT_DEATH_IF_SUPPORTED(access(base[0]), "");
 }
 
+}  // namespace page_memory_unittest
 }  // namespace internal
 }  // namespace cppgc

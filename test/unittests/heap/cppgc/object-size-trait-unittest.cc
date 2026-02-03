@@ -12,8 +12,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace object_size_trait_unittest {
 
 class ObjectSizeTraitTest : public testing::TestWithHeap {};
 
@@ -32,8 +31,6 @@ class GCedWithMixin : public GarbageCollected<GCedWithMixin>,
                       public UnmanagedMixinWithDouble,
                       public Mixin {};
 
-}  // namespace
-
 TEST_F(ObjectSizeTraitTest, GarbageCollected) {
   auto* obj = cppgc::MakeGarbageCollected<GCed>(GetAllocationHandle());
   EXPECT_GE(subtle::ObjectSizeTrait<GCed>::GetSize(*obj), sizeof(GCed));
@@ -47,5 +44,6 @@ TEST_F(ObjectSizeTraitTest, GarbageCollectedMixin) {
             sizeof(GCedWithMixin));
 }
 
+}  // namespace object_size_trait_unittest
 }  // namespace internal
 }  // namespace cppgc

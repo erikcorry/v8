@@ -22,8 +22,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace sweeper_unittest {
 
 size_t g_destructor_callcount;
 
@@ -70,8 +69,6 @@ class SweeperTest : public testing::TestWithHeap {
 
   PageBackend* GetBackend() { return Heap::From(GetHeap())->page_backend(); }
 };
-
-}  // namespace
 
 TEST_F(SweeperTest, SweepUnmarkedNormalObject) {
   constexpr size_t kObjectSize = 8;
@@ -222,8 +219,6 @@ TEST_F(SweeperTest, CoalesceFreeListEntries) {
   EXPECT_TRUE(freelist.ContainsForTesting(coalesced_block));
 }
 
-namespace {
-
 class GCInDestructor final : public GarbageCollected<GCInDestructor> {
  public:
   explicit GCInDestructor(Heap* heap) : heap_(heap) {}
@@ -237,8 +232,6 @@ class GCInDestructor final : public GarbageCollected<GCInDestructor> {
  private:
   Heap* heap_;
 };
-
-}  // namespace
 
 TEST_F(SweeperTest, SweepDoesNotTriggerRecursiveGC) {
   auto* internal_heap = internal::Heap::From(GetHeap());
@@ -360,7 +353,6 @@ TEST_F(SweeperTest, LazySweepingNormalPages) {
   EXPECT_EQ(2u, g_destructor_callcount);
 }
 
-namespace {
 class AllocatingFinalizer : public GarbageCollected<AllocatingFinalizer> {
  public:
   static size_t destructor_callcount_;
@@ -376,7 +368,6 @@ class AllocatingFinalizer : public GarbageCollected<AllocatingFinalizer> {
   AllocationHandle& allocation_handle_;
 };
 size_t AllocatingFinalizer::destructor_callcount_ = 0;
-}  // namespace
 
 TEST_F(SweeperTest, AllocationDuringFinalizationIsNotSwept) {
   AllocatingFinalizer::destructor_callcount_ = 0;
@@ -415,8 +406,6 @@ TEST_F(SweeperTest, DiscardingNormalPageMemory) {
   USE(holder);
 }
 
-namespace {
-
 class Holder final : public GarbageCollected<Holder> {
  public:
   static size_t destructor_callcount;
@@ -435,8 +424,6 @@ class Holder final : public GarbageCollected<Holder> {
 
 // static
 size_t Holder::destructor_callcount;
-
-}  // namespace
 
 TEST_F(SweeperTest, CrossThreadPersistentCanBeClearedFromOtherThread) {
   Holder::destructor_callcount = 0;
@@ -537,5 +524,6 @@ TEST_F(SweeperTest, SweepOnAllocationTakeLastFreeListEntry) {
                 &HeapObjectHeader::FromObject(allocated_after_sweeping)));
 }
 
+}  // namespace sweeper_unittest
 }  // namespace internal
 }  // namespace cppgc

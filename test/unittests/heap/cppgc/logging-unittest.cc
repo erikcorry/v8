@@ -13,7 +13,8 @@
 namespace cppgc {
 namespace internal {
 
-namespace {
+namespace logging_unittest {
+
 // GCC < 9 has a bug due to which calling non-constexpr functions are not
 // allowed even on constexpr path:
 // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67026.
@@ -24,7 +25,6 @@ constexpr int CheckInConstexpr(int a) {
   return a;
 }
 #endif
-}  // namespace
 
 TEST(LoggingTest, Pass) {
   CPPGC_DCHECK(true);
@@ -70,6 +70,8 @@ TEST(LoggingTest, SourceLocation) {
 }
 
 #endif  // DEBUG
+
+}  // namespace logging_unittest
 
 }  // namespace internal
 }  // namespace cppgc

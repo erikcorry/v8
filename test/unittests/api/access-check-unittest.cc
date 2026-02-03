@@ -119,25 +119,9 @@ class AccessCheckTest : public TestWithIsolate {
 
 namespace {
 
-inline v8::Local<v8::String> v8_str(const char* x) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
-}
-
-inline v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* x) {
-  return v8::String::NewFromUtf8(isolate, x).ToLocalChecked();
-}
-
 bool AccessCheck(Local<Context> accessing_context,
                  Local<Object> accessed_object, Local<Value> data) {
   return false;
-}
-
-MaybeLocal<Value> CompileRun(Isolate* isolate, const char* source) {
-  Local<String> source_string = v8_str(isolate, source);
-  Local<Context> context = isolate->GetCurrentContext();
-  Local<Script> script =
-      Script::Compile(context, source_string).ToLocalChecked();
-  return script->Run(context);
 }
 
 }  // namespace
@@ -178,8 +162,7 @@ TEST_F(AccessCheckTest, GetOwnPropertyDescriptor) {
                       "} catch(e) {"
                       "  m = e.message;"
                       "};"
-                      "m")
-               .ToLocalChecked();
+                      "m");
   EXPECT_TRUE(no_access_str->Equals(accessing_context, result).FromJust());
 
   result = CompileRun(isolate(),
@@ -190,8 +173,7 @@ TEST_F(AccessCheckTest, GetOwnPropertyDescriptor) {
                       "} catch(e) {"
                       "  m = e.message;"
                       "};"
-                      "m")
-               .ToLocalChecked();
+                      "m");
   EXPECT_TRUE(no_access_str->Equals(accessing_context, result).FromJust());
 }
 
@@ -200,7 +182,7 @@ class AccessRegressionTest : public AccessCheckTest {
   i::DirectHandle<i::JSFunction> RetrieveFunctionFrom(Local<Context> context,
                                                       const char* script) {
     Context::Scope context_scope(context);
-    Local<Value> getter = CompileRun(isolate(), script).ToLocalChecked();
+    Local<Value> getter = CompileRun(isolate(), script);
     EXPECT_TRUE(getter->IsFunction());
 
     i::DirectHandle<i::JSReceiver> r =

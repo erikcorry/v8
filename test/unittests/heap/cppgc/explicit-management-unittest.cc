@@ -16,6 +16,7 @@
 
 namespace cppgc {
 namespace internal {
+namespace explicit_management_unittest {
 
 class ExplicitManagementTest : public testing::TestWithHeap {
  public:
@@ -37,14 +38,10 @@ class ExplicitManagementTest : public testing::TestWithHeap {
   }
 };
 
-namespace {
-
 class DynamicallySized final : public GarbageCollected<DynamicallySized> {
  public:
   void Trace(Visitor*) const {}
 };
-
-}  // namespace
 
 TEST_F(ExplicitManagementTest, FreeRegularObjectToLAB) {
   auto* o =
@@ -204,5 +201,6 @@ TEST_F(ExplicitManagementTest, ResizeBailsOutDuringGC) {
   heap.SetInAtomicPauseForTesting(false);
 }
 
+}  // namespace explicit_management_unittest
 }  // namespace internal
 }  // namespace cppgc

@@ -10,8 +10,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace finalizer_trait_unittest {
 
 // Trivially destructible types.
 class TypeWithoutDestructor final {};
@@ -83,8 +82,6 @@ void ExpectFinalizerIsInvoked(Type* object) {
   operator delete(object);
 }
 
-}  // namespace
-
 TEST(FinalizerTrait, TypeWithoutDestructorHasNoFinalizer) {
   static_assert(std::is_trivially_destructible_v<TypeWithoutDestructor>,
                 "trivially destructible");
@@ -116,5 +113,6 @@ TEST(FinalizerTrait, FinalizerForCustomFinalizationMethodInBase) {
   ExpectFinalizerIsInvoked(base);
 }
 
+}  // namespace finalizer_trait_unittest
 }  // namespace internal
 }  // namespace cppgc

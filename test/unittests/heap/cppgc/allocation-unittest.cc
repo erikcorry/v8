@@ -13,7 +13,7 @@
 namespace cppgc {
 namespace internal {
 
-namespace {
+namespace allocation_unittest {
 
 class CppgcAllocationTest : public testing::TestWithHeap {};
 
@@ -36,8 +36,6 @@ class HeapAllocatedArray final : public GarbageCollected<HeapAllocatedArray> {
   static const int kArraySize = 1000;
   int8_t array_[kArraySize];
 };
-
-}  // namespace
 
 TEST_F(CppgcAllocationTest, MakeGarbageCollectedPreservesPayload) {
   // Allocate an object in the heap.
@@ -72,7 +70,6 @@ TEST_F(CppgcAllocationTest, ReuseMemoryFromFreelist) {
   EXPECT_TRUE(reused_memory_found);
 }
 
-namespace {
 class CallbackInCtor final : public GarbageCollected<CallbackInCtor> {
  public:
   template <typename Callback>
@@ -82,7 +79,6 @@ class CallbackInCtor final : public GarbageCollected<CallbackInCtor> {
 
   void Trace(Visitor*) const {}
 };
-}  // namespace
 
 TEST_F(CppgcAllocationTest,
        ConservativeGCDuringAllocationDoesNotReclaimObject) {
@@ -97,7 +93,6 @@ TEST_F(CppgcAllocationTest,
 // reclamation.
 #if defined(CPPGC_CAGED_HEAP)
 
-namespace {
 class LargeObjectCheckingPayloadForZeroMemory final
     : public GarbageCollected<LargeObjectCheckingPayloadForZeroMemory> {
  public:
@@ -115,7 +110,6 @@ class LargeObjectCheckingPayloadForZeroMemory final
   char data[kDataSize];
 };
 size_t LargeObjectCheckingPayloadForZeroMemory::destructor_calls = 0u;
-}  // namespace
 
 TEST_F(CppgcAllocationTest, LargePagesAreZeroedOut) {
   LargeObjectCheckingPayloadForZeroMemory::destructor_calls = 0u;
@@ -136,8 +130,6 @@ TEST_F(CppgcAllocationTest, LargePagesAreZeroedOut) {
 }
 
 #endif  // defined(CPPGC_CAGED_HEAP)
-
-namespace {
 
 constexpr size_t kDoubleWord = 2 * sizeof(void*);
 constexpr size_t kWord = sizeof(void*);
@@ -171,8 +163,6 @@ class alignas(kDoubleWord) AlignedCustomPadding final
   char base_size[128];  // Gets allocated in using RegularSpaceType::kNormal4.
   char padding[Size];
 };
-
-}  // namespace
 
 TEST_F(CppgcAllocationTest, DoubleWordAlignedAllocation) {
   static constexpr size_t kAlignmentMask = kDoubleWord - 1;
@@ -244,6 +234,8 @@ TEST_F(CppgcAllocationTest, AlignToDoubleWordFromAligned) {
               reinterpret_cast<uintptr_t>(aligned_object));
   }
 }
+
+}  // namespace allocation_unittest
 
 }  // namespace internal
 }  // namespace cppgc

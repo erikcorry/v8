@@ -853,7 +853,7 @@ void MinorMarkSweepCollector::TraceFragmentation() {
                free_bytes_of_class[3]);
 }
 
-namespace {
+namespace minor_mark_sweep_internal {
 
 // NewSpacePages with more live bytes than this threshold qualify for fast
 // evacuation.
@@ -891,7 +891,7 @@ bool ShouldMovePage(NormalPage* p, intptr_t live_bytes, intptr_t wasted_bytes) {
   return should_move_page;
 }
 
-}  // namespace
+}  // namespace minor_mark_sweep_internal
 
 void MinorMarkSweepCollector::EvacuateExternalPointerReferences(
     MutablePage* p) {
@@ -920,6 +920,7 @@ void MinorMarkSweepCollector::EvacuateExternalPointerReferences(
 }
 
 bool MinorMarkSweepCollector::StartSweepNewSpace() {
+  using namespace minor_mark_sweep_internal;
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_SWEEP_NEW);
   PagedSpaceForNewSpace* paged_space = heap_->paged_new_space()->paged_space();
   paged_space->ClearAllocatorState();

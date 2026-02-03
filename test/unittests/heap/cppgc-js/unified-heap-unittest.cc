@@ -31,7 +31,7 @@
 
 namespace v8::internal {
 
-namespace {
+namespace unified_heap_test {
 
 class Wrappable final : public cppgc::GarbageCollected<Wrappable> {
  public:
@@ -54,8 +54,6 @@ class Wrappable final : public cppgc::GarbageCollected<Wrappable> {
 size_t Wrappable::destructor_callcount = 0;
 
 using UnifiedHeapDetachedTest = TestWithHeapInternals;
-
-}  // namespace
 
 TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
@@ -99,12 +97,10 @@ TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
 }
 
 #if DEBUG
-namespace {
 class Unreferenced : public cppgc::GarbageCollected<Unreferenced> {
  public:
   void Trace(cppgc::Visitor*) const {}
 };
-}  // namespace
 
 TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
   auto* unreferenced = cppgc::MakeGarbageCollected<Unreferenced>(
@@ -224,6 +220,7 @@ TEST_F(UnifiedHeapDetachedTest, StandaloneTestingHeap) {
   heap.FinalizeGarbageCollection(cppgc::EmbedderStackState::kNoHeapPointers);
 }
 
+}  // namespace unified_heap_test
 }  // namespace v8::internal
 
 namespace cppgc {
@@ -239,7 +236,7 @@ constexpr size_t CustomSpaceForTest::kSpaceIndex;
 
 namespace v8::internal {
 
-namespace {
+namespace unified_heap_test {
 
 class StatisticsReceiver final : public CustomSpaceStatisticsReceiver {
  public:
@@ -277,12 +274,12 @@ class GCed final : public cppgc::GarbageCollected<GCed> {
   char data_[KB];
 };
 
-}  // namespace
+}  // namespace unified_heap_test
 }  // namespace v8::internal
 
 namespace cppgc {
 template <>
-struct SpaceTrait<v8::internal::GCed> {
+struct SpaceTrait<v8::internal::unified_heap_test::GCed> {
   using Space = CustomSpaceForTest;
 };
 
@@ -290,7 +287,7 @@ struct SpaceTrait<v8::internal::GCed> {
 
 namespace v8::internal {
 
-namespace {
+namespace unified_heap_test {
 
 template <typename TMixin>
 class WithCppHeapWithCustomSpace : public TMixin {
@@ -317,7 +314,6 @@ using UnifiedHeapWithCustomSpaceTest = WithUnifiedHeap<  //
                         WithCppHeapWithCustomSpace<      //
                             WithDefaultPlatformMixin<    //
                                 ::testing::Test>>>>>>>>;
-}  // namespace
 
 TEST_F(UnifiedHeapWithCustomSpaceTest, CollectCustomSpaceStatisticsAtLastGC) {
   StatisticsReceiver::num_calls_ = 0;
@@ -371,8 +367,6 @@ TEST_F(UnifiedHeapWithCustomSpaceTest, CollectCustomSpaceStatisticsAtLastGC) {
   EXPECT_EQ(4u, StatisticsReceiver::num_calls_);
 }
 
-namespace {
-
 class InConstructionObjectReferringToGlobalHandle final
     : public cppgc::GarbageCollected<
           InConstructionObjectReferringToGlobalHandle> {
@@ -392,8 +386,6 @@ class InConstructionObjectReferringToGlobalHandle final
   TracedReference<v8::Object> wrapper_;
 };
 
-}  // namespace
-
 TEST_F(UnifiedHeapTest, InConstructionObjectReferringToGlobalHandle) {
   v8::HandleScope handle_scope(v8_isolate());
   {
@@ -409,8 +401,6 @@ TEST_F(UnifiedHeapTest, InConstructionObjectReferringToGlobalHandle) {
   }
 }
 
-namespace {
-
 class ResetReferenceInDestructorObject final
     : public cppgc::GarbageCollected<ResetReferenceInDestructorObject> {
  public:
@@ -423,8 +413,6 @@ class ResetReferenceInDestructorObject final
  private:
   TracedReference<v8::Object> wrapper_;
 };
-
-}  // namespace
 
 TEST_F(UnifiedHeapTest, ResetReferenceInDestructor) {
   v8::HandleScope handle_scope(v8_isolate());
@@ -477,8 +465,6 @@ TEST_F(UnifiedHeapTest, TracedReferenceOnStack) {
   InvokeMajorGC();
   EXPECT_FALSE(observer.IsEmpty());
 }
-
-namespace {
 
 enum class Operation {
   kCopy,
@@ -655,8 +641,6 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
   EXPECT_TRUE(observer.IsEmpty());
 }
 
-}  // namespace
-
 TEST_F(UnifiedHeapTest, TracedReferenceMove) {
   ManualGCScope manual_gc(i_isolate());
   StackToHeapTest(v8_isolate(), Operation::kMove,
@@ -743,7 +727,6 @@ TEST_F(UnifiedHeapTest, TracedReferenceHandlesDoNotLeak) {
   EXPECT_EQ(initial_count, final_count + 1);
 }
 
-namespace {
 class Wrappable2 final : public cppgc::GarbageCollected<Wrappable2> {
  public:
   static size_t destructor_call_count;
@@ -752,9 +735,7 @@ class Wrappable2 final : public cppgc::GarbageCollected<Wrappable2> {
 };
 
 size_t Wrappable2::destructor_call_count = 0;
-}  // namespace
 
-namespace {
 class WrappedData final : public cppgc::GarbageCollected<WrappedData> {
  public:
   WrappedData(v8::Isolate* isolate, v8::Local<v8::Private> data) {
@@ -770,7 +751,6 @@ class WrappedData final : public cppgc::GarbageCollected<WrappedData> {
  private:
   TracedReference<v8::Private> data_;
 };
-}  // namespace
 
 TEST_F(UnifiedHeapTest, WrapperWithTracedReferenceData) {
   v8::Isolate* isolate = v8_isolate();
@@ -862,7 +842,6 @@ TEST_F(UnifiedHeapTestWithRandomGCInterval, AllocationTimeout) {
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-namespace {
 using UnifiedHeapMinimalTest = WithIsolateMixin<  //
     WithCppHeap<                                  //
         WithDefaultPlatformMixin<                 //
@@ -895,7 +874,6 @@ class ThreadUsingV8Locker final : public v8::base::Thread {
   CppHeap* heap_;
   cppgc::Persistent<Wrappable>& holder_;
 };
-}  // anonymous namespace
 
 TEST_F(UnifiedHeapMinimalTest, UsingV8Locker) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
@@ -923,7 +901,6 @@ TEST_F(UnifiedHeapMinimalTest, UsingV8Locker) {
   }
 }
 
-namespace {
 class WrappedWithConservativeGCInCtor final
     : public cppgc::GarbageCollected<WrappedWithConservativeGCInCtor> {
  public:
@@ -949,7 +926,6 @@ class WrappedWithConservativeGCInCtor final
  private:
   TracedReference<v8::Private> data_;
 };
-}  // namespace
 
 TEST_F(UnifiedHeapTest, WrappedWithConservativeGCInCtor) {
   v8::Isolate* isolate = v8_isolate();
@@ -966,4 +942,5 @@ TEST_F(UnifiedHeapTest, WrappedWithConservativeGCInCtor) {
   CHECK(name->IsString());
 }
 
+}  // namespace unified_heap_test
 }  // namespace v8::internal

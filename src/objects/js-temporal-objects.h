@@ -16,7 +16,9 @@
 #include "temporal_rs/PlainMonthDay.d.hpp"
 #include "temporal_rs/PlainTime.d.hpp"
 #include "temporal_rs/PlainYearMonth.d.hpp"
+#include "temporal_rs/RoundingMode.d.hpp"
 #include "temporal_rs/TimeZone.d.hpp"
+#include "temporal_rs/Unit.d.hpp"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -151,6 +153,10 @@ class JSTemporalDuration
   DECL_ACCESSORS_FOR_RUST_WRAPPER(duration, temporal_rs::Duration)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalDuration)
+
+ private:
+  using RoundingMode = temporal_rs::RoundingMode;
+  using Unit = temporal_rs::Unit;
 };
 
 class JSTemporalInstant
@@ -241,6 +247,10 @@ class JSTemporalInstant
   DECL_PRINTER(JSTemporalInstant)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalInstant)
+
+ private:
+  using RoundingMode = temporal_rs::RoundingMode;
+  using Unit = temporal_rs::Unit;
 };
 
 class JSTemporalPlainDate
@@ -351,6 +361,10 @@ class JSTemporalPlainDate
   DECL_ACCESSORS_FOR_RUST_WRAPPER(date, temporal_rs::PlainDate)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDate)
+
+ private:
+  using RoundingMode = temporal_rs::RoundingMode;
+  using Unit = temporal_rs::Unit;
 };
 
 class JSTemporalPlainDateTime
@@ -472,6 +486,10 @@ class JSTemporalPlainDateTime
   static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(date_time, temporal_rs::PlainDateTime)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainDateTime)
+
+ private:
+  using RoundingMode = temporal_rs::RoundingMode;
+  using Unit = temporal_rs::Unit;
 };
 
 class JSTemporalPlainMonthDay
@@ -628,6 +646,10 @@ class JSTemporalPlainTime
   static constexpr bool kTypeContainsCalendar = false;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(time, temporal_rs::PlainTime)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainTime)
+
+ private:
+  using RoundingMode = temporal_rs::RoundingMode;
+  using Unit = temporal_rs::Unit;
 };
 
 class JSTemporalPlainYearMonth
@@ -716,6 +738,10 @@ class JSTemporalPlainYearMonth
   static constexpr bool kTypeContainsCalendar = true;
   DECL_ACCESSORS_FOR_RUST_WRAPPER(year_month, temporal_rs::PlainYearMonth)
   TQ_OBJECT_CONSTRUCTORS(JSTemporalPlainYearMonth)
+
+ private:
+  using RoundingMode = temporal_rs::RoundingMode;
+  using Unit = temporal_rs::Unit;
 };
 
 class JSTemporalZonedDateTime
@@ -871,6 +897,10 @@ class JSTemporalZonedDateTime
   DECL_ACCESSORS_FOR_RUST_WRAPPER(zoned_date_time, temporal_rs::ZonedDateTime)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalZonedDateTime)
+
+ private:
+  using RoundingMode = temporal_rs::RoundingMode;
+  using Unit = temporal_rs::Unit;
 };
 
 // #sec-temporal.now.timezoneid

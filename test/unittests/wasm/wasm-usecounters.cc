@@ -52,7 +52,7 @@ class WasmUseCounterTest
   void CheckUseCounters(
       std::initializer_list<std::pair<const UC, int>> use_counters) {
     EXPECT_THAT(GetUseCounterMap(),
-                testing::UnorderedElementsAreArray(use_counters));
+                ::testing::UnorderedElementsAreArray(use_counters));
   }
 
   WasmModuleBuilder& builder() { return builder_; }

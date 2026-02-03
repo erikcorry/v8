@@ -14,7 +14,7 @@
 namespace cppgc {
 namespace internal {
 
-namespace {
+namespace cross_thread_persistent_unittest {
 
 struct GCed final : GarbageCollected<GCed> {
   static size_t destructor_call_count;
@@ -37,8 +37,6 @@ class Runner final : public v8::base::Thread {
  private:
   std::function<void()> callback_;
 };
-
-}  // namespace
 
 class CrossThreadPersistentTest : public testing::TestWithHeap {};
 
@@ -96,6 +94,8 @@ TEST_F(CrossThreadPersistentTest, DestroyRacingWithGC) {
   runner.Join();
   EXPECT_FALSE(holder);
 }
+
+}  // namespace cross_thread_persistent_unittest
 
 }  // namespace internal
 }  // namespace cppgc
