@@ -1447,8 +1447,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
         // large-object space which doesn't free memory on shrinking the list.
         // Hence we try to estimate the final size for holey backing stores more
         // precisely here.
-        initial_list_length =
-            Subclass::NumberOfElementsImpl(isolate, *object, *backing_store);
+        initial_list_length = static_cast<uint32_t>(
+            Subclass::NumberOfElementsImpl(isolate, *object, *backing_store));
         initial_list_length += nof_property_keys;
       }
       DCHECK_LE(initial_list_length, std::numeric_limits<int>::max());
