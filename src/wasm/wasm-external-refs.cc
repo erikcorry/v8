@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -1225,3 +1226,5 @@ Address load_old_fp(Isolate* isolate) {
 
 #undef V8_WITH_SANITIZER
 #undef RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS
+
+#endif  // V8_CLUSTER_BUILD

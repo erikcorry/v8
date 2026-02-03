@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/debug/debug-scope-iterator.h"
 
 #include "src/api/api-inl.h"
@@ -123,3 +124,5 @@ bool DebugScopeIterator::SetVariableValue(v8::Local<v8::String> name,
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

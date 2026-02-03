@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 
 #include "src/base/logging.h"
@@ -31,3 +32,5 @@ void UnifiedHeapMarkingState::Update(
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

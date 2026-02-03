@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/common/globals.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -92,3 +93,5 @@ RUNTIME_FUNCTION(Runtime_IsSmi) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

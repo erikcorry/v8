@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/init/isolate-group.h"
 
 #include <memory>
@@ -685,3 +686,5 @@ IsolateGroup::optimizing_compile_task_executor() {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

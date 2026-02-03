@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/execution/arguments-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/numbers/conversions.h"
@@ -613,3 +614,5 @@ RUNTIME_FUNCTION(Runtime_StringToWellFormed) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

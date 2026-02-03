@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/compiler/turboshaft/graph-visualizer.h"
 
 #include "src/base/small-vector.h"
@@ -148,3 +149,5 @@ void PrintTurboshaftCustomDataPerBlock(
 }
 
 }  // namespace v8::internal::compiler::turboshaft
+
+#endif  // V8_CLUSTER_BUILD

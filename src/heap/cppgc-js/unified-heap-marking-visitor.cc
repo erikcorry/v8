@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
 
 #include "src/heap/cppgc-js/unified-heap-marking-state-inl.h"
@@ -156,3 +157,5 @@ bool ConcurrentUnifiedHeapMarkingVisitor::DeferTraceToMutatorThreadIfConcurrent(
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

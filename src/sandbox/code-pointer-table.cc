@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/sandbox/code-pointer-table.h"
 
 #include "src/common/code-memory-access-inl.h"
@@ -24,3 +25,5 @@ uint32_t CodePointerTable::Sweep(Space* space, Counters* counters) {
 }  // namespace v8
 
 #endif  // V8_COMPRESS_POINTERS
+
+#endif  // V8_CLUSTER_BUILD

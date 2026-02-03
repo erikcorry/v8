@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/objects/debug-objects.h"
 
 #include "src/base/platform/mutex.h"
@@ -427,3 +428,5 @@ Tagged<StackFrameInfo> StackTraceInfo::get(int index) const {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

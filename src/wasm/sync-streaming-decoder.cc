@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/execution/isolate.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
@@ -163,3 +164,5 @@ std::unique_ptr<StreamingDecoder> StreamingDecoder::CreateSyncStreamingDecoder(
 }
 
 }  // namespace v8::internal::wasm
+
+#endif  // V8_CLUSTER_BUILD

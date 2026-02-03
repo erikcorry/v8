@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/execution/microtask-queue.h"
 
 #include <algorithm>
@@ -323,3 +324,5 @@ void MicrotaskQueue::ResizeBuffer(intptr_t new_capacity) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

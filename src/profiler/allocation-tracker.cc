@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/profiler/allocation-tracker.h"
 
 #include "src/api/api-inl.h"
@@ -318,3 +319,5 @@ unsigned AllocationTracker::functionInfoIndexForVMState(StateTag state) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

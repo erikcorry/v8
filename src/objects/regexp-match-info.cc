@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include <optional>
 
 #include "src/objects/regexp-match-info-inl.h"
@@ -43,3 +44,5 @@ DirectHandle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
 }
 
 }  // namespace v8::internal
+
+#endif  // V8_CLUSTER_BUILD

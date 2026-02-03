@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/compiler/turboshaft/loop-finder.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -111,3 +112,5 @@ ZoneSet<const Block*, LoopFinder::BlockCmp> LoopFinder::GetLoopBody(
 }
 
 }  // namespace v8::internal::compiler::turboshaft
+
+#endif  // V8_CLUSTER_BUILD

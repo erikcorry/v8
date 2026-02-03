@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/ast/ast.h"
 
 #include <cmath>  // For isfinite.
@@ -1151,3 +1152,5 @@ Literal* AstNodeFactory::NewNumberLiteral(double number, int pos) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

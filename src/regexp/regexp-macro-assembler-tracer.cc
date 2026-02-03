@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #ifdef V8_ENABLE_REGEXP_DIAGNOSTICS
 
 #include "src/regexp/regexp-macro-assembler-tracer.h"
@@ -636,3 +637,5 @@ DirectHandle<HeapObject> RegExpMacroAssemblerTracer::GetCode(
 }  // namespace v8
 
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
+
+#endif  // V8_CLUSTER_BUILD

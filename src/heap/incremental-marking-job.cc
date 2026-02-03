@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/heap/incremental-marking-job.h"
 
 #include <optional>
@@ -153,3 +154,5 @@ std::optional<v8::base::TimeDelta> IncrementalMarkingJob::AverageTimeToTask()
 }
 
 }  // namespace v8::internal
+
+#endif  // V8_CLUSTER_BUILD

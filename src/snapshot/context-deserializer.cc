@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/snapshot/context-deserializer.h"
 
 #include "src/api/api-inl.h"
@@ -165,3 +166,5 @@ void ContextDeserializer::DeserializeApiWrapperFields(
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

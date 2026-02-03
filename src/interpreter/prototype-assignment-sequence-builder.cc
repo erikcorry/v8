@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/interpreter/prototype-assignment-sequence-builder.h"
 
 #include "src/ast/ast.h"
@@ -68,3 +69,5 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
         Expression* expression, LocalIsolate* isolate, Handle<Script> script);
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

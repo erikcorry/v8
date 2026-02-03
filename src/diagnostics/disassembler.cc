@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/diagnostics/disassembler.h"
 
 #include <algorithm>
@@ -521,3 +522,5 @@ int Disassembler::Decode(Isolate* isolate, std::ostream& os, uint8_t* begin,
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

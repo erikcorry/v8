@@ -1,0 +1,16 @@
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Cluster build file for src/deoptimizer
+// This file includes multiple .cc files that compile in similar time
+// to improve build parallelism.
+
+#ifdef V8_CLUSTER_BUILD
+#undef V8_CLUSTER_BUILD
+
+#include "src/deoptimizer/deoptimized-frame-info.cc"     // nogncheck
+#include "src/deoptimizer/frame-translation-builder.cc"  // nogncheck
+#include "src/deoptimizer/materialized-object-store.cc"  // nogncheck
+
+#endif  // V8_CLUSTER_BUILD

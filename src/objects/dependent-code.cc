@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/objects/dependent-code.h"
 
 #include "src/base/bits.h"
@@ -246,3 +247,5 @@ LazyDeoptimizeReason DependentCode::DependencyGroupToLazyDeoptReason(
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

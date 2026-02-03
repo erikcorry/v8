@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/wasm/code-space-access.h"
 
 #include "src/common/code-memory-access-inl.h"
@@ -12,3 +13,5 @@ CodeSpaceWriteScope::CodeSpaceWriteScope()
     : rwx_write_scope_("For wasm::CodeSpaceWriteScope.") {}
 
 }  // namespace v8::internal::wasm
+
+#endif  // V8_CLUSTER_BUILD

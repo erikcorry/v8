@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/parsing/rewriter.h"
 
 #include <optional>
@@ -441,3 +442,5 @@ std::optional<VariableProxy*> Rewriter::RewriteBody(
 #undef VISIT_AND_RETURN_IF_STACK_OVERFLOW
 
 }  // namespace v8::internal
+
+#endif  // V8_CLUSTER_BUILD

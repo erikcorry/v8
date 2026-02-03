@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/interpreter/bytecode-flags-and-tokens.h"
 
 #include "src/ast/ast-value-factory.h"
@@ -108,3 +109,5 @@ bool StoreLookupSlotFlags::IsLookupHoistingMode(uint8_t flags) {
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

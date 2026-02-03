@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/common/globals.h"
 #include "src/execution/futex-emulation.h"
 #include "src/numbers/conversions-inl.h"
@@ -59,3 +60,5 @@ RUNTIME_FUNCTION(Runtime_SetAllowAtomicsWait) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 // Only including the -inl.h file directly makes the linter complain.
 #include "src/objects/swiss-name-dictionary.h"
 
@@ -355,3 +356,5 @@ constexpr int SwissNameDictionary::kGroupWidth;
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

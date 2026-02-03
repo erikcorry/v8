@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/objects/js-temporal-helpers.h"
 
 #include "src/objects/js-objects-inl.h"
@@ -308,3 +309,5 @@ Maybe<DurationRecord> ToDurationRecord(
 }
 
 }  // namespace v8::internal::temporal
+
+#endif  // V8_CLUSTER_BUILD

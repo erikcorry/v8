@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/compiler/wasm-load-elimination.h"
 
 #include "src/compiler/common-operator.h"
@@ -602,3 +603,5 @@ TFGraph* WasmLoadElimination::graph() const { return jsgraph()->graph(); }
 Isolate* WasmLoadElimination::isolate() const { return jsgraph()->isolate(); }
 
 }  // namespace v8::internal::compiler
+
+#endif  // V8_CLUSTER_BUILD

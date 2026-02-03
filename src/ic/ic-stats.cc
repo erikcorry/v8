@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/ic/ic-stats.h"
 
 #include "src/init/v8.h"
@@ -143,3 +144,5 @@ void ICInfo::AppendToTracedValue(v8::tracing::TracedValue* value) const {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

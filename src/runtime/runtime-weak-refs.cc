@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/execution/arguments-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/runtime/runtime-utils.h"
@@ -36,3 +37,5 @@ RUNTIME_FUNCTION(Runtime_JSWeakRefAddToKeptObjects) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

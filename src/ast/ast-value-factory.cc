@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/ast/ast-value-factory.h"
 
 #include "src/base/hashmap-entry.h"
@@ -417,3 +418,5 @@ const AstRawString* AstValueFactory::GetString(
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

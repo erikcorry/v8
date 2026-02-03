@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 // Parts of the implementation below:
 
 // Copyright (c) 2014 the Dart project authors.  Please see the AUTHORS file [1]
@@ -1722,3 +1723,5 @@ void MutableBigInt_RightShiftAndCanonicalize(Address result_addr,
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

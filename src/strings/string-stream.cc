@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/strings/string-stream.h"
 
 #include <memory>
@@ -478,3 +479,5 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

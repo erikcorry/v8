@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/wasm/canonical-types.h"
 
 #include "src/base/hashing.h"
@@ -562,3 +563,5 @@ bool TypeCanonicalizer::Contains(const CanonicalSig* sig) const {
 #endif
 
 }  // namespace v8::internal::wasm
+
+#endif  // V8_CLUSTER_BUILD

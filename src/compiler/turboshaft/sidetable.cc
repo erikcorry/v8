@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/compiler/turboshaft/sidetable.h"
 
 #include "src/compiler/turboshaft/graph.h"
@@ -16,3 +17,5 @@ bool OpIndexBelongsToTableGraph(const Graph* graph, OpIndex index) {
 #endif
 
 }  // namespace v8::internal::compiler::turboshaft
+
+#endif  // V8_CLUSTER_BUILD

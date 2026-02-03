@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/diagnostics/gdb-jit.h"
 
 #include <iterator>
@@ -2115,3 +2116,5 @@ size_t NumOverlapEntriesForTesting(const base::AddressRegion region) {
 
 #undef __MACH_O
 #undef __ELF
+
+#endif  // V8_CLUSTER_BUILD

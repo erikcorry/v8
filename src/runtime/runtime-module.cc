@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/execution/arguments-inl.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/source-text-module.h"
@@ -61,3 +62,5 @@ RUNTIME_FUNCTION(Runtime_GetModuleNamespaceExport) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

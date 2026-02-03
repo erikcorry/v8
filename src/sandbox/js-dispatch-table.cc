@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/sandbox/js-dispatch-table.h"
 
 #include "src/common/code-memory-access-inl.h"
@@ -66,3 +67,5 @@ void JSDispatchTable::PrintCurrentTieringRequest(JSDispatchHandle handle,
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD

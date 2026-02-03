@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_CLUSTER_BUILD
 #include "src/objects/abstract-code.h"
 
 #include "src/objects/abstract-code-inl.h"
@@ -51,3 +52,5 @@ BytecodeOffset AbstractCode::osr_offset(PtrComprCageBase cage_base) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CLUSTER_BUILD
