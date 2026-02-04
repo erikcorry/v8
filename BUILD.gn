@@ -38,7 +38,13 @@ declare_args() {
   # Dynamically set an additional dependency from v8/custom_deps.
   v8_custom_deps = ""
 
-  # Enable cluster build to combine similar-compile-time files
+  # Enable cluster build. This build mode compiles multiple .cc files in one
+  # compilation unit. These are files where the C++ compiler spends most if its
+  # time processing the same long list of .h which means they can be compiled
+  # together in almost the same time that just one of them would have taken.
+  # With this flag the *-cluster.cc files are used instead of individual .cc
+  # files.  This flag is designed to be a win for both interactive and batch
+  # compilation.
   v8_enable_cluster_build = false
 
   # Sets -DV8_ENABLE_FUTURE.
