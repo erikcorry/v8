@@ -1,0 +1,74 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/v8_target_cpu.gni")
+import("//gni/v8.gni")
+
+# Creates a v8_source_set with cluster build filtering applied to sources.
+# When cluster build is enabled, removes files that are #included by cluster
+# files. When disabled, removes the cluster files themselves.
+#
+# Arguments: Same as v8_source_set, with sources being filtered automatically.
+template("v8_cluster_source_set") {
+  assert(defined(invoker.sources), "sources must be defined")
+
+  _sources = invoker.sources
+  _cluster_files = filter_include(_sources, [ "*-cluster-*.cc" ])
+
+  if (v8_enable_cluster_build) {
+    if (_cluster_files != []) {
+      _excludes = exec_script("//tools/extract_cluster_sources.py",
+                              rebase_path(_cluster_files),
+                              "list lines",
+                              _cluster_files)
+      _filtered = _sources - _excludes
+    } else {
+      _filtered = _sources
+    }
+  } else {
+    _filtered = _sources - _cluster_files
+  }
+
+  v8_source_set(target_name) {
+    sources = _filtered
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "sources",
+                           ])
+  }
+}
+
+# Helper to filter a sources list for cluster build.
+# Call this and use the resulting filtered_sources variable.
+# Note: This only works at file scope, not inside targets.
+#
+# Arguments:
+#   input_sources: The sources list to filter
+#
+# Sets:
+#   filtered_sources: The filtered sources list
+template("cluster_filter") {
+  _sources = invoker.input_sources
+  _cluster_files = filter_include(_sources, [ "*-cluster-*.cc" ])
+
+  if (v8_enable_cluster_build) {
+    if (_cluster_files != []) {
+      _excludes = exec_script("//tools/extract_cluster_sources.py",
+                              rebase_path(_cluster_files),
+                              "list lines",
+                              _cluster_files)
+      filtered_sources = _sources - _excludes
+    } else {
+      filtered_sources = _sources
+    }
+  } else {
+    filtered_sources = _sources - _cluster_files
+  }
+
+  # Templates require creating a target
+  not_needed([ "target_name" ])
+  group(target_name) {
+  }
+}
