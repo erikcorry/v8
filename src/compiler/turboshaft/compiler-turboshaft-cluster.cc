@@ -7,7 +7,6 @@
 // to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
-#undef V8_CLUSTER_BUILD
 
 #include "src/compiler/turboshaft/debug-feature-lowering-phase.cc"
 #include "src/compiler/turboshaft/decompression-optimization-phase.cc"

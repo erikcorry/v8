@@ -7,7 +7,6 @@
 // to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
-#undef V8_CLUSTER_BUILD
 
 #include "src/deoptimizer/deoptimized-frame-info.cc"
 #include "src/deoptimizer/frame-translation-builder.cc"

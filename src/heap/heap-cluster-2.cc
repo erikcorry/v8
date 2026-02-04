@@ -7,7 +7,6 @@
 // to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
-#undef V8_CLUSTER_BUILD
 
 #include "src/heap/heap-controller.cc"
 #include "src/heap/heap-layout-tracer.cc"

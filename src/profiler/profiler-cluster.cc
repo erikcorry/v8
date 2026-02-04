@@ -7,7 +7,6 @@
 // to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
-#undef V8_CLUSTER_BUILD
 
 #include "src/profiler/allocation-tracker.cc"
 #include "src/profiler/strings-storage.cc"

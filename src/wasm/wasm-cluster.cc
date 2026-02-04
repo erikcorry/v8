@@ -7,7 +7,6 @@
 // to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
-#undef V8_CLUSTER_BUILD
 
 #include "src/wasm/canonical-types.cc"
 #include "src/wasm/code-space-access.cc"

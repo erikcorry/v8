@@ -7,7 +7,6 @@
 // to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
-#undef V8_CLUSTER_BUILD
 
 #include "src/builtins/builtins-reflect.cc"
 #include "src/builtins/builtins-regexp.cc"

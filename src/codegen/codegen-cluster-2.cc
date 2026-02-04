@@ -7,7 +7,6 @@
 // to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
-#undef V8_CLUSTER_BUILD
 
 #include "src/codegen/jump-table-info.cc"
 #include "src/codegen/macro-assembler-base.cc"

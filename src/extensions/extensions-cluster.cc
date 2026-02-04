@@ -7,7 +7,6 @@
 // to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
-#undef V8_CLUSTER_BUILD
 
 #include "src/extensions/externalize-string-extension.cc"
 #include "src/extensions/ignition-statistics-extension.cc"

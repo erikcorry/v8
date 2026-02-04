@@ -7,7 +7,6 @@
 // to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
-#undef V8_CLUSTER_BUILD
 
 #include "src/interpreter/bytecode-array-iterator.cc"
 #include "src/interpreter/bytecode-array-random-iterator.cc"
