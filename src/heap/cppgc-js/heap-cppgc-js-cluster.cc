@@ -9,9 +9,9 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/heap/cppgc-js/cross-heap-remembered-set.cc"      // nogncheck
-#include "src/heap/cppgc-js/unified-heap-marking-state.cc"     // nogncheck
-#include "src/heap/cppgc-js/unified-heap-marking-verifier.cc"  // nogncheck
-#include "src/heap/cppgc-js/unified-heap-marking-visitor.cc"   // nogncheck
+#include "src/heap/cppgc-js/cross-heap-remembered-set.cc"
+#include "src/heap/cppgc-js/unified-heap-marking-state.cc"
+#include "src/heap/cppgc-js/unified-heap-marking-verifier.cc"
+#include "src/heap/cppgc-js/unified-heap-marking-visitor.cc"
 
 #endif  // V8_CLUSTER_BUILD

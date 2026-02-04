@@ -9,15 +9,15 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/runtime/runtime-numbers.cc"       // nogncheck
-#include "src/runtime/runtime-operators.cc"     // nogncheck
-#include "src/runtime/runtime-promise.cc"       // nogncheck
-#include "src/runtime/runtime-proxy.cc"         // nogncheck
-#include "src/runtime/runtime-shadow-realm.cc"  // nogncheck
-#include "src/runtime/runtime-strings.cc"       // nogncheck
-#include "src/runtime/runtime-symbol.cc"        // nogncheck
-#include "src/runtime/runtime-trace.cc"         // nogncheck
-#include "src/runtime/runtime-weak-refs.cc"     // nogncheck
-#include "src/runtime/runtime.cc"               // nogncheck
+#include "src/runtime/runtime-numbers.cc"
+#include "src/runtime/runtime-operators.cc"
+#include "src/runtime/runtime-promise.cc"
+#include "src/runtime/runtime-proxy.cc"
+#include "src/runtime/runtime-shadow-realm.cc"
+#include "src/runtime/runtime-strings.cc"
+#include "src/runtime/runtime-symbol.cc"
+#include "src/runtime/runtime-trace.cc"
+#include "src/runtime/runtime-weak-refs.cc"
+#include "src/runtime/runtime.cc"
 
 #endif  // V8_CLUSTER_BUILD

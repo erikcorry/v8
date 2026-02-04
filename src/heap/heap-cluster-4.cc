@@ -9,15 +9,15 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/heap/paged-spaces.cc"                    // nogncheck
-#include "src/heap/pretenuring-handler.cc"             // nogncheck
-#include "src/heap/read-only-heap.cc"                  // nogncheck
-#include "src/heap/read-only-spaces.cc"                // nogncheck
-#include "src/heap/safepoint.cc"                       // nogncheck
-#include "src/heap/spaces.cc"                          // nogncheck
-#include "src/heap/stress-scavenge-observer.cc"        // nogncheck
-#include "src/heap/traced-handles-marking-visitor.cc"  // nogncheck
-#include "src/heap/trusted-range.cc"                   // nogncheck
-#include "src/heap/zapping.cc"                         // nogncheck
+#include "src/heap/paged-spaces.cc"
+#include "src/heap/pretenuring-handler.cc"
+#include "src/heap/read-only-heap.cc"
+#include "src/heap/read-only-spaces.cc"
+#include "src/heap/safepoint.cc"
+#include "src/heap/spaces.cc"
+#include "src/heap/stress-scavenge-observer.cc"
+#include "src/heap/traced-handles-marking-visitor.cc"
+#include "src/heap/trusted-range.cc"
+#include "src/heap/zapping.cc"
 
 #endif  // V8_CLUSTER_BUILD

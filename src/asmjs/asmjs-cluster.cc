@@ -9,7 +9,7 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/asmjs/asm-js.cc"      // nogncheck
-#include "src/asmjs/asm-parser.cc"  // nogncheck
+#include "src/asmjs/asm-js.cc"
+#include "src/asmjs/asm-parser.cc"
 
 #endif  // V8_CLUSTER_BUILD

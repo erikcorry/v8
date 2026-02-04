@@ -9,9 +9,9 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/ic/call-optimization.cc"      // nogncheck
-#include "src/ic/handler-configuration.cc"  // nogncheck
-#include "src/ic/ic-stats.cc"               // nogncheck
-#include "src/ic/stub-cache.cc"             // nogncheck
+#include "src/ic/call-optimization.cc"
+#include "src/ic/handler-configuration.cc"
+#include "src/ic/ic-stats.cc"
+#include "src/ic/stub-cache.cc"
 
 #endif  // V8_CLUSTER_BUILD

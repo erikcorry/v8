@@ -9,14 +9,14 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/builtins/builtins-console.cc"           // nogncheck
-#include "src/builtins/builtins-dataview.cc"          // nogncheck
-#include "src/builtins/builtins-disposable-stack.cc"  // nogncheck
-#include "src/builtins/builtins-error.cc"             // nogncheck
-#include "src/builtins/builtins-internal.cc"          // nogncheck
-#include "src/builtins/builtins-json.cc"              // nogncheck
-#include "src/builtins/builtins-math.cc"              // nogncheck
-#include "src/builtins/builtins-number.cc"            // nogncheck
-#include "src/builtins/builtins-object.cc"            // nogncheck
+#include "src/builtins/builtins-console.cc"
+#include "src/builtins/builtins-dataview.cc"
+#include "src/builtins/builtins-disposable-stack.cc"
+#include "src/builtins/builtins-error.cc"
+#include "src/builtins/builtins-internal.cc"
+#include "src/builtins/builtins-json.cc"
+#include "src/builtins/builtins-math.cc"
+#include "src/builtins/builtins-number.cc"
+#include "src/builtins/builtins-object.cc"
 
 #endif  // V8_CLUSTER_BUILD

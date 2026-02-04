@@ -9,10 +9,10 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/debug/debug-evaluate.cc"              // nogncheck
-#include "src/debug/debug-frames.cc"                // nogncheck
-#include "src/debug/debug-property-iterator.cc"     // nogncheck
-#include "src/debug/debug-scope-iterator.cc"        // nogncheck
-#include "src/debug/debug-stack-trace-iterator.cc"  // nogncheck
+#include "src/debug/debug-evaluate.cc"
+#include "src/debug/debug-frames.cc"
+#include "src/debug/debug-property-iterator.cc"
+#include "src/debug/debug-scope-iterator.cc"
+#include "src/debug/debug-stack-trace-iterator.cc"
 
 #endif  // V8_CLUSTER_BUILD

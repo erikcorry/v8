@@ -9,7 +9,7 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/logging/counters.cc"  // nogncheck
-#include "src/logging/log-file.cc"  // nogncheck
+#include "src/logging/counters.cc"
+#include "src/logging/log-file.cc"
 
 #endif  // V8_CLUSTER_BUILD

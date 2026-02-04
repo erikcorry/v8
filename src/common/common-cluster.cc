@@ -9,7 +9,7 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/common/assert-scope.cc"        // nogncheck
-#include "src/common/code-memory-access.cc"  // nogncheck
+#include "src/common/assert-scope.cc"
+#include "src/common/code-memory-access.cc"
 
 #endif  // V8_CLUSTER_BUILD

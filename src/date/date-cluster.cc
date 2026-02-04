@@ -9,7 +9,7 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/date/date.cc"        // nogncheck
-#include "src/date/dateparser.cc"  // nogncheck
+#include "src/date/date.cc"
+#include "src/date/dateparser.cc"
 
 #endif  // V8_CLUSTER_BUILD

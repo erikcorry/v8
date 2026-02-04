@@ -9,16 +9,16 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/objects/fixed-array.cc"                 // nogncheck
-#include "src/objects/instruction-stream.cc"          // nogncheck
-#include "src/objects/js-array-buffer.cc"             // nogncheck
-#include "src/objects/js-atomics-synchronization.cc"  // nogncheck
-#include "src/objects/js-disposable-stack.cc"         // nogncheck
-#include "src/objects/js-raw-json.cc"                 // nogncheck
-#include "src/objects/js-regexp.cc"                   // nogncheck
-#include "src/objects/js-segment-iterator.cc"         // nogncheck
-#include "src/objects/js-segmenter.cc"                // nogncheck
-#include "src/objects/js-segments.cc"                 // nogncheck
-#include "src/objects/js-struct.cc"                   // nogncheck
+#include "src/objects/fixed-array.cc"
+#include "src/objects/instruction-stream.cc"
+#include "src/objects/js-array-buffer.cc"
+#include "src/objects/js-atomics-synchronization.cc"
+#include "src/objects/js-disposable-stack.cc"
+#include "src/objects/js-raw-json.cc"
+#include "src/objects/js-regexp.cc"
+#include "src/objects/js-segment-iterator.cc"
+#include "src/objects/js-segmenter.cc"
+#include "src/objects/js-segments.cc"
+#include "src/objects/js-struct.cc"
 
 #endif  // V8_CLUSTER_BUILD

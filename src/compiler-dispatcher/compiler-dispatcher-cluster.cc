@@ -9,7 +9,7 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/compiler-dispatcher/lazy-compile-dispatcher.cc"  // nogncheck
-#include "src/compiler-dispatcher/optimizing-compile-dispatcher.cc"  // nogncheck
+#include "src/compiler-dispatcher/lazy-compile-dispatcher.cc"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.cc"
 
 #endif  // V8_CLUSTER_BUILD

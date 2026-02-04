@@ -9,7 +9,7 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/utils/address-map.cc"   // nogncheck
-#include "src/utils/identity-map.cc"  // nogncheck
+#include "src/utils/address-map.cc"
+#include "src/utils/identity-map.cc"
 
 #endif  // V8_CLUSTER_BUILD

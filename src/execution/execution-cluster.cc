@@ -9,12 +9,12 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/execution/embedder-state.cc"   // nogncheck
-#include "src/execution/futex-emulation.cc"  // nogncheck
-#include "src/execution/microtask-queue.cc"  // nogncheck
-#include "src/execution/protectors.cc"       // nogncheck
-#include "src/execution/stack-guard.cc"      // nogncheck
-#include "src/execution/tiering-manager.cc"  // nogncheck
-#include "src/execution/v8threads.cc"        // nogncheck
+#include "src/execution/embedder-state.cc"
+#include "src/execution/futex-emulation.cc"
+#include "src/execution/microtask-queue.cc"
+#include "src/execution/protectors.cc"
+#include "src/execution/stack-guard.cc"
+#include "src/execution/tiering-manager.cc"
+#include "src/execution/v8threads.cc"
 
 #endif  // V8_CLUSTER_BUILD

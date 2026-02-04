@@ -9,16 +9,16 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/runtime/runtime-array.cc"        // nogncheck
-#include "src/runtime/runtime-atomics.cc"      // nogncheck
-#include "src/runtime/runtime-bigint.cc"       // nogncheck
-#include "src/runtime/runtime-collections.cc"  // nogncheck
-#include "src/runtime/runtime-date.cc"         // nogncheck
-#include "src/runtime/runtime-forin.cc"        // nogncheck
-#include "src/runtime/runtime-function.cc"     // nogncheck
-#include "src/runtime/runtime-futex.cc"        // nogncheck
-#include "src/runtime/runtime-generator.cc"    // nogncheck
-#include "src/runtime/runtime-intl.cc"         // nogncheck
-#include "src/runtime/runtime-module.cc"       // nogncheck
+#include "src/runtime/runtime-array.cc"
+#include "src/runtime/runtime-atomics.cc"
+#include "src/runtime/runtime-bigint.cc"
+#include "src/runtime/runtime-collections.cc"
+#include "src/runtime/runtime-date.cc"
+#include "src/runtime/runtime-forin.cc"
+#include "src/runtime/runtime-function.cc"
+#include "src/runtime/runtime-futex.cc"
+#include "src/runtime/runtime-generator.cc"
+#include "src/runtime/runtime-intl.cc"
+#include "src/runtime/runtime-module.cc"
 
 #endif  // V8_CLUSTER_BUILD

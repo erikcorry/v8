@@ -9,9 +9,9 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/ast/ast-value-factory.cc"  // nogncheck
-#include "src/ast/ast.cc"                // nogncheck
-#include "src/ast/modules.cc"            // nogncheck
-#include "src/ast/prettyprinter.cc"      // nogncheck
+#include "src/ast/ast-value-factory.cc"
+#include "src/ast/ast.cc"
+#include "src/ast/modules.cc"
+#include "src/ast/prettyprinter.cc"
 
 #endif  // V8_CLUSTER_BUILD

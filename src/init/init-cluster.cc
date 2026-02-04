@@ -9,7 +9,7 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/init/isolate-group.cc"  // nogncheck
-#include "src/init/v8.cc"             // nogncheck
+#include "src/init/isolate-group.cc"
+#include "src/init/v8.cc"
 
 #endif  // V8_CLUSTER_BUILD

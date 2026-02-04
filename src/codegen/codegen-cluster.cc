@@ -9,11 +9,11 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/codegen/code-comments.cc"      // nogncheck
-#include "src/codegen/code-desc.cc"          // nogncheck
-#include "src/codegen/code-factory.cc"       // nogncheck
-#include "src/codegen/code-reference.cc"     // nogncheck
-#include "src/codegen/compilation-cache.cc"  // nogncheck
-#include "src/codegen/handler-table.cc"      // nogncheck
+#include "src/codegen/code-comments.cc"
+#include "src/codegen/code-desc.cc"
+#include "src/codegen/code-factory.cc"
+#include "src/codegen/code-reference.cc"
+#include "src/codegen/compilation-cache.cc"
+#include "src/codegen/handler-table.cc"
 
 #endif  // V8_CLUSTER_BUILD

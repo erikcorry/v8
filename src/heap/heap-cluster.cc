@@ -9,16 +9,16 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/heap/array-buffer-sweeper.cc"                // nogncheck
-#include "src/heap/base-page.cc"                           // nogncheck
-#include "src/heap/code-range.cc"                          // nogncheck
-#include "src/heap/code-stats.cc"                          // nogncheck
-#include "src/heap/collection-barrier.cc"                  // nogncheck
-#include "src/heap/combined-heap.cc"                       // nogncheck
-#include "src/heap/ephemeron-remembered-set.cc"            // nogncheck
-#include "src/heap/evacuation-allocator.cc"                // nogncheck
-#include "src/heap/finalization-registry-cleanup-task.cc"  // nogncheck
-#include "src/heap/free-list.cc"                           // nogncheck
-#include "src/heap/heap-allocator.cc"                      // nogncheck
+#include "src/heap/array-buffer-sweeper.cc"
+#include "src/heap/base-page.cc"
+#include "src/heap/code-range.cc"
+#include "src/heap/code-stats.cc"
+#include "src/heap/collection-barrier.cc"
+#include "src/heap/combined-heap.cc"
+#include "src/heap/ephemeron-remembered-set.cc"
+#include "src/heap/evacuation-allocator.cc"
+#include "src/heap/finalization-registry-cleanup-task.cc"
+#include "src/heap/free-list.cc"
+#include "src/heap/heap-allocator.cc"
 
 #endif  // V8_CLUSTER_BUILD

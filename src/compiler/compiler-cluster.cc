@@ -9,9 +9,9 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/compiler/csa-load-elimination.cc"   // nogncheck
-#include "src/compiler/pipeline-statistics.cc"    // nogncheck
-#include "src/compiler/simplified-operator.cc"    // nogncheck
-#include "src/compiler/wasm-load-elimination.cc"  // nogncheck
+#include "src/compiler/csa-load-elimination.cc"
+#include "src/compiler/pipeline-statistics.cc"
+#include "src/compiler/simplified-operator.cc"
+#include "src/compiler/wasm-load-elimination.cc"
 
 #endif  // V8_CLUSTER_BUILD

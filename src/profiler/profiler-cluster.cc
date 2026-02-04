@@ -9,9 +9,9 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/profiler/allocation-tracker.cc"  // nogncheck
-#include "src/profiler/strings-storage.cc"     // nogncheck
-#include "src/profiler/tick-sample.cc"         // nogncheck
-#include "src/profiler/weak-code-registry.cc"  // nogncheck
+#include "src/profiler/allocation-tracker.cc"
+#include "src/profiler/strings-storage.cc"
+#include "src/profiler/tick-sample.cc"
+#include "src/profiler/weak-code-registry.cc"
 
 #endif  // V8_CLUSTER_BUILD

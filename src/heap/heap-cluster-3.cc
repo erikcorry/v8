@@ -9,12 +9,12 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/heap/memory-balancer.cc"  // nogncheck
-#include "src/heap/memory-chunk.cc"     // nogncheck
-#include "src/heap/memory-reducer.cc"   // nogncheck
-#include "src/heap/minor-gc-job.cc"     // nogncheck
-#include "src/heap/mutable-page.cc"     // nogncheck
-#include "src/heap/new-spaces.cc"       // nogncheck
-#include "src/heap/normal-page.cc"      // nogncheck
+#include "src/heap/memory-balancer.cc"
+#include "src/heap/memory-chunk.cc"
+#include "src/heap/memory-reducer.cc"
+#include "src/heap/minor-gc-job.cc"
+#include "src/heap/mutable-page.cc"
+#include "src/heap/new-spaces.cc"
+#include "src/heap/normal-page.cc"
 
 #endif  // V8_CLUSTER_BUILD

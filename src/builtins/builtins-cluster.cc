@@ -9,14 +9,14 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/builtins/builtins-abstract-module-source.cc"   // nogncheck
-#include "src/builtins/builtins-api.cc"                      // nogncheck
-#include "src/builtins/builtins-arraybuffer.cc"              // nogncheck
-#include "src/builtins/builtins-async-disposable-stack.cc"   // nogncheck
-#include "src/builtins/builtins-async-module.cc"             // nogncheck
-#include "src/builtins/builtins-atomics-synchronization.cc"  // nogncheck
-#include "src/builtins/builtins-bigint.cc"                   // nogncheck
-#include "src/builtins/builtins-callsite.cc"                 // nogncheck
-#include "src/builtins/builtins-collections.cc"              // nogncheck
+#include "src/builtins/builtins-abstract-module-source.cc"
+#include "src/builtins/builtins-api.cc"
+#include "src/builtins/builtins-arraybuffer.cc"
+#include "src/builtins/builtins-async-disposable-stack.cc"
+#include "src/builtins/builtins-async-module.cc"
+#include "src/builtins/builtins-atomics-synchronization.cc"
+#include "src/builtins/builtins-bigint.cc"
+#include "src/builtins/builtins-callsite.cc"
+#include "src/builtins/builtins-collections.cc"
 
 #endif  // V8_CLUSTER_BUILD

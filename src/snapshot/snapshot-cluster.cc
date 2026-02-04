@@ -9,16 +9,16 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/snapshot/code-serializer.cc"           // nogncheck
-#include "src/snapshot/context-deserializer.cc"      // nogncheck
-#include "src/snapshot/object-deserializer.cc"       // nogncheck
-#include "src/snapshot/read-only-deserializer.cc"    // nogncheck
-#include "src/snapshot/read-only-serializer.cc"      // nogncheck
-#include "src/snapshot/serializer-deserializer.cc"   // nogncheck
-#include "src/snapshot/shared-heap-deserializer.cc"  // nogncheck
-#include "src/snapshot/shared-heap-serializer.cc"    // nogncheck
-#include "src/snapshot/snapshot-source-sink.cc"      // nogncheck
-#include "src/snapshot/startup-deserializer.cc"      // nogncheck
-#include "src/snapshot/startup-serializer.cc"        // nogncheck
+#include "src/snapshot/code-serializer.cc"
+#include "src/snapshot/context-deserializer.cc"
+#include "src/snapshot/object-deserializer.cc"
+#include "src/snapshot/read-only-deserializer.cc"
+#include "src/snapshot/read-only-serializer.cc"
+#include "src/snapshot/serializer-deserializer.cc"
+#include "src/snapshot/shared-heap-deserializer.cc"
+#include "src/snapshot/shared-heap-serializer.cc"
+#include "src/snapshot/snapshot-source-sink.cc"
+#include "src/snapshot/startup-deserializer.cc"
+#include "src/snapshot/startup-serializer.cc"
 
 #endif  // V8_CLUSTER_BUILD

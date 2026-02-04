@@ -9,7 +9,7 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/api/api-arguments.cc"  // nogncheck
-#include "src/api/api-natives.cc"    // nogncheck
+#include "src/api/api-arguments.cc"
+#include "src/api/api-natives.cc"
 
 #endif  // V8_CLUSTER_BUILD

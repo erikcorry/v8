@@ -9,8 +9,8 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/diagnostics/disassembler.cc"  // nogncheck
-#include "src/diagnostics/gdb-jit.cc"       // nogncheck
-#include "src/diagnostics/perf-jit.cc"      // nogncheck
+#include "src/diagnostics/disassembler.cc"
+#include "src/diagnostics/gdb-jit.cc"
+#include "src/diagnostics/perf-jit.cc"
 
 #endif  // V8_CLUSTER_BUILD

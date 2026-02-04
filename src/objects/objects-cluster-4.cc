@@ -9,14 +9,14 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/objects/string-forwarding-table.cc"  // nogncheck
-#include "src/objects/swiss-name-dictionary.cc"    // nogncheck
-#include "src/objects/symbol-table.cc"             // nogncheck
-#include "src/objects/synthetic-module.cc"         // nogncheck
-#include "src/objects/tagged-impl.cc"              // nogncheck
-#include "src/objects/template-objects.cc"         // nogncheck
-#include "src/objects/transitions.cc"              // nogncheck
-#include "src/objects/visitors.cc"                 // nogncheck
-#include "src/objects/waiter-queue-node.cc"        // nogncheck
+#include "src/objects/string-forwarding-table.cc"
+#include "src/objects/swiss-name-dictionary.cc"
+#include "src/objects/symbol-table.cc"
+#include "src/objects/synthetic-module.cc"
+#include "src/objects/tagged-impl.cc"
+#include "src/objects/template-objects.cc"
+#include "src/objects/transitions.cc"
+#include "src/objects/visitors.cc"
+#include "src/objects/waiter-queue-node.cc"
 
 #endif  // V8_CLUSTER_BUILD

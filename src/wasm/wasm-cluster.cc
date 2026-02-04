@@ -9,15 +9,15 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/wasm/canonical-types.cc"                // nogncheck
-#include "src/wasm/code-space-access.cc"              // nogncheck
-#include "src/wasm/constant-expression-interface.cc"  // nogncheck
-#include "src/wasm/jump-table-assembler.cc"           // nogncheck
-#include "src/wasm/sync-streaming-decoder.cc"         // nogncheck
-#include "src/wasm/wasm-code-pointer-table.cc"        // nogncheck
-#include "src/wasm/wasm-export-wrapper-cache.cc"      // nogncheck
-#include "src/wasm/wasm-external-refs.cc"             // nogncheck
-#include "src/wasm/wasm-features.cc"                  // nogncheck
-#include "src/wasm/wasm-result.cc"                    // nogncheck
+#include "src/wasm/canonical-types.cc"
+#include "src/wasm/code-space-access.cc"
+#include "src/wasm/constant-expression-interface.cc"
+#include "src/wasm/jump-table-assembler.cc"
+#include "src/wasm/sync-streaming-decoder.cc"
+#include "src/wasm/wasm-code-pointer-table.cc"
+#include "src/wasm/wasm-export-wrapper-cache.cc"
+#include "src/wasm/wasm-external-refs.cc"
+#include "src/wasm/wasm-features.cc"
+#include "src/wasm/wasm-result.cc"
 
 #endif  // V8_CLUSTER_BUILD

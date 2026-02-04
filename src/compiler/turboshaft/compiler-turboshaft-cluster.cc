@@ -9,16 +9,16 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/compiler/turboshaft/debug-feature-lowering-phase.cc"  // nogncheck
-#include "src/compiler/turboshaft/decompression-optimization-phase.cc"  // nogncheck
-#include "src/compiler/turboshaft/graph-visualizer.cc"  // nogncheck
-#include "src/compiler/turboshaft/graph.cc"             // nogncheck
-#include "src/compiler/turboshaft/loop-finder.cc"       // nogncheck
-#include "src/compiler/turboshaft/phase.cc"             // nogncheck
-#include "src/compiler/turboshaft/sidetable.cc"         // nogncheck
-#include "src/compiler/turboshaft/typer.cc"             // nogncheck
-#include "src/compiler/turboshaft/use-map.cc"           // nogncheck
-#include "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.cc"  // nogncheck
-#include "src/compiler/turboshaft/wasm-shuffle-reducer.cc"  // nogncheck
+#include "src/compiler/turboshaft/debug-feature-lowering-phase.cc"
+#include "src/compiler/turboshaft/decompression-optimization-phase.cc"
+#include "src/compiler/turboshaft/graph-visualizer.cc"
+#include "src/compiler/turboshaft/graph.cc"
+#include "src/compiler/turboshaft/loop-finder.cc"
+#include "src/compiler/turboshaft/phase.cc"
+#include "src/compiler/turboshaft/sidetable.cc"
+#include "src/compiler/turboshaft/typer.cc"
+#include "src/compiler/turboshaft/use-map.cc"
+#include "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.cc"
+#include "src/compiler/turboshaft/wasm-shuffle-reducer.cc"
 
 #endif  // V8_CLUSTER_BUILD

@@ -9,8 +9,8 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/strings/string-builder.cc"  // nogncheck
-#include "src/strings/string-hasher.cc"   // nogncheck
-#include "src/strings/string-stream.cc"   // nogncheck
+#include "src/strings/string-builder.cc"
+#include "src/strings/string-hasher.cc"
+#include "src/strings/string-stream.cc"
 
 #endif  // V8_CLUSTER_BUILD

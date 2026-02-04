@@ -9,11 +9,11 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/parsing/func-name-inferrer.cc"                 // nogncheck
-#include "src/parsing/parse-info.cc"                         // nogncheck
-#include "src/parsing/pending-compilation-error-handler.cc"  // nogncheck
-#include "src/parsing/rewriter.cc"                           // nogncheck
-#include "src/parsing/scanner-character-streams.cc"          // nogncheck
-#include "src/parsing/scanner.cc"                            // nogncheck
+#include "src/parsing/func-name-inferrer.cc"
+#include "src/parsing/parse-info.cc"
+#include "src/parsing/pending-compilation-error-handler.cc"
+#include "src/parsing/rewriter.cc"
+#include "src/parsing/scanner-character-streams.cc"
+#include "src/parsing/scanner.cc"
 
 #endif  // V8_CLUSTER_BUILD

@@ -9,16 +9,16 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/objects/abstract-code.cc"            // nogncheck
-#include "src/objects/bigint.cc"                   // nogncheck
-#include "src/objects/bytecode-array.cc"           // nogncheck
-#include "src/objects/code.cc"                     // nogncheck
-#include "src/objects/compilation-cache-table.cc"  // nogncheck
-#include "src/objects/debug-objects.cc"            // nogncheck
-#include "src/objects/deoptimization-data.cc"      // nogncheck
-#include "src/objects/dependent-code.cc"           // nogncheck
-#include "src/objects/elements-kind.cc"            // nogncheck
-#include "src/objects/embedder-data-array.cc"      // nogncheck
-#include "src/objects/field-type.cc"               // nogncheck
+#include "src/objects/abstract-code.cc"
+#include "src/objects/bigint.cc"
+#include "src/objects/bytecode-array.cc"
+#include "src/objects/code.cc"
+#include "src/objects/compilation-cache-table.cc"
+#include "src/objects/debug-objects.cc"
+#include "src/objects/deoptimization-data.cc"
+#include "src/objects/dependent-code.cc"
+#include "src/objects/elements-kind.cc"
+#include "src/objects/embedder-data-array.cc"
+#include "src/objects/field-type.cc"
 
 #endif  // V8_CLUSTER_BUILD

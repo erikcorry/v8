@@ -9,9 +9,9 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/sandbox/bytecode-verifier.cc"      // nogncheck
-#include "src/sandbox/code-pointer-table.cc"     // nogncheck
-#include "src/sandbox/js-dispatch-table.cc"      // nogncheck
-#include "src/sandbox/trusted-pointer-scope.cc"  // nogncheck
+#include "src/sandbox/bytecode-verifier.cc"
+#include "src/sandbox/code-pointer-table.cc"
+#include "src/sandbox/js-dispatch-table.cc"
+#include "src/sandbox/trusted-pointer-scope.cc"
 
 #endif  // V8_CLUSTER_BUILD

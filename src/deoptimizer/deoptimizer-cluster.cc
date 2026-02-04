@@ -9,8 +9,8 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/deoptimizer/deoptimized-frame-info.cc"     // nogncheck
-#include "src/deoptimizer/frame-translation-builder.cc"  // nogncheck
-#include "src/deoptimizer/materialized-object-store.cc"  // nogncheck
+#include "src/deoptimizer/deoptimized-frame-info.cc"
+#include "src/deoptimizer/frame-translation-builder.cc"
+#include "src/deoptimizer/materialized-object-store.cc"
 
 #endif  // V8_CLUSTER_BUILD
