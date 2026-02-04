@@ -32,11 +32,7 @@ template("v8_cluster_source_set") {
 
   v8_source_set(target_name) {
     sources = _filtered
-    forward_variables_from(invoker,
-                           "*",
-                           [
-                             "sources",
-                           ])
+    forward_variables_from(invoker, "*", [ "sources" ])
   }
 }
 

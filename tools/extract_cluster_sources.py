@@ -2,7 +2,6 @@
 # Copyright 2026 The V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-
 """Extracts source files included by cluster build files.
 
 This script reads cluster build files (*-cluster-*.cc) and extracts the paths
@@ -24,29 +23,29 @@ INCLUDE_RE = re.compile(r'^\s*#include\s+"(src/[^"]+\.cc)"')
 
 
 def extract_includes(cluster_file):
-    """Extracts .cc file paths from #include directives in a cluster file."""
-    includes = []
-    with open(cluster_file, 'r') as f:
-        for line in f:
-            match = INCLUDE_RE.match(line)
-            if match:
-                includes.append(match.group(1))
-    return includes
+  """Extracts .cc file paths from #include directives in a cluster file."""
+  includes = []
+  with open(cluster_file, 'r') as f:
+    for line in f:
+      match = INCLUDE_RE.match(line)
+      if match:
+        includes.append(match.group(1))
+  return includes
 
 
 def main():
-    if len(sys.argv) < 2:
-        return 0
-
-    all_includes = []
-    for cluster_file in sys.argv[1:]:
-        all_includes.extend(extract_includes(cluster_file))
-
-    for path in all_includes:
-        print(path)
-
+  if len(sys.argv) < 2:
     return 0
+
+  all_includes = []
+  for cluster_file in sys.argv[1:]:
+    all_includes.extend(extract_includes(cluster_file))
+
+  for path in all_includes:
+    print(path)
+
+  return 0
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+  sys.exit(main())
