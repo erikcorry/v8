@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 // Cluster build file for src/runtime
-// This file includes multiple .cc files that compile in similar time
-// to improve build parallelism.
+// This file includes multiple .cc files that include roughly the same .h files
+// to reduce redundant processing of large include sequences.
 
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
