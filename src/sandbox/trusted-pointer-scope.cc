@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/sandbox/trusted-pointer-scope.h"
 
 #include "src/objects/heap-object-inl.h"
@@ -71,5 +70,3 @@ DisableTrustedPointerPublishingScope::~DisableTrustedPointerPublishingScope() {
 }  // namespace v8::internal
 
 #endif  // V8_ENABLE_SANDBOX
-
-#endif  // V8_CLUSTER_BUILD

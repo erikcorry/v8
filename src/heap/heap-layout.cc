@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/marking-inl.h"
 #include "src/heap/memory-chunk.h"
@@ -62,5 +61,3 @@ bool HeapLayout::IsForwardedPointerTo(Tagged<HeapObject> src,
 }
 
 }  // namespace v8::internal
-
-#endif  // V8_CLUSTER_BUILD

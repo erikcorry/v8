@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/objects/js-atomics-synchronization.h"
 
 #include "src/base/macros.h"
@@ -514,5 +513,3 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester,
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

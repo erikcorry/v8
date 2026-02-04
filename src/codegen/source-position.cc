@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/codegen/source-position.h"
 
 #include "src/codegen/optimized-compilation-info.h"
@@ -165,5 +164,3 @@ SourcePositionInfo::SourcePositionInfo(Isolate* isolate, SourcePosition pos,
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

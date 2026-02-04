@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/compiler/turboshaft/decompression-optimization-phase.h"
 
 #include "src/compiler/turboshaft/decompression-optimization.h"
@@ -15,5 +14,3 @@ void DecompressionOptimizationPhase::Run(PipelineData* data, Zone* temp_zone) {
 }
 
 }  // namespace v8::internal::compiler::turboshaft
-
-#endif  // V8_CLUSTER_BUILD

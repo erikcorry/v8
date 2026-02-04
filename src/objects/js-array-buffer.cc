@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/objects/js-array-buffer.h"
 
 #include "src/execution/protectors-inl.h"
@@ -536,5 +535,3 @@ size_t JSTypedArray::GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

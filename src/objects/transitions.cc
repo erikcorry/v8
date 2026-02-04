@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/objects/transitions.h"
 
 #include <optional>
@@ -896,5 +895,3 @@ std::ostream& operator<<(std::ostream& os, SideStepTransition::Kind sidestep) {
 }
 
 }  // namespace v8::internal
-
-#endif  // V8_CLUSTER_BUILD

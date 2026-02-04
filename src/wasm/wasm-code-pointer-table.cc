@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/wasm/wasm-code-pointer-table.h"
 
 #include "src/sandbox/external-entity-table-inl.h"
@@ -150,5 +149,3 @@ void WasmCodePointerTable::FreeNativeFunctionHandles() {
 }
 
 }  // namespace v8::internal::wasm
-
-#endif  // V8_CLUSTER_BUILD

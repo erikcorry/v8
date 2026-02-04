@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/array-buffer-sweeper.h"
 
 #include <atomic>
@@ -578,5 +577,3 @@ size_t ArrayBufferSweeper::BytesForTesting() const {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

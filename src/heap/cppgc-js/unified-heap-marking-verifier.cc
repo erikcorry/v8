@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/cppgc-js/unified-heap-marking-verifier.h"
 
 #include <memory>
@@ -98,5 +97,3 @@ UnifiedHeapMarkingVerifier::UnifiedHeapMarkingVerifier(
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

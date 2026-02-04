@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/interpreter/handler-table-builder.h"
 
 #include "src/execution/isolate.h"
@@ -78,5 +77,3 @@ void HandlerTableBuilder::SetContextRegister(int handler_id, Register reg) {
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

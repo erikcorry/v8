@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/objects/js-weak-refs.h"
 
 #include "src/execution/execution.h"
@@ -153,5 +152,3 @@ void WeakCell::WeakCellPrint(std::ostream& os) {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

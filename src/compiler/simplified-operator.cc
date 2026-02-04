@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/compiler/simplified-operator.h"
 
 #include "include/v8-fast-api-calls.h"
@@ -2580,5 +2579,3 @@ int FastApiCallNode::SlowCallArgumentCount(Node* node) {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/heap-controller.h"
 
 #include "src/execution/isolate-inl.h"
@@ -468,5 +467,3 @@ Isolate* HeapLimits::isolate() const { return heap_->isolate(); }
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

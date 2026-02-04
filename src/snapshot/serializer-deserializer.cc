@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/snapshot/serializer-deserializer.h"
 
 #include "src/objects/embedder-data-array-inl.h"
@@ -75,5 +74,3 @@ bool SerializerDeserializer::CanBeDeferred(Tagged<HeapObject> o,
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/traced-handles-marking-visitor.h"
 
 #include <algorithm>
@@ -61,5 +60,3 @@ void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

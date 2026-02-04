@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/compiler/turboshaft/use-map.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -95,5 +94,3 @@ void UseMap::AddUse(const Graph* graph, OpIndex node, OpIndex use) {
 }
 
 }  // namespace v8::internal::compiler::turboshaft
-
-#endif  // V8_CLUSTER_BUILD

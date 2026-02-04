@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/interpreter/bytecode-label.h"
 
 #include "src/interpreter/bytecode-array-builder.h"
@@ -29,5 +28,3 @@ void BytecodeLabels::Bind(BytecodeArrayBuilder* builder) {
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

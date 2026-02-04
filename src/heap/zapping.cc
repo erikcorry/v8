@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/zapping.h"
 
 #include "src/base/memory.h"
@@ -34,5 +33,3 @@ void ZapBlock(Address start, size_t size, uintptr_t zap_value) {
 }
 
 }  // namespace v8::internal::heap
-
-#endif  // V8_CLUSTER_BUILD

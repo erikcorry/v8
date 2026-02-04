@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/finalization-registry-cleanup-task.h"
 
 #include "src/execution/frames.h"
@@ -102,5 +101,3 @@ void FinalizationRegistryCleanupTask::RunInternal() {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/code-stats.h"
 
 #include "src/codegen/reloc-info.h"
@@ -120,5 +119,3 @@ void CodeStatistics::ResetCodeStatistics(Isolate* isolate) {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

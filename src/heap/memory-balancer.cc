@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/memory-balancer.h"
 
 #include "src/heap/heap-controller.h"
@@ -114,5 +113,3 @@ void HeartbeatTask::RunInternal() { mb_->HeartbeatUpdate(); }
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

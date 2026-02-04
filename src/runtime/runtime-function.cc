@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/builtins/accessors.h"
 #include "src/execution/isolate-inl.h"
 #include "src/roots/roots-inl.h"
@@ -84,5 +83,3 @@ RUNTIME_FUNCTION(Runtime_Call) {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

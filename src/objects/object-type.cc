@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/objects/object-type.h"
 
 #include "src/objects/objects-inl.h"
@@ -88,5 +87,3 @@ Address CheckObjectType(Address raw_value, Address raw_type,
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

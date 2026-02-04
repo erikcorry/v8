@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/handles/traced-handles.h"
 
 #include <limits>
@@ -847,5 +846,3 @@ bool TracedHandles::IsValidInUseNode(const Address* location) {
 bool TracedHandles::HasYoung() const { return !young_blocks_.empty(); }
 
 }  // namespace v8::internal
-
-#endif  // V8_CLUSTER_BUILD

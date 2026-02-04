@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/snapshot/shared-heap-serializer.h"
 
 #include "src/heap/read-only-heap.h"
@@ -219,5 +218,3 @@ void SharedHeapSerializer::ReconstructSharedHeapObjectCacheForTesting() {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

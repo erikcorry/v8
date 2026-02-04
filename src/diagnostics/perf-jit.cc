@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/diagnostics/perf-jit.h"
 
 #include "src/common/assert-scope.h"
@@ -560,5 +559,3 @@ void PerfJitLogger::LogWriteHeader() {
 }  // namespace v8
 
 #endif  // V8_OS_LINUX || V8_OS_DARWIN
-
-#endif  // V8_CLUSTER_BUILD

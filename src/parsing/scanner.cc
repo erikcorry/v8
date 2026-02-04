@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 // Features shared by parsing and pre-parsing scanners.
 
 #include "src/parsing/scanner.h"
@@ -1197,5 +1196,3 @@ void Scanner::SeekNext(size_t position) {
 }
 
 }  // namespace v8::internal
-
-#endif  // V8_CLUSTER_BUILD

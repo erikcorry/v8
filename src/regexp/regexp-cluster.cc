@@ -9,9 +9,8 @@
 #ifdef V8_CLUSTER_BUILD
 #undef V8_CLUSTER_BUILD
 
-#include "src/regexp/regexp-bytecode-iterator.cc"       // nogncheck
-#include "src/regexp/regexp-macro-assembler-tracer.cc"  // nogncheck
-#include "src/regexp/regexp-macro-assembler.cc"         // nogncheck
-#include "src/regexp/regexp-utils.cc"                   // nogncheck
+#include "src/regexp/regexp-bytecode-iterator.cc"  // nogncheck
+#include "src/regexp/regexp-macro-assembler.cc"    // nogncheck
+#include "src/regexp/regexp-utils.cc"              // nogncheck
 
 #endif  // V8_CLUSTER_BUILD

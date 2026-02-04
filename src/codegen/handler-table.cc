@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/codegen/handler-table.h"
 
 #include <algorithm>
@@ -277,5 +276,3 @@ void HandlerTable::HandlerTableReturnPrint(std::ostream& os) {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

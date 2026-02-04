@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/objects/property.h"
 
 #include "src/handles/handles-inl.h"
@@ -175,5 +174,3 @@ void PropertyDetails::Print(bool dictionary_mode) {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

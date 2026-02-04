@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/objects/js-raw-json.h"
 
 #include "src/execution/isolate.h"
@@ -41,5 +40,3 @@ MaybeDirectHandle<JSRawJson> JSRawJson::Create(Isolate* isolate,
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

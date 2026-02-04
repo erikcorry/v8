@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/codegen/maglev-safepoint-table.h"
 
 #include <iomanip>
@@ -255,5 +254,3 @@ void MaglevSafepointTableBuilder::Emit(Assembler* assembler, int stack_slots) {
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

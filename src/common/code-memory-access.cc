@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/common/code-memory-access.h"
 
 #include <optional>
@@ -762,5 +761,3 @@ template void WritableFreeSpace::ClearTagged<2 * kTaggedSize>(
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

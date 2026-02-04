@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/snapshot/snapshot-source-sink.h"
 
 #include <vector>
@@ -54,5 +53,3 @@ int SnapshotByteSource::GetBlob(const uint8_t** data) {
 }
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_CLUSTER_BUILD

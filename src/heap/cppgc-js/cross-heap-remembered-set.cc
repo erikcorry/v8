@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/heap/cppgc-js/cross-heap-remembered-set.h"
 
 #include "src/api/api-inl.h"
@@ -35,5 +34,3 @@ void CrossHeapRememberedSet::Reset(Isolate& isolate) {
 }
 
 }  // namespace v8::internal
-
-#endif  // V8_CLUSTER_BUILD

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CLUSTER_BUILD
 #include "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.h"
 
 #include "src/base/logging.h"
@@ -664,5 +663,3 @@ wasm::ValueType WasmGCTypeAnalyzer::GetResolvedType(OpIndex object) const {
 #undef TRACE
 
 }  // namespace v8::internal::compiler::turboshaft
-
-#endif  // V8_CLUSTER_BUILD
