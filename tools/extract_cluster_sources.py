@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-# Copyright 2026 The V8 project authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-"""Extracts source files included by cluster build files.
+
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can
+# be found in the LICENSE file.
+"""
+Extracts source files included by cluster build files.
 
 This script reads cluster build files (*-cluster-*.cc) and extracts the paths
 of .cc files they include. The output is used by GN to exclude these files
