@@ -35,36 +35,3 @@ template("v8_cluster_source_set") {
     forward_variables_from(invoker, "*", [ "sources" ])
   }
 }
-
-# Helper to filter a sources list for cluster build.
-# Call this and use the resulting filtered_sources variable.
-# Note: This only works at file scope, not inside targets.
-#
-# Arguments:
-#   input_sources: The sources list to filter
-#
-# Sets:
-#   filtered_sources: The filtered sources list
-template("cluster_filter") {
-  _sources = invoker.input_sources
-  _cluster_files = filter_include(_sources, [ "*-cluster-*.cc" ])
-
-  if (v8_enable_cluster_build) {
-    if (_cluster_files != []) {
-      _excludes = exec_script("//tools/extract_cluster_sources.py",
-                              rebase_path(_cluster_files),
-                              "list lines",
-                              _cluster_files)
-      filtered_sources = _sources - _excludes
-    } else {
-      filtered_sources = _sources
-    }
-  } else {
-    filtered_sources = _sources - _cluster_files
-  }
-
-  # Templates require creating a target
-  not_needed([ "target_name" ])
-  group(target_name) {
-  }
-}
