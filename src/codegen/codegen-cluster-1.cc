@@ -6,13 +6,9 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/codegen/code-comments.cc"
 #include "src/codegen/code-desc.cc"
 #include "src/codegen/code-factory.cc"
 #include "src/codegen/code-reference.cc"
 #include "src/codegen/compilation-cache.cc"
 #include "src/codegen/handler-table.cc"
-
-#endif  // V8_CLUSTER_BUILD

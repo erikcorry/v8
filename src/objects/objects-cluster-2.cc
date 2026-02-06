@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/objects/fixed-array.cc"
 #include "src/objects/instruction-stream.cc"
 #include "src/objects/js-array-buffer.cc"
@@ -19,5 +17,3 @@
 #include "src/objects/js-segmenter.cc"
 #include "src/objects/js-segments.cc"
 #include "src/objects/js-struct.cc"
-
-#endif  // V8_CLUSTER_BUILD

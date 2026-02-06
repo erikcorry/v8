@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/heap/heap-controller.cc"
 #include "src/heap/heap-layout-tracer.cc"
 #include "src/heap/heap-layout.cc"
@@ -19,5 +17,3 @@
 #include "src/heap/marking-worklist.cc"
 #include "src/heap/marking.cc"
 #include "src/heap/memory-allocator.cc"
-
-#endif  // V8_CLUSTER_BUILD

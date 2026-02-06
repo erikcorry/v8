@@ -6,10 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/deoptimizer/deoptimized-frame-info.cc"
 #include "src/deoptimizer/frame-translation-builder.cc"
 #include "src/deoptimizer/materialized-object-store.cc"
-
-#endif  // V8_CLUSTER_BUILD

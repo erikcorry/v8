@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/snapshot/code-serializer.cc"
 #include "src/snapshot/context-deserializer.cc"
 #include "src/snapshot/object-deserializer.cc"
@@ -19,5 +17,3 @@
 #include "src/snapshot/snapshot-source-sink.cc"
 #include "src/snapshot/startup-deserializer.cc"
 #include "src/snapshot/startup-serializer.cc"
-
-#endif  // V8_CLUSTER_BUILD

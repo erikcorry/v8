@@ -6,10 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/regexp/regexp-bytecode-iterator.cc"
 #include "src/regexp/regexp-macro-assembler.cc"
 #include "src/regexp/regexp-utils.cc"
-
-#endif  // V8_CLUSTER_BUILD

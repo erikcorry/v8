@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/heap/array-buffer-sweeper.cc"
 #include "src/heap/base-page.cc"
 #include "src/heap/code-range.cc"
@@ -19,5 +17,3 @@
 #include "src/heap/finalization-registry-cleanup-task.cc"
 #include "src/heap/free-list.cc"
 #include "src/heap/heap-allocator.cc"
-
-#endif  // V8_CLUSTER_BUILD

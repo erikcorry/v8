@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/runtime/runtime-array.cc"
 #include "src/runtime/runtime-atomics.cc"
 #include "src/runtime/runtime-bigint.cc"
@@ -19,5 +17,3 @@
 #include "src/runtime/runtime-generator.cc"
 #include "src/runtime/runtime-intl.cc"
 #include "src/runtime/runtime-module.cc"
-
-#endif  // V8_CLUSTER_BUILD

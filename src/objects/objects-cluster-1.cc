@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/objects/abstract-code.cc"
 #include "src/objects/bigint.cc"
 #include "src/objects/bytecode-array.cc"
@@ -19,5 +17,3 @@
 #include "src/objects/elements-kind.cc"
 #include "src/objects/embedder-data-array.cc"
 #include "src/objects/field-type.cc"
-
-#endif  // V8_CLUSTER_BUILD

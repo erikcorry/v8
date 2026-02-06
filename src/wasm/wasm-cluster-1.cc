@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/wasm/canonical-types.cc"
 #include "src/wasm/code-space-access.cc"
 #include "src/wasm/constant-expression-interface.cc"
@@ -18,5 +16,3 @@
 #include "src/wasm/wasm-external-refs.cc"
 #include "src/wasm/wasm-features.cc"
 #include "src/wasm/wasm-result.cc"
-
-#endif  // V8_CLUSTER_BUILD

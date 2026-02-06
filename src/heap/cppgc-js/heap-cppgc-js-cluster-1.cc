@@ -6,11 +6,7 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/heap/cppgc-js/cross-heap-remembered-set.cc"
 #include "src/heap/cppgc-js/unified-heap-marking-state.cc"
 #include "src/heap/cppgc-js/unified-heap-marking-verifier.cc"
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.cc"
-
-#endif  // V8_CLUSTER_BUILD

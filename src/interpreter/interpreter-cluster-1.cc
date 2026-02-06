@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/interpreter/bytecode-array-iterator.cc"
 #include "src/interpreter/bytecode-array-random-iterator.cc"
 #include "src/interpreter/bytecode-array-writer.cc"
@@ -18,5 +16,3 @@
 #include "src/interpreter/control-flow-builders.cc"
 #include "src/interpreter/handler-table-builder.cc"
 #include "src/interpreter/prototype-assignment-sequence-builder.cc"
-
-#endif  // V8_CLUSTER_BUILD

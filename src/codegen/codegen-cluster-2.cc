@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/codegen/jump-table-info.cc"
 #include "src/codegen/macro-assembler-base.cc"
 #include "src/codegen/maglev-safepoint-table.cc"
@@ -15,5 +13,3 @@
 #include "src/codegen/source-position-table.cc"
 #include "src/codegen/source-position.cc"
 #include "src/codegen/unoptimized-compilation-info.cc"
-
-#endif  // V8_CLUSTER_BUILD

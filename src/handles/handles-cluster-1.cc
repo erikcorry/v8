@@ -6,12 +6,8 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/handles/handles.cc"
 #include "src/handles/local-handles.cc"
 #include "src/handles/persistent-handles.cc"
 #include "src/handles/shared-object-conveyor-handles.cc"
 #include "src/handles/traced-handles.cc"
-
-#endif  // V8_CLUSTER_BUILD

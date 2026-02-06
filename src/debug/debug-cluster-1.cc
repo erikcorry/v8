@@ -6,12 +6,8 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/debug/debug-evaluate.cc"
 #include "src/debug/debug-frames.cc"
 #include "src/debug/debug-property-iterator.cc"
 #include "src/debug/debug-scope-iterator.cc"
 #include "src/debug/debug-stack-trace-iterator.cc"
-
-#endif  // V8_CLUSTER_BUILD

@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/heap/memory-balancer.cc"
 #include "src/heap/memory-chunk.cc"
 #include "src/heap/memory-reducer.cc"
@@ -15,5 +13,3 @@
 #include "src/heap/mutable-page.cc"
 #include "src/heap/new-spaces.cc"
 #include "src/heap/normal-page.cc"
-
-#endif  // V8_CLUSTER_BUILD

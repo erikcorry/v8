@@ -6,11 +6,7 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/compiler/csa-load-elimination.cc"
 #include "src/compiler/pipeline-statistics.cc"
 #include "src/compiler/simplified-operator.cc"
 #include "src/compiler/wasm-load-elimination.cc"
-
-#endif  // V8_CLUSTER_BUILD

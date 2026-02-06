@@ -6,11 +6,7 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/ast/ast-value-factory.cc"
 #include "src/ast/ast.cc"
 #include "src/ast/modules.cc"
 #include "src/ast/prettyprinter.cc"
-
-#endif  // V8_CLUSTER_BUILD

@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/objects/string-forwarding-table.cc"
 #include "src/objects/swiss-name-dictionary.cc"
 #include "src/objects/symbol-table.cc"
@@ -17,5 +15,3 @@
 #include "src/objects/transitions.cc"
 #include "src/objects/visitors.cc"
 #include "src/objects/waiter-queue-node.cc"
-
-#endif  // V8_CLUSTER_BUILD

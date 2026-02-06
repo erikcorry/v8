@@ -22,16 +22,28 @@ import sys
 
 # Matches: #include "src/foo/bar.cc"
 INCLUDE_RE = re.compile(r'^\s*#include\s+"(src/[^"]+\.cc)"')
+# Matches blank lines, comments (// or /* style), and copyright/license headers
+BLANK_RE = re.compile(r'^\s*$')
+COMMENT_RE = re.compile(r'^\s*(//|/\*|\*|\*/)')
 
 
 def extract_includes(cluster_file):
-  """Extracts .cc file paths from #include directives in a cluster file."""
+  """Extracts .cc file paths from #include directives in a cluster file.
+
+  Also validates that the file only contains blank lines, comments, and
+  valid include directives.
+  """
   includes = []
   with open(cluster_file, 'r') as f:
-    for line in f:
-      match = INCLUDE_RE.match(line)
-      if match:
-        includes.append(match.group(1))
+    for line_num, line in enumerate(f, 1):
+      include_match = INCLUDE_RE.match(line)
+      if include_match:
+        includes.append(include_match.group(1))
+      elif not BLANK_RE.match(line) and not COMMENT_RE.match(line):
+        print(
+            f'Error: {cluster_file}:{line_num}: invalid line: {line.rstrip()}',
+            file=sys.stderr)
+        sys.exit(1)
   return includes
 
 

@@ -6,9 +6,5 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/common/assert-scope.cc"
 #include "src/common/code-memory-access.cc"
-
-#endif  // V8_CLUSTER_BUILD

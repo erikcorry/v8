@@ -6,8 +6,6 @@
 // This file includes multiple .cc files that include roughly the same .h files
 // to reduce redundant processing of large include sequences.
 
-#ifdef V8_CLUSTER_BUILD
-
 #include "src/objects/js-temporal-helpers.cc"
 #include "src/objects/js-weak-refs.cc"
 #include "src/objects/managed.cc"
@@ -19,5 +17,3 @@
 #include "src/objects/regexp-match-info.cc"
 #include "src/objects/simd.cc"
 #include "src/objects/string-comparator.cc"
-
-#endif  // V8_CLUSTER_BUILD
