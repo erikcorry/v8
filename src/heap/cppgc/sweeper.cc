@@ -14,7 +14,7 @@
 #include "include/cppgc/platform.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/heap/cppgc/cppgc-free-list.h"
+#include "src/heap/cppgc/free-list.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-config.h"

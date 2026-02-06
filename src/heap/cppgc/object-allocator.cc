@@ -7,7 +7,7 @@
 #include "include/cppgc/allocation.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/heap/cppgc/cppgc-free-list.h"
+#include "src/heap/cppgc/free-list.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
