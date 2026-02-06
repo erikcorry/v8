@@ -20,11 +20,14 @@ Output:
 import re
 import sys
 
-# Matches: #include "src/foo/bar.cc"
-INCLUDE_RE = re.compile(r'^\s*#include\s+"(src/[^"]+\.cc)"')
+# Matches: #include "src/foo/bar.cc" or #include "foo.cc" (relative)
+INCLUDE_RE = re.compile(r'^\s*#include\s+"([^"]+\.cc)"')
 # Matches blank lines, comments (// or /* style), and copyright/license headers
 BLANK_RE = re.compile(r'^\s*$')
 COMMENT_RE = re.compile(r'^\s*(//|/\*|\*|\*/)')
+# Matches #pragma, namespace declarations, and } lines (for cluster file structure)
+PRAGMA_RE = re.compile(r'^\s*#pragma\s+')
+NAMESPACE_RE = re.compile(r'^\s*(namespace\s+\w*\s*\{|\})')
 
 
 def extract_includes(cluster_file):
@@ -39,7 +42,8 @@ def extract_includes(cluster_file):
       include_match = INCLUDE_RE.match(line)
       if include_match:
         includes.append(include_match.group(1))
-      elif not BLANK_RE.match(line) and not COMMENT_RE.match(line):
+      elif (not BLANK_RE.match(line) and not COMMENT_RE.match(line) and
+            not PRAGMA_RE.match(line) and not NAMESPACE_RE.match(line)):
         print(
             f'Error: {cluster_file}:{line_num}: invalid line: {line.rstrip()}',
             file=sys.stderr)

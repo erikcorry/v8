@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("../../gni/cluster_build.gni")
 import("../../gni/v8.gni")
 
 v8_executable("cctest") {
@@ -73,7 +74,7 @@ config("cctest_sources_config") {
   }
 }
 
-v8_source_set("cctest_sources") {
+v8_cluster_source_set("cctest_sources") {
   testonly = true
 
   sources = [
@@ -86,6 +87,12 @@ v8_source_set("cctest_sources") {
     "../common/node-observer-tester.h",
     "../common/value-helper.cc",
     "../common/value-helper.h",
+    "cctest-cluster-1.cc",
+    "cctest-cluster-2.cc",
+    "cctest-cluster-3.cc",
+    "cctest-cluster-4.cc",
+    "cctest-cluster-5.cc",
+    "cctest-cluster-6.cc",
     "cctest-utils.h",
     "collector.h",
     "expression-type-collector-macros.h",
