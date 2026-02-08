@@ -1,0 +1,41 @@
+// Copyright 2026 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// Cluster build file for test/unittests/heap
+
+#pragma clang diagnostic ignored "-Wheader-hygiene"
+
+#include "heap/allocation-observer-unittest.cc"
+#include "heap/code-range-unittest.cc"
+#include "heap/collection-barrier-unittest.cc"
+#include "heap/conservative-stack-visitor-unittest.cc"
+#include "heap/direct-handles-unittest.cc"
+#include "heap/gc-tracer-unittest.cc"
+#include "heap/global-handles-unittest.cc"
+#include "heap/global-safepoint-unittest.cc"
+#include "heap/heap-allocator-unittest.cc"
+#include "heap/heap-controller-unittest.cc"
+#include "heap/heap-unittest.cc"
+#include "heap/index-generator-unittest.cc"
+#include "heap/inner-pointer-resolution-unittest.cc"
+#include "heap/iterators-unittest.cc"
+#include "heap/list-unittest.cc"
+#include "heap/local-factory-unittest.cc"
+#include "heap/local-handles-unittest.cc"
+#include "heap/local-heap-unittest.cc"
+#include "heap/marking-bitmap-unittest.cc"
+#include "heap/marking-progress-tracker-unittest.cc"
+#include "heap/marking-worklist-unittest.cc"
+#include "heap/memory-reducer-unittest.cc"
+#include "heap/object-stats-unittest.cc"
+#include "heap/page-casting-unittest.cc"
+#include "heap/page-promotion-unittest.cc"
+#include "heap/persistent-handles-unittest.cc"
+#include "heap/pool-unittest.cc"
+#include "heap/safepoint-unittest.cc"
+#include "heap/shared-heap-unittest.cc"
+#include "heap/slot-set-unittest.cc"
+#include "heap/spaces-unittest.cc"
+#include "heap/strong-root-allocator-unittest.cc"
+#include "heap/write-barrier-unittest.cc"

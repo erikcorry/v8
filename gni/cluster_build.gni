@@ -14,7 +14,7 @@ template("v8_cluster_source_set") {
   assert(defined(invoker.sources), "sources must be defined")
 
   _sources = invoker.sources
-  _cluster_files = filter_include(_sources, [ "*-cluster-*.cc" ])
+  _cluster_files = filter_include(_sources, [ "*-cluster*.cc" ])
 
   if (v8_enable_cluster_build) {
     if (_cluster_files != []) {
