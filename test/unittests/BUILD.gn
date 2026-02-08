@@ -523,6 +523,15 @@ v8_cluster_source_set("v8_unittests_sources") {
   if (v8_enable_turbofan) {
     sources += [
       "codegen/code-stub-assembler-unittest.cc",
+      "compiler-unittest-cluster-1.cc",
+      "compiler-unittest-cluster-2.cc",
+      "compiler-unittest-cluster-3.cc",
+      "compiler-unittest-cluster-4.cc",
+      "compiler-unittest-cluster-5.cc",
+      "compiler-unittest-cluster-6.cc",
+      "compiler-unittest-cluster-7.cc",
+      "compiler-unittest-cluster-8.cc",
+      "compiler-unittest-cluster-9.cc",
       "codegen/code-stub-assembler-unittest.h",
       "compiler/backend/instruction-selector-unittest.cc",
       "compiler/backend/instruction-selector-unittest.h",
