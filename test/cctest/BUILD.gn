@@ -93,6 +93,8 @@ v8_cluster_source_set("cctest_sources") {
     "cctest-cluster-4.cc",
     "cctest-cluster-5.cc",
     "cctest-cluster-6.cc",
+    "cctest-heap-cluster-1.cc",
+    "cctest-heap-cluster-2.cc",
     "cctest-utils.h",
     "collector.h",
     "expression-type-collector-macros.h",
@@ -171,6 +173,11 @@ v8_cluster_source_set("cctest_sources") {
 
   if (v8_enable_turbofan) {
     sources += [
+      "cctest-compiler-cluster-1.cc",
+      "cctest-compiler-cluster-2.cc",
+      "cctest-compiler-cluster-3.cc",
+      "cctest-compiler-cluster-4.cc",
+      "cctest-compiler-cluster-5.cc",
       "compiler/codegen-tester.cc",
       "compiler/codegen-tester.h",
       "compiler/function-tester.cc",
@@ -268,6 +275,12 @@ v8_cluster_source_set("cctest_sources") {
       "../common/wasm/test-signatures.h",
       "../common/wasm/wasm-macro-gen.h",
       "../common/wasm/wasm-run-utils.h",
+      "cctest-wasm-cluster-1.cc",
+      "cctest-wasm-cluster-2.cc",
+      "cctest-wasm-cluster-3.cc",
+      "cctest-wasm-cluster-4.cc",
+      "cctest-wasm-cluster-5.cc",
+      "cctest-wasm-cluster-6.cc",
       "compiler/test-multiple-return.cc",
 
       # test-run-native-calls uses wasm's LinkageAllocator.

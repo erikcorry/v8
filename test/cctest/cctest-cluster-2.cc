@@ -8,8 +8,8 @@
 
 #include "test-constantpool.cc"
 #include "test-cpu-profiler.cc"
-#include "test-debug.cc"
 #include "test-debug-helper.cc"
+#include "test-debug.cc"
 #include "test-disasm-regex-helper.cc"
 #include "test-field-type-tracking.cc"
 #include "test-func-name-inference.cc"
