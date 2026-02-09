@@ -8,9 +8,7 @@
 
 #include "test/unittests/compiler/turboshaft/call-runtime-unittest.cc"
 #include "test/unittests/compiler/turboshaft/control-flow-unittest.cc"
-#include "test/unittests/compiler/turboshaft/late-load-elimination-reducer-unittest.cc"
 #include "test/unittests/compiler/turboshaft/load-store-address-hoisting-unittest.cc"
-#include "test/unittests/compiler/turboshaft/loop-unrolling-analyzer-unittest.cc"
 #include "test/unittests/compiler/turboshaft/opmask-unittest.cc"
 #include "test/unittests/compiler/turboshaft/reducer-test.cc"
 #include "test/unittests/compiler/turboshaft/snapshot-table-unittest.cc"
