@@ -18,10 +18,14 @@ template("v8_cluster_source_set") {
 
   if (v8_enable_cluster_build) {
     if (_cluster_files != []) {
+      # Note: We deliberately don't pass the cluster files as dependencies
+      # (4th argument to exec_script) because when switching between commits
+      # that add/remove cluster files, ninja would fail with "file missing".
+      # Since cluster files are listed in sources (in BUILD.gn), any addition
+      # or removal will trigger a BUILD.gn change which regenerates anyway.
       _excludes = exec_script("//tools/extract_cluster_sources.py",
                               rebase_path(_cluster_files),
-                              "list lines",
-                              _cluster_files)
+                              "list lines")
       _filtered = _sources - _excludes
     } else {
       _filtered = _sources
