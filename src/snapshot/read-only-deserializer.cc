@@ -237,10 +237,10 @@ class ObjectPostProcessor final {
   Address GetAnyExternalReferenceAt(int index, bool is_api_reference) const {
     if (is_api_reference) {
       const intptr_t* refs = isolate_->api_external_references();
-      Address address =
-          refs == nullptr
-              ? reinterpret_cast<Address>(read_only_deserializer_internal::NoExternalReferencesCallback)
-              : static_cast<Address>(refs[index]);
+      Address address = refs == nullptr ? reinterpret_cast<Address>(
+                                              read_only_deserializer_internal::
+                                                  NoExternalReferencesCallback)
+                                        : static_cast<Address>(refs[index]);
       DCHECK_NE(address, kNullAddress);
       return address;
     }

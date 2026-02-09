@@ -248,7 +248,8 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
   HandleScope shs(isolate);
   // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
   DCHECK_EQ(0, args.length());
-  runtime_test_wasm_internal::PrintIndentation(runtime_test_wasm_internal::WasmStackSize(isolate));
+  runtime_test_wasm_internal::PrintIndentation(
+      runtime_test_wasm_internal::WasmStackSize(isolate));
 
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
@@ -288,7 +289,8 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
   DCHECK_EQ(1, args.length());
   Tagged<Smi> return_addr_smi = Cast<Smi>(args[0]);
 
-  runtime_test_wasm_internal::PrintIndentation(runtime_test_wasm_internal::WasmStackSize(isolate));
+  runtime_test_wasm_internal::PrintIndentation(
+      runtime_test_wasm_internal::WasmStackSize(isolate));
   PrintF("}");
 
   // Find the caller wasm frame.
