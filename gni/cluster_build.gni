@@ -5,59 +5,20 @@
 import("//build/config/v8_target_cpu.gni")
 import("v8.gni")
 
-# Number of source files per cluster for generated files.
-torque_cluster_size = 10
+# Number of source files per cluster.
+cluster_size = 10
 
-# Creates a v8_source_set with cluster build filtering applied to sources.
-# When cluster build is enabled, removes files that are #included by cluster
-# files. When disabled, removes the cluster files themselves.
-#
-# Arguments: Same as v8_source_set, with sources being filtered automatically.
-template("v8_cluster_source_set") {
-  assert(defined(invoker.sources), "sources must be defined")
-
-  _sources = invoker.sources
-  _cluster_files = filter_include(_sources, [ "*-cluster*.cc" ])
-
-  if (v8_enable_cluster_build) {
-    if (_cluster_files != []) {
-      # Note: We deliberately don't pass the cluster files as dependencies
-      # (4th argument to exec_script) because when switching between commits
-      # that add/remove cluster files, ninja would fail with "file missing".
-      # Since cluster files are listed in sources (in BUILD.gn), any addition
-      # or removal will trigger a BUILD.gn change which regenerates anyway.
-      _excludes = exec_script("//tools/extract_cluster_sources.py",
-                              rebase_path(_cluster_files),
-                              "list lines")
-      _filtered = _sources - _excludes
-    } else {
-      _filtered = _sources
-    }
-  } else {
-    _filtered = _sources - _cluster_files
-  }
-
-  v8_source_set(target_name) {
-    sources = _filtered
-    forward_variables_from(invoker, "*", [ "sources" ])
-  }
-}
-
-# Generates cluster files for a list of generated .cc files.
-# This is used for torque-generated files where the cluster files
-# need to be created during the build.
+# Generates cluster files for a list of .cc files at build time.
 #
 # Arguments:
-#   sources: List of generated .cc files to cluster
+#   sources: List of .cc files to cluster
 #   prefix: Prefix for cluster file names (e.g., "torque-csa")
 #   output_dir: Directory to write cluster files to
-#   deps: Dependencies (e.g., run_torque action)
+#   deps: Dependencies (optional)
 #
-# Outputs:
-#   cluster_sources: List of cluster file paths (for use in source sets)
-#   In cluster mode: creates an action to generate cluster files
-#   In non-cluster mode: creates a no-op group
-template("torque_cluster_action") {
+# In cluster mode: creates an action to generate cluster files
+# In non-cluster mode: creates a no-op group
+template("cluster_action") {
   assert(defined(invoker.sources), "sources must be defined")
   assert(defined(invoker.prefix), "prefix must be defined")
   assert(defined(invoker.output_dir), "output_dir must be defined")
@@ -66,32 +27,20 @@ template("torque_cluster_action") {
   _prefix = invoker.prefix
   _output_dir = invoker.output_dir
 
-  # Handle optional excludes list (files too large to cluster)
-  if (defined(invoker.excludes)) {
-    _excludes = invoker.excludes
-  } else {
-    _excludes = []
-  }
-
-  # Count source files (excluding large files)
-  _num_excludes = 0
-  foreach(e, _excludes) {
-    _num_excludes += 1
-  }
+  # Count source files
   _num_sources = 0
   foreach(s, _sources) {
     _num_sources += 1
   }
-  _num_clustered = _num_sources - _num_excludes
 
   # Compute cluster file names using exec_script
-  _cluster_filenames = exec_script("//tools/compute_cluster_filenames.py",
-                                   [
-                                     "$_num_clustered",
-                                     "$torque_cluster_size",
-                                     _prefix,
-                                   ],
-                                   "list lines")
+  _cluster_filenames =
+      exec_script("//tools/compute_cluster_filenames.py",
+                  [
+                        "$cluster_size",
+                        _prefix,
+                      ] + rebase_path(_sources, root_build_dir),
+                  "list lines")
 
   # Add directory prefix to get full paths
   _cluster_outputs = []
@@ -116,19 +65,10 @@ template("torque_cluster_action") {
         "--prefix",
         _prefix,
         "--cluster-size",
-        "$torque_cluster_size",
+        "$cluster_size",
         "--strip-prefix",
         _strip_prefix,
       ]
-
-      # Add exclude arguments
-      foreach(e, _excludes) {
-        args += [
-          "--exclude",
-          rebase_path(e, root_build_dir),
-        ]
-      }
-
       args += rebase_path(_sources, root_build_dir)
 
       forward_variables_from(invoker,
@@ -147,6 +87,156 @@ template("torque_cluster_action") {
                                "public_deps",
                                "visibility",
                              ])
+    }
+  }
+}
+
+# A v8_source_set that clusters .cc files in cluster mode.
+#
+# In cluster mode: generates cluster files for .cc sources and compiles those
+# In non-cluster mode: compiles sources directly (like v8_source_set)
+#
+# This template:
+# - Groups files by directory (files in same dir are clustered together)
+# - Skips arch-specific directories (x64, arm64, etc.)
+# - Arch-specific files are compiled individually
+#
+# Arguments: Same as v8_source_set, plus:
+#   cluster_prefix: Optional prefix for cluster file names (defaults to target_name)
+template("v8_cluster_source_set") {
+  _target_name = target_name
+
+  if (v8_enable_cluster_build) {
+    # Extract .cc files from sources for clustering
+    _cc_sources = []
+    _other_sources = []
+    if (defined(invoker.sources)) {
+      foreach(s, invoker.sources) {
+        _ext = get_path_info(s, "extension")
+        if (_ext == "cc") {
+          _cc_sources += [ s ]
+        } else {
+          _other_sources += [ s ]
+        }
+      }
+    }
+
+    # Only cluster if we have .cc files
+    _num_cc = 0
+    foreach(s, _cc_sources) {
+      _num_cc += 1
+    }
+
+    if (_num_cc > 0) {
+      _cluster_prefix = _target_name
+      if (defined(invoker.cluster_prefix)) {
+        _cluster_prefix = invoker.cluster_prefix
+      }
+
+      _output_dir = "$target_gen_dir/clustered"
+
+      # Compute cluster file names with directory grouping and arch skipping
+      _cluster_filenames =
+          exec_script("//tools/compute_cluster_filenames.py",
+                      [
+                            "$cluster_size",
+                            _cluster_prefix,
+                            "--group-by-dir",
+                            "--skip-arch-dirs",
+                          ] + rebase_path(_cc_sources, root_build_dir),
+                      "list lines")
+
+      _cluster_files = []
+      foreach(f, _cluster_filenames) {
+        _cluster_files += [ "$_output_dir/$f" ]
+      }
+
+      # Action to generate cluster files
+      action("${_target_name}_generate_clusters") {
+        visibility = [ ":*" ]
+        script = "//tools/generate_cluster_files.py"
+
+        outputs = _cluster_files
+
+        # Compute the include prefix: from gen/clustered back to build dir
+        # The source paths are rebased to build dir, so we need to prepend
+        # the path from output_dir back to build dir
+        _include_prefix = rebase_path(root_build_dir, _output_dir) + "/"
+
+        args = [
+          "--output-dir",
+          rebase_path(_output_dir, root_build_dir),
+          "--prefix",
+          _cluster_prefix,
+          "--cluster-size",
+          "$cluster_size",
+          "--include-prefix",
+          _include_prefix,
+          "--group-by-dir",
+          "--skip-arch-dirs",
+        ]
+        args += rebase_path(_cc_sources, root_build_dir)
+
+        forward_variables_from(invoker, [ "deps" ])
+      }
+
+      # The actual source set with cluster files plus arch-specific files
+      v8_source_set(_target_name) {
+        forward_variables_from(invoker,
+                               "*",
+                               [
+                                 "sources",
+                                 "cluster_prefix",
+                               ])
+
+        # Start with non-.cc files and cluster files
+        sources = _other_sources + _cluster_files
+
+        # Add back arch-specific .cc files (they're compiled individually)
+        foreach(s, _cc_sources) {
+          _path = rebase_path(s, root_build_dir)
+
+          # Check if path contains arch-specific directory
+          _is_arch = false
+          foreach(_arch,
+                  [
+                    "/x64/",
+                    "/arm64/",
+                    "/arm/",
+                    "/ia32/",
+                    "/mips64/",
+                    "/mips64el/",
+                    "/riscv64/",
+                    "/riscv32/",
+                    "/loong64/",
+                    "/ppc64/",
+                    "/s390x/",
+                    "/s390/",
+                  ]) {
+            if (string_replace(_path, _arch, "") != _path) {
+              _is_arch = true
+            }
+          }
+          if (_is_arch) {
+            sources += [ s ]
+          }
+        }
+
+        if (!defined(deps)) {
+          deps = []
+        }
+        deps += [ ":${_target_name}_generate_clusters" ]
+      }
+    } else {
+      # No .cc files to cluster, just pass through
+      v8_source_set(_target_name) {
+        forward_variables_from(invoker, "*", [ "cluster_prefix" ])
+      }
+    }
+  } else {
+    # Non-cluster mode: just use v8_source_set directly
+    v8_source_set(_target_name) {
+      forward_variables_from(invoker, "*", [ "cluster_prefix" ])
     }
   }
 }
