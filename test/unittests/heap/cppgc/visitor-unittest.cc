@@ -17,8 +17,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace visitor_unittest {
 
 class TraceTraitTest : public testing::TestSupportingAllocationOnly {};
 class VisitorTest : public testing::TestSupportingAllocationOnly {};
@@ -57,8 +56,6 @@ class GCedMixinApplication : public GCed,
     GCedMixin::Trace(visitor);
   }
 };
-
-}  // namespace
 
 TEST_F(TraceTraitTest, GetObjectStartGCed) {
   auto* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
@@ -109,11 +106,9 @@ TEST_F(TraceTraitTest, TraceGCedMixinThroughTraceDescriptor) {
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
-namespace {
 class MixinInstanceWithoutTrace
     : public GarbageCollected<MixinInstanceWithoutTrace>,
       public GCedMixin {};
-}  // namespace
 
 TEST_F(TraceTraitTest, MixinInstanceWithoutTrace) {
   // Verify that a mixin instance without any traceable
@@ -135,8 +130,6 @@ TEST_F(TraceTraitTest, MixinInstanceWithoutTrace) {
   desc.callback(nullptr, desc.base_object_payload);
   EXPECT_EQ(1u, GCedMixin::trace_callcount);
 }
-
-namespace {
 
 class DispatchingVisitor : public VisitorBase {
  public:
@@ -180,8 +173,6 @@ class CheckingVisitor final : public DispatchingVisitor {
   const void* payload_;
 };
 
-}  // namespace
-
 TEST_F(VisitorTest, DispatchTraceGCed) {
   auto* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   CheckingVisitor visitor(gced);
@@ -223,8 +214,6 @@ TEST_F(VisitorTest, DispatchTraceWeakGCedMixin) {
   EXPECT_EQ(nullptr, ref.Get());
 }
 
-namespace {
-
 class WeakCallbackVisitor final : public VisitorBase {
  public:
   void RegisterWeakCallback(WeakCallback callback, const void* param) final {
@@ -265,8 +254,6 @@ class GCedWithCustomWeakCallback final
   }
 };
 
-}  // namespace
-
 TEST_F(VisitorTest, DispatchRegisterWeakCallback) {
   WeakCallbackVisitor visitor;
   WeakCallbackDispatcher::Setup(&visitor);
@@ -284,8 +271,6 @@ TEST_F(VisitorTest, DispatchRegisterWeakCallbackMethod) {
   gced->Trace(&visitor);
   EXPECT_EQ(1u, WeakCallbackDispatcher::callback_callcount);
 }
-
-namespace {
 
 class Composite final {
  public:
@@ -340,8 +325,6 @@ class GCedWithCompositeWithVtable final
   CompositeWithVtable composite;
 };
 
-}  // namespace
-
 TEST_F(VisitorTest, DispatchToCompositeObject) {
   auto* gced = MakeGarbageCollected<GCedWithComposite>(GetAllocationHandle());
   CheckingVisitor visitor(gced);
@@ -360,8 +343,6 @@ TEST_F(VisitorTest, DispatchToCompositeObjectWithVtable) {
   EXPECT_EQ(GCedWithCompositeWithVtable::kExpectedTraceCount,
             GCedWithCompositeWithVtable::TraceCount());
 }
-
-namespace {
 
 // Fibonacci hashing. See boost::hash_combine.
 inline void hash_combine(std::size_t& seed) {}
@@ -419,8 +400,6 @@ void DispatchMultipleMemberTest(AllocationHandle& handle) {
   EXPECT_EQ(hash, visitor.hash());
 }
 
-}  // namespace
-
 TEST_F(VisitorTest, DispatchToMultipleMember) {
   using GCType = GCedWithMultipleMember<Member, GCedWithComposite>;
   DispatchMultipleMemberTest<GCType>(GetAllocationHandle());
@@ -431,8 +410,6 @@ TEST_F(VisitorTest, DispatchToMultipleUncompressedMember) {
       GCedWithMultipleMember<subtle::UncompressedMember, GCedWithComposite>;
   DispatchMultipleMemberTest<GCType>(GetAllocationHandle());
 }
-
-namespace {
 
 class GCedWithMultipleComposite final
     : public GarbageCollected<GCedWithMultipleComposite> {
@@ -471,8 +448,6 @@ class GCedWithMultipleCompositeUninitializedVtable final
   CompositeWithVtable fields[kNumElements];
 };
 
-}  // namespace
-
 TEST_F(VisitorTest, DispatchToMultipleCompositeObjects) {
   auto* holder =
       MakeGarbageCollected<GCedWithMultipleComposite>(GetAllocationHandle());
@@ -495,5 +470,6 @@ TEST_F(VisitorTest, DispatchMultipleInlinedObjectsWithClearedVtable) {
       GCedWithMultipleCompositeUninitializedVtable::TraceCount());
 }
 
+}  // namespace visitor_unittest
 }  // namespace internal
 }  // namespace cppgc

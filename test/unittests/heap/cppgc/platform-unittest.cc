@@ -10,13 +10,7 @@
 
 namespace cppgc {
 namespace internal {
-
-TEST(FatalOutOfMemoryHandlerDeathTest, DefaultHandlerCrashes) {
-  FatalOutOfMemoryHandler handler;
-  EXPECT_DEATH_IF_SUPPORTED(handler(), "");
-}
-
-namespace {
+namespace platform_unittest {
 
 constexpr uintptr_t kHeapNeedle = 0x14;
 
@@ -28,7 +22,10 @@ constexpr uintptr_t kHeapNeedle = 0x14;
   GRACEFUL_FATAL("cust0m h4ndl3r");
 }
 
-}  // namespace
+TEST(FatalOutOfMemoryHandlerDeathTest, DefaultHandlerCrashes) {
+  FatalOutOfMemoryHandler handler;
+  EXPECT_DEATH_IF_SUPPORTED(handler(), "");
+}
 
 TEST(FatalOutOfMemoryHandlerDeathTest, CustomHandlerCrashes) {
   FatalOutOfMemoryHandler handler;
@@ -42,5 +39,6 @@ TEST(FatalOutOfMemoryHandlerDeathTest, CustomHandlerWithHeapState) {
   EXPECT_DEATH_IF_SUPPORTED(handler(), "cust0m h4ndl3r with matching heap");
 }
 
+}  // namespace platform_unittest
 }  // namespace internal
 }  // namespace cppgc

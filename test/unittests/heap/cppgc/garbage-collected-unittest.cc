@@ -14,8 +14,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace garbage_collected_unittest {
 
 class GCed : public GarbageCollected<GCed> {
  public:
@@ -42,8 +41,6 @@ class GCWithMergedMixins : public GCed, public MergedMixins {
 
 class GarbageCollectedTestWithHeap
     : public testing::TestSupportingAllocationOnly {};
-
-}  // namespace
 
 TEST(GarbageCollectedTest, GarbageCollectedTrait) {
   static_assert(!IsGarbageCollectedTypeV<int>);
@@ -85,11 +82,7 @@ TEST(GarbageCollectedTest, GarbageCollectedWithMixinTrait) {
   static_assert(IsGarbageCollectedWithMixinTypeV<GCWithMergedMixins>);
 }
 
-namespace {
-
 class ForwardDeclaredType;
-
-}  // namespace
 
 TEST(GarbageCollectedTest, CompleteTypeTrait) {
   static_assert(IsCompleteV<GCed>);
@@ -106,8 +99,6 @@ TEST_F(GarbageCollectedTestWithHeap, GetObjectStartReturnsCurrentAddress) {
   EXPECT_EQ(gced_with_mixin, base_object_payload);
   EXPECT_NE(gced, base_object_payload);
 }
-
-namespace {
 
 class GCedWithPostConstructionCallback final : public GCed {
  public:
@@ -128,16 +119,19 @@ class GCedWithMixinWithPostConstructionCallback final
     : public GCed,
       public MixinWithPostConstructionCallback {};
 
-}  // namespace
+}  // namespace garbage_collected_unittest
 }  // namespace internal
 
 template <>
 struct PostConstructionCallbackTrait<
-    internal::GCedWithPostConstructionCallback> {
-  static void Call(internal::GCedWithPostConstructionCallback* object) {
+    internal::garbage_collected_unittest::GCedWithPostConstructionCallback> {
+  static void Call(
+      internal::garbage_collected_unittest::GCedWithPostConstructionCallback*
+          object) {
     EXPECT_FALSE(
         internal::HeapObjectHeader::FromObject(object).IsInConstruction());
-    internal::GCedWithPostConstructionCallback::cb_callcount++;
+    internal::garbage_collected_unittest::GCedWithPostConstructionCallback::
+        cb_callcount++;
   }
 };
 
@@ -145,15 +139,17 @@ template <typename T>
 struct PostConstructionCallbackTrait<
     T, std::void_t<typename T::MarkerForMixinWithPostConstructionCallback>> {
   // The parameter could just be T*.
-  static void Call(
-      internal::GCedWithMixinWithPostConstructionCallback* object) {
+  static void Call(internal::garbage_collected_unittest::
+                       GCedWithMixinWithPostConstructionCallback* object) {
     EXPECT_FALSE(
         internal::HeapObjectHeader::FromObject(object).IsInConstruction());
-    internal::GCedWithMixinWithPostConstructionCallback::cb_callcount++;
+    internal::garbage_collected_unittest::
+        GCedWithMixinWithPostConstructionCallback::cb_callcount++;
   }
 };
 
 namespace internal {
+namespace garbage_collected_unittest {
 
 TEST_F(GarbageCollectedTestWithHeap, PostConstructionCallback) {
   EXPECT_EQ(0u, GCedWithPostConstructionCallback::cb_callcount);
@@ -167,8 +163,6 @@ TEST_F(GarbageCollectedTestWithHeap, PostConstructionCallbackForMixin) {
       GetAllocationHandle());
   EXPECT_EQ(1u, MixinWithPostConstructionCallback::cb_callcount);
 }
-
-namespace {
 
 int GetDummyValue() {
   static v8::base::Mutex mutex;
@@ -235,8 +229,6 @@ class CheckGCedWithMixinInConstructionBeforeInitializerList
   }
 };
 
-}  // namespace
-
 TEST_F(GarbageCollectedTestWithHeap, GarbageCollectedInConstructionDuringCtor) {
   MakeGarbageCollected<CheckObjectInConstructionBeforeInitializerList>(
       GetAllocationHandle());
@@ -248,8 +240,6 @@ TEST_F(GarbageCollectedTestWithHeap,
       GetAllocationHandle());
 }
 
-namespace {
-
 struct MixinA : GarbageCollectedMixin {};
 struct MixinB : GarbageCollectedMixin {};
 struct GCed1 : GarbageCollected<GCed1>, MixinA, MixinB {};
@@ -258,7 +248,7 @@ struct GCed2 : MixinA, MixinB {};
 static_assert(
     sizeof(GCed1) == sizeof(GCed2),
     "Check that empty base optimization always works for GarbageCollected");
-}  // namespace
 
+}  // namespace garbage_collected_unittest
 }  // namespace internal
 }  // namespace cppgc

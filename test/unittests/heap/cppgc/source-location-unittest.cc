@@ -8,15 +8,13 @@
 
 namespace cppgc {
 namespace internal {
+namespace source_location_unittest {
 
-namespace {
 constexpr char kFileName[] = "source-location-unittest.cc";
 
 bool Contains(const std::string& base_string, const std::string& substring) {
   return base_string.find(substring) != std::string::npos;
 }
-
-}  // namespace
 
 TEST(SourceLocationTest, DefaultCtor) {
   constexpr SourceLocation loc;
@@ -40,7 +38,8 @@ TEST(SourceLocationTest, Current) { TestSourceLocationCurrent(); }
 
 void TestToString() {
   static const std::string kDescriptor =
-      "void cppgc::internal::TestToString()@" __FILE__ ":" +
+      "void cppgc::internal::source_location_unittest::TestToString()@" __FILE__
+      ":" +
       std::to_string(__LINE__ + 1);
   constexpr auto loc = SourceLocation::Current();
   const auto string = loc.ToString();
@@ -49,5 +48,6 @@ void TestToString() {
 
 TEST(SourceLocationTest, ToString) { TestToString(); }
 
+}  // namespace source_location_unittest
 }  // namespace internal
 }  // namespace cppgc

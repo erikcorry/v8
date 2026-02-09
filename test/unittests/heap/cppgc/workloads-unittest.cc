@@ -20,7 +20,7 @@
 namespace cppgc {
 namespace internal {
 
-namespace {
+namespace workloads_unittest {
 
 class WorkloadsTest : public testing::TestWithHeap {
  public:
@@ -116,8 +116,6 @@ class SubClass final : public SuperClass {
 };
 int SubClass::alive_count_ = 0;
 
-}  // namespace
-
 TEST_F(WorkloadsTest, Transition) {
   PointsBack::alive_count_ = 0;
   SuperClass::alive_count_ = 0;
@@ -178,8 +176,6 @@ TEST_F(WorkloadsTest, Transition) {
   EXPECT_EQ(super_class, sub_class);
 }
 
-namespace {
-
 class DynamicallySizedObject final
     : public GarbageCollected<DynamicallySizedObject> {
  public:
@@ -218,8 +214,6 @@ class ObjectSizeCounter final : private HeapVisitor<ObjectSizeCounter> {
 
   size_t accumulated_size_ = 0;
 };
-
-}  // namespace
 
 TEST_F(WorkloadsTest, BasicFunctionality) {
   static_assert(kAllocationGranularity % 4 == 0,
@@ -346,6 +340,8 @@ TEST_F(WorkloadsTest, BasicFunctionality) {
     persistents[i] = nullptr;
   }
 }
+
+}  // namespace workloads_unittest
 
 }  // namespace internal
 }  // namespace cppgc

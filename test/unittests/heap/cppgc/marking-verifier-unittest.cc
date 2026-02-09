@@ -16,8 +16,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace marking_verifier_unittest {
 
 class MarkingVerifierTest : public testing::TestWithHeap {
  public:
@@ -62,8 +61,6 @@ bool MarkHeader(HeapObjectHeader& header) {
   return false;
 }
 
-}  // namespace
-
 // Following tests should not crash.
 
 TEST_F(MarkingVerifierTest, DoesNotDieOnMarkedOnStackReference) {
@@ -97,8 +94,6 @@ TEST_F(MarkingVerifierTest, DoesNotDieOnMarkedWeakMember) {
                 parent_header.AllocatedSize() + child_header.AllocatedSize());
 }
 
-namespace {
-
 class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
  public:
   template <typename Callback>
@@ -107,8 +102,6 @@ class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
   }
   void Trace(cppgc::Visitor* visitor) const {}
 };
-
-}  // namespace
 
 TEST_F(MarkingVerifierTest, DoesNotDieOnInConstructionOnObject) {
   MakeGarbageCollected<GCedWithCallback>(
@@ -121,7 +114,6 @@ TEST_F(MarkingVerifierTest, DoesNotDieOnInConstructionOnObject) {
       });
 }
 
-namespace {
 class GCedWithCallbackAndChild final
     : public GarbageCollected<GCedWithCallbackAndChild> {
  public:
@@ -141,7 +133,6 @@ struct Holder : public GarbageCollected<Holder<T>> {
   void Trace(cppgc::Visitor* visitor) const { visitor->Trace(object); }
   Member<T> object = nullptr;
 };
-}  // namespace
 
 TEST_F(MarkingVerifierTest, DoesntDieOnInConstructionObjectWithWriteBarrier) {
   // Regression test: https://crbug.com/v8/10989.
@@ -163,15 +154,11 @@ TEST_F(MarkingVerifierTest, DoesntDieOnInConstructionObjectWithWriteBarrier) {
 
 // Death tests.
 
-namespace {
-
 class MarkingVerifierDeathTest : public MarkingVerifierTest {
  protected:
   template <template <typename T> class Reference>
   void TestResurrectingPreFinalizer();
 };
-
-}  // namespace
 
 TEST_F(MarkingVerifierDeathTest, DieOnUnmarkedOnStackReference) {
   GCed* object = MakeGarbageCollected<GCed>(GetAllocationHandle());
@@ -226,7 +213,6 @@ void EscapeControlRegexCharacters(std::string& s) {
     s.insert(start_pos, "\\");
   }
 }
-}  // anonymous namespace
 
 TEST_F(MarkingVerifierDeathTest, DieWithDebugInfoOnUnexpectedLiveByteCount) {
   using ::testing::AllOf;
@@ -261,8 +247,6 @@ TEST_F(MarkingVerifierDeathTest, DieWithDebugInfoOnUnexpectedLiveByteCount) {
 
 #endif  // CPPGC_VERIFY_HEAP
 
-namespace {
-
 template <template <typename T> class Reference>
 class ResurrectingPreFinalizer
     : public GarbageCollected<ResurrectingPreFinalizer<Reference>> {
@@ -291,8 +275,6 @@ class ResurrectingPreFinalizer
   Member<GCed> object_that_dies_;
 };
 
-}  // namespace
-
 template <template <typename T> class Reference>
 void MarkingVerifierDeathTest::TestResurrectingPreFinalizer() {
   Persistent<typename ResurrectingPreFinalizer<Reference>::Storage> storage(
@@ -317,5 +299,6 @@ TEST_F(MarkingVerifierDeathTest, DiesOnResurrectedWeakMember) {
 
 #endif  // CPPGC_VERIFY_HEAP
 
+}  // namespace marking_verifier_unittest
 }  // namespace internal
 }  // namespace cppgc

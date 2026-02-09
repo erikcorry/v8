@@ -13,6 +13,7 @@
 
 namespace cppgc {
 namespace internal {
+namespace heap_registry_unittest {
 
 class HeapRegistryTest : public testing::TestWithPlatform {};
 
@@ -20,15 +21,11 @@ TEST_F(HeapRegistryTest, Empty) {
   EXPECT_EQ(0u, HeapRegistry::GetRegisteredHeapsForTesting().size());
 }
 
-namespace {
-
 bool Contains(const HeapRegistry::Storage& storage, const cppgc::Heap* needle) {
   return storage.end() !=
          std::find(storage.begin(), storage.end(),
                    &cppgc::internal::Heap::From(needle)->AsBase());
 }
-
-}  // namespace
 
 TEST_F(HeapRegistryTest, RegisterUnregisterHeaps) {
   const auto& storage = HeapRegistry::GetRegisteredHeapsForTesting();
@@ -65,14 +62,10 @@ TEST_F(HeapRegistryTest, DoesNotFindOffHeap) {
   EXPECT_EQ(nullptr, HeapRegistry::TryFromManagedPointer(dummy.get()));
 }
 
-namespace {
-
 class GCed final : public GarbageCollected<GCed> {
  public:
   void Trace(Visitor*) const {}
 };
-
-}  // namespace
 
 TEST_F(HeapRegistryTest, FindsRightHeapForOnHeapAddress) {
   const auto heap1 = Heap::Create(platform_);
@@ -84,5 +77,6 @@ TEST_F(HeapRegistryTest, FindsRightHeapForOnHeapAddress) {
             HeapRegistry::TryFromManagedPointer(o));
 }
 
+}  // namespace heap_registry_unittest
 }  // namespace internal
 }  // namespace cppgc

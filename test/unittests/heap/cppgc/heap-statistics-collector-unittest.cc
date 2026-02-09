@@ -15,6 +15,7 @@
 
 namespace cppgc {
 namespace internal {
+namespace heap_statistics_collector_unittest {
 
 class HeapStatisticsCollectorTest : public testing::TestWithHeap {};
 
@@ -55,7 +56,6 @@ TEST_F(HeapStatisticsCollectorTest, EmptyHeapDetailedStatisitcs) {
   }
 }
 
-namespace {
 template <size_t Size>
 class GCed : public GarbageCollected<GCed<Size>> {
  public:
@@ -64,7 +64,6 @@ class GCed : public GarbageCollected<GCed<Size>> {
  private:
   char array_[Size];
 };
-}  // namespace
 
 TEST_F(HeapStatisticsCollectorTest, NonEmptyNormalPage) {
   MakeGarbageCollected<GCed<1>>(GetHeap()->GetAllocationHandle());
@@ -223,5 +222,6 @@ TEST_F(HeapStatisticsCollectorTest,
   EXPECT_TRUE(found_page);
 }
 
+}  // namespace heap_statistics_collector_unittest
 }  // namespace internal
 }  // namespace cppgc

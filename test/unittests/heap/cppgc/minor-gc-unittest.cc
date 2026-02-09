@@ -20,8 +20,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace minor_gc_unittest {
 
 bool IsHeapObjectYoung(void* obj) {
   return HeapObjectHeader::FromObject(obj).IsYoung();
@@ -128,8 +127,6 @@ class RememberedSetExtractor : HeapVisitor<RememberedSetExtractor> {
   std::set<void*> slots_;
 };
 
-}  // namespace
-
 class MinorGCTest : public testing::TestWithHeap {
  public:
   MinorGCTest() : testing::TestWithHeap() {
@@ -183,8 +180,6 @@ class MinorGCTestForType : public MinorGCTest {
 
 using ObjectTypes = ::testing::Types<Small, Large>;
 TYPED_TEST_SUITE(MinorGCTestForType, ObjectTypes);
-
-namespace {
 
 enum class GCType {
   kMinor,
@@ -287,8 +282,6 @@ struct ExpectNoRememberedSlotsAdded final {
   const MinorGCTest& test_;
   std::set<void*> initial_remembered_slots_;
 };
-
-}  // namespace
 
 TYPED_TEST(MinorGCTestForType, MinorCollection) {
   using Type = typename TestFixture::Type;
@@ -536,8 +529,6 @@ TEST_F(MinorGCTest, RememberedSetInvalidationOnShrink) {
   CollectMinor();
 }
 
-namespace {
-
 template <typename Value>
 struct InlinedObject {
   CPPGC_DISALLOW_NEW();
@@ -609,8 +600,6 @@ class GCedWithInlinedArray
   AllocationHandle& alloc_handle_;
 };
 
-}  // namespace
-
 TYPED_TEST(MinorGCTestForType, GenerationalBarrierDeferredTracing) {
   using Type = typename TestFixture::Type;
 
@@ -642,7 +631,6 @@ TYPED_TEST(MinorGCTestForType, GenerationalBarrierDeferredTracing) {
   EXPECT_EQ(0u, remembered_objects.size());
 }
 
-namespace {
 class GCedWithCustomWeakCallback final
     : public GarbageCollected<GCedWithCustomWeakCallback> {
  public:
@@ -659,7 +647,6 @@ class GCedWithCustomWeakCallback final
   }
 };
 size_t GCedWithCustomWeakCallback::custom_callback_called = 0;
-}  // namespace
 
 TEST_F(MinorGCTest, ReexecuteCustomCallback) {
   // Create an object with additional kBytesToAllocate bytes.
@@ -732,8 +719,6 @@ TEST_F(MinorGCTest, AgeTableIsReset) {
   ExpectPageOld(*BasePage::FromPayload(p3.Get()));
 }
 
-namespace {
-
 template <GCType type>
 struct GCOnConstruction {
   explicit GCOnConstruction(MinorGCTest& test, size_t depth) {
@@ -760,8 +745,6 @@ struct InConstructionWithYoungRef
   GCOnConstruction<type> call_gc;
   Member<ValueType> m;
 };
-
-}  // namespace
 
 TEST_F(MinorGCTest, RevisitInConstructionObjectsMinorMinorWithStack) {
   static constexpr auto kFirstGCType = GCType::kMinor;
@@ -824,8 +807,6 @@ TEST_F(MinorGCTest, PreviousInConstructionObjectsAreDroppedAfterFullGC) {
   EXPECT_EQ(0u, RememberedInConstructionObjects().size());
 }
 
-namespace {
-
 template <GCType type>
 struct NestedInConstructionWithYoungRef
     : GarbageCollected<NestedInConstructionWithYoungRef<type>> {
@@ -859,8 +840,6 @@ struct NestedInConstructionWithYoungRef
   Member<ValueType> m;
 };
 
-}  // namespace
-
 TEST_F(MinorGCTest, RevisitNestedInConstructionObjects) {
   static constexpr auto kFirstGCType = GCType::kMinor;
 
@@ -878,6 +857,7 @@ TEST_F(MinorGCTest, RevisitNestedInConstructionObjects) {
   EXPECT_EQ(0u, RememberedInConstructionObjects().size());
 }
 
+}  // namespace minor_gc_unittest
 }  // namespace internal
 }  // namespace cppgc
 

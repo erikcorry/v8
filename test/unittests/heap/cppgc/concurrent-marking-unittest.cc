@@ -15,8 +15,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace concurrent_marking_unittest {
 
 class ConcurrentMarkingTest : public testing::TestWithHeap {
  public:
@@ -86,8 +85,6 @@ class GCedWithMixin : public GarbageCollected<GCedWithMixin>, public Mixin {
   void Trace(cppgc::Visitor* visitor) const { Mixin::Trace(visitor); }
 };
 
-}  // namespace
-
 // The following tests below check for data races during concurrent marking.
 
 TEST_F(ConcurrentMarkingTest, MarkingObjects) {
@@ -141,8 +138,6 @@ TEST_F(ConcurrentMarkingTest, MarkingMixinObjects) {
   FinishGC();
 }
 
-namespace {
-
 struct ConcurrentlyTraceable : public GarbageCollected<ConcurrentlyTraceable> {
   static size_t trace_counter;
   void Trace(Visitor*) const { ++trace_counter; }
@@ -164,8 +159,6 @@ struct NotConcurrentlyTraceable
   }
 };
 size_t NotConcurrentlyTraceable::trace_counter = 0;
-
-}  // namespace
 
 TEST_F(ConcurrentMarkingTest, ConcurrentlyTraceableObjectIsTracedConcurrently) {
   Persistent<GCedHolder<ConcurrentlyTraceable>> root =
@@ -194,5 +187,6 @@ TEST_F(ConcurrentMarkingTest,
   FinishGC();
 }
 
+}  // namespace concurrent_marking_unittest
 }  // namespace internal
 }  // namespace cppgc

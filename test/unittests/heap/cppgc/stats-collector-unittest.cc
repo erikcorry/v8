@@ -9,8 +9,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace stats_collector_unittest {
 
 constexpr size_t kNoMarkedBytes = 0;
 
@@ -34,8 +33,6 @@ class StatsCollectorTest : public ::testing::Test {
 
   StatsCollector stats;
 };
-
-}  // namespace
 
 TEST_F(StatsCollectorTest, NoMarkedBytes) {
   stats.NotifyMarkingStarted(CollectionType::kMajor,
@@ -144,8 +141,6 @@ TEST_F(StatsCollectorTest, ObserveAllocatedObjectSizeIncreaseAndDecrease) {
   stats.UnregisterObserver(&observer);
 }
 
-namespace {
-
 void FakeGC(StatsCollector* stats, size_t marked_bytes) {
   stats->NotifyMarkingStarted(CollectionType::kMajor,
                               GCConfig::MarkingType::kAtomic,
@@ -153,8 +148,6 @@ void FakeGC(StatsCollector* stats, size_t marked_bytes) {
   stats->NotifyMarkingCompleted(marked_bytes);
   stats->NotifySweepingCompleted(GCConfig::SweepingType::kAtomic);
 }
-
-}  // namespace
 
 TEST_F(StatsCollectorTest, ObserveResetAllocatedObjectSize) {
   MockAllocationObserver observer;
@@ -177,8 +170,6 @@ TEST_F(StatsCollectorTest, ObserveAllocatedMemoryIncreaseAndDecrease) {
   stats.NotifyFreedMemory(kFreedMemorySize);
   stats.UnregisterObserver(&observer);
 }
-
-namespace {
 
 class AllocationObserverTriggeringGC final
     : public StatsCollector::AllocationObserver {
@@ -203,8 +194,6 @@ class AllocationObserverTriggeringGC final
   StatsCollector* stats;
   double survival_ratio_;
 };
-
-}  // namespace
 
 TEST_F(StatsCollectorTest, ObserverTriggersGC) {
   constexpr double kSurvivalRatio = 0.5;
@@ -271,5 +260,6 @@ TEST_F(StatsCollectorTest, ResidentMemorySizeWithDiscarded) {
   EXPECT_EQ(0u, stats.resident_memory_size());
 }
 
+}  // namespace stats_collector_unittest
 }  // namespace internal
 }  // namespace cppgc

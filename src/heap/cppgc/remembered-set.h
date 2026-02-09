@@ -26,6 +26,10 @@ class HeapBase;
 class HeapObjectHeader;
 class MutatorMarkingState;
 
+namespace minor_gc_unittest {
+class MinorGCTest;
+}  // namespace minor_gc_unittest
+
 class SlotSet : public ::heap::base::BasicSlotSet<kSlotSize> {};
 
 // OldToNewRememberedSet represents a per-heap set of old-to-new references.
@@ -60,7 +64,7 @@ class V8_EXPORT_PRIVATE OldToNewRememberedSet final {
   bool IsEmpty() const;
 
  private:
-  friend class MinorGCTest;
+  friend class minor_gc_unittest::MinorGCTest;
 
   // The class keeps track of inconstruction objects that should be revisited.
   struct RememberedInConstructionObjects final {

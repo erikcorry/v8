@@ -13,6 +13,8 @@
 
 namespace cppgc::internal {
 
+namespace caged_heap_unittest {
+
 class CagedHeapDeathTest : public testing::TestWithHeap {};
 
 TEST_F(CagedHeapDeathTest, AgeTableUncommittedBeforeGenerationalGCEnabled) {
@@ -32,6 +34,8 @@ TEST_F(CagedHeapTest, AgeTableCommittedAfterGenerationalGCEnabled) {
   CagedHeap::CommitAgeTable(*(GetPlatform().GetPageAllocator()));
   EXPECT_EQ(CagedHeapLocalData::Get().age_table.GetAge(0), AgeTable::Age::kOld);
 }
+
+}  // namespace caged_heap_unittest
 
 }  // namespace cppgc::internal
 

@@ -16,8 +16,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace object_start_bitmap_unittest {
 
 class PageWithBitmap final {
  public:
@@ -76,8 +75,6 @@ class ObjectStartBitmapTest : public ::testing::Test {
  private:
   PageWithBitmap page;
 };
-
-}  // namespace
 
 TEST_F(ObjectStartBitmapTest, MoreThanZeroEntriesPossible) {
   const size_t max_entries = ObjectStartBitmap::MaxEntries();
@@ -186,5 +183,6 @@ TEST_F(ObjectStartBitmapTest, FindHeaderSameCell) {
             bitmap().FindHeader(ObjectAddress(kCellSize - 1)));
 }
 
+}  // namespace object_start_bitmap_unittest
 }  // namespace internal
 }  // namespace cppgc

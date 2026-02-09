@@ -16,8 +16,11 @@
 namespace cppgc::internal {
 
 class HeapBase;
-class ConcurrentSweeperTest;
 class BaseSpace;
+
+namespace concurrent_sweeper_unittest {
+class ConcurrentSweeperTest;
+}  // namespace concurrent_sweeper_unittest
 
 class V8_EXPORT_PRIVATE Sweeper final {
  public:
@@ -81,7 +84,7 @@ class V8_EXPORT_PRIVATE Sweeper final {
   HeapBase& heap_;
   std::unique_ptr<SweeperImpl> impl_;
 
-  friend class ConcurrentSweeperTest;
+  friend class concurrent_sweeper_unittest::ConcurrentSweeperTest;
 };
 
 }  // namespace cppgc::internal

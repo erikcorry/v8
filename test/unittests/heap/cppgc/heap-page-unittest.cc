@@ -18,8 +18,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace heap_page_unittest {
 
 class PageTest : public testing::TestWithHeap {
  public:
@@ -35,8 +34,6 @@ class GCed : public GarbageCollected<GCed<Size>> {
   virtual void Trace(cppgc::Visitor*) const {}
   char array[Size];
 };
-
-}  // namespace
 
 TEST_F(PageTest, SpaceIndexing) {
   RawHeap& heap = GetRawHeap();
@@ -279,5 +276,6 @@ TEST_F(PageTest, ObjectHeaderFromInnerAddress) {
   }
 }
 
+}  // namespace heap_page_unittest
 }  // namespace internal
 }  // namespace cppgc

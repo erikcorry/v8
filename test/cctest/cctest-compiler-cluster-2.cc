@@ -10,5 +10,5 @@
 #include "compiler/test-concurrent-shared-function-info.cc"
 #include "compiler/test-gap-resolver.cc"
 #include "compiler/test-graph-visualizer.cc"
-#include "compiler/test-instruction.cc"
 #include "compiler/test-instruction-scheduler.cc"
+#include "compiler/test-instruction.cc"

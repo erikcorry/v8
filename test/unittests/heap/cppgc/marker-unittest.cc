@@ -21,8 +21,8 @@
 
 namespace cppgc {
 namespace internal {
+namespace marker_unittest {
 
-namespace {
 class MarkerTest : public testing::TestWithHeap {
  public:
   void DoMarking(StackState stack_state) {
@@ -70,8 +70,6 @@ template <typename T>
 V8_NOINLINE T access(volatile const T& t) {
   return t;
 }
-
-}  // namespace
 
 TEST_F(MarkerTest, PersistentIsMarked) {
   Persistent<GCed> object = MakeGarbageCollected<GCed>(GetAllocationHandle());
@@ -216,8 +214,6 @@ TEST_F(MarkerTest, NestedObjectsOnStackAreMarked) {
   EXPECT_TRUE(HeapObjectHeader::FromObject(root->child()->child()).IsMarked());
 }
 
-namespace {
-
 class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
  public:
   template <typename Callback>
@@ -237,8 +233,6 @@ class GCedWithCallback : public GarbageCollected<GCedWithCallback> {
  private:
   Member<GCed> gced_;
 };
-
-}  // namespace
 
 TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedEmptyStack) {
   static const MarkingConfig config = {CollectionType::kMajor,
@@ -267,8 +261,6 @@ TEST_F(MarkerTest, InConstructionObjectIsEventuallyMarkedNonEmptyStack) {
         EXPECT_TRUE(HeapObjectHeader::FromObject(obj).IsMarked());
       });
 }
-
-namespace {
 
 // Storage that can be used to hide a pointer from the GC. Only useful when
 // dealing with the stack separately.
@@ -308,8 +300,6 @@ V8_NOINLINE void RegisterInConstructionObject(
       MakeGarbageCollected<GCed>(allocation_handle));
 }
 
-}  // namespace
-
 TEST_F(MarkerTest,
        InConstructionObjectIsEventuallyMarkedDifferentNonEmptyStack) {
   static const MarkingConfig config = {CollectionType::kMajor,
@@ -343,8 +333,6 @@ TEST_F(MarkerTest, SentinelNotClearedOnWeakPersistentHandling) {
   EXPECT_EQ(kSentinelPointer, root->weak_child());
 }
 
-namespace {
-
 class SimpleObject final : public GarbageCollected<SimpleObject> {
  public:
   void Trace(Visitor*) const {}
@@ -371,8 +359,6 @@ class ObjectWithEphemeronPair final
  private:
   const EphemeronPair<SimpleObject, SimpleObject> ephemeron_pair_;
 };
-
-}  // namespace
 
 TEST_F(MarkerTest, MarkerProcessesAllEphemeronPairs) {
   static const MarkingConfig config = {CollectionType::kMajor,
@@ -457,14 +443,12 @@ TEST_F(IncrementalMarkingTest,
   FinishMarking();
 }
 
-namespace {
 class Holder : public GarbageCollected<Holder> {
  public:
   void Trace(Visitor* visitor) const { visitor->Trace(member_); }
 
   Member<GCedWithCallback> member_;
 };
-}  // namespace
 
 TEST_F(IncrementalMarkingTest, IncrementalStepDuringAllocation) {
   Persistent<Holder> holder =
@@ -492,5 +476,6 @@ TEST_F(IncrementalMarkingTest, MarkingRunsOutOfWorkEventually) {
   FinishMarking();
 }
 
+}  // namespace marker_unittest
 }  // namespace internal
 }  // namespace cppgc

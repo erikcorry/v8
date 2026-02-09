@@ -16,8 +16,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace gc_info_unittest {
 
 constexpr GCInfo GetEmptyGCInfo() { return {nullptr, nullptr, nullptr}; }
 
@@ -42,8 +41,6 @@ class GCInfoTableTest : public ::testing::Test {
 };
 
 using GCInfoTableDeathTest = GCInfoTableTest;
-
-}  // namespace
 
 TEST_F(GCInfoTableTest, InitialEmpty) {
   EXPECT_EQ(GCInfoTable::kMinIndex, table().NumberOfGCInfos());
@@ -88,8 +85,6 @@ TEST_F(GCInfoTableDeathTest, OldTableAreaIsReadOnly) {
   EXPECT_DEATH_IF_SUPPORTED(first_slot.finalize = nullptr, "");
 }
 
-namespace {
-
 class ThreadRegisteringGCInfoObjects final : public v8::base::Thread {
  public:
   ThreadRegisteringGCInfoObjects(GCInfoTableTest* test,
@@ -109,8 +104,6 @@ class ThreadRegisteringGCInfoObjects final : public v8::base::Thread {
   GCInfoTableTest* test_;
   GCInfoIndex num_registrations_;
 };
-
-}  // namespace
 
 TEST_F(GCInfoTableTest, MultiThreadedResizeToMaxIndex) {
   constexpr size_t num_threads = 4;
@@ -142,8 +135,6 @@ TEST_F(GCInfoTableTest, MultiThreadedResizeToMaxIndex) {
 
 // Tests using the global table and GCInfoTrait.
 
-namespace {
-
 class GCInfoTraitTest : public testing::TestWithPlatform {};
 
 class BasicType final {
@@ -154,8 +145,6 @@ class OtherBasicType final {
  public:
   void Trace(Visitor*) const {}
 };
-
-}  // namespace
 
 TEST_F(GCInfoTraitTest, IndexInBounds) {
   const GCInfoIndex index = GCInfoTrait<BasicType>::Index();
@@ -174,8 +163,6 @@ TEST_F(GCInfoTraitTest, TraitReturnsDifferentIndexForDifferentTypes) {
   const GCInfoIndex index2 = GCInfoTrait<OtherBasicType>::Index();
   EXPECT_NE(index1, index2);
 }
-
-namespace {
 
 struct Dummy {};
 
@@ -316,7 +303,6 @@ static_assert(
     "Must fold into base as base has custom finalizer dispatch.");
 #endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
 
-}  // namespace
-
+}  // namespace gc_info_unittest
 }  // namespace internal
 }  // namespace cppgc

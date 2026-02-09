@@ -11,8 +11,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace stats_collector_scopes_unittest {
 
 class DelegatingTracingControllerImpl : public TracingController {
  public:
@@ -101,8 +100,6 @@ class V8_NODISCARD CppgcTracingScopesTest : public testing::TestWithHeap {
     EXPECT_EQ(value, DelegatingTracingControllerImpl::stored_arg_values[i]);
   }
 };
-
-}  // namespace
 
 TEST_F(CppgcTracingScopesTest, DisabledScope) {
   StartGC();
@@ -308,6 +305,7 @@ TEST_F(CppgcTracingScopesTest, TestIndividualConcurrentScopes) {
   }
 }
 
+}  // namespace stats_collector_scopes_unittest
 }  // namespace internal
 }  // namespace cppgc
 

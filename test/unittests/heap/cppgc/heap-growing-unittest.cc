@@ -14,7 +14,7 @@
 
 namespace cppgc::internal {
 
-namespace {
+namespace heap_growing_unittest {
 
 class FakeGarbageCollector : public GarbageCollector {
  public:
@@ -77,8 +77,6 @@ void FakeAllocate(StatsCollector* stats_collector, size_t bytes) {
 }
 
 static constexpr Platform* kNoPlatform = nullptr;
-
-}  // namespace
 
 TEST(HeapGrowingTest, ConservativeGCInvoked) {
   StatsCollector stats_collector(kNoPlatform);
@@ -187,5 +185,7 @@ TEST(HeapGrowingTest, IncrementalGCFinalized) {
   // Allocate the rest needed to trigger atomic gc ().
   FakeAllocate(&stats_collector, StatsCollector::kAllocationThresholdBytes);
 }
+
+}  // namespace heap_growing_unittest
 
 }  // namespace cppgc::internal

@@ -12,15 +12,14 @@
 
 namespace cppgc {
 namespace internal {
+namespace testing_unittest {
 
-namespace {
 class TestingTest : public testing::TestWithHeap {};
 
 class GCed : public GarbageCollected<GCed> {
  public:
   void Trace(Visitor*) const {}
 };
-}  // namespace
 
 TEST_F(TestingTest,
        OverrideEmbeddertackStateScopeDoesNotOverrideExplicitCalls) {
@@ -60,5 +59,6 @@ TEST_F(TestingTest, StandaloneTestingHeap) {
   heap.FinalizeGarbageCollection(EmbedderStackState::kNoHeapPointers);
 }
 
+}  // namespace testing_unittest
 }  // namespace internal
 }  // namespace cppgc

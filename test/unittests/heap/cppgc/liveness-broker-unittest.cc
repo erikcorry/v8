@@ -12,8 +12,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace liveness_broker_unittest {
 
 using LivenessBrokerTest = testing::TestSupportingAllocationOnly;
 
@@ -21,8 +20,6 @@ class GCed : public GarbageCollected<GCed> {
  public:
   void Trace(cppgc::Visitor*) const {}
 };
-
-}  // namespace
 
 TEST_F(LivenessBrokerTest, IsHeapObjectAliveForConstPointer) {
   // Regression test: http://crbug.com/661363.
@@ -41,5 +38,6 @@ TEST_F(LivenessBrokerTest, IsHeapObjectAliveNullptr) {
   EXPECT_TRUE(broker.IsHeapObjectAlive(object));
 }
 
+}  // namespace liveness_broker_unittest
 }  // namespace internal
 }  // namespace cppgc

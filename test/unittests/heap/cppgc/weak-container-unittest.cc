@@ -15,7 +15,8 @@
 namespace cppgc {
 namespace internal {
 
-namespace {
+namespace weak_container_unittest {
+
 class WeakContainerTest : public testing::TestWithHeap {
  public:
   void StartMarking() {
@@ -65,27 +66,31 @@ class NonTraceableGCed : public GarbageCollected<NonTraceableGCed> {
 
 void EmptyWeakCallback(const LivenessBroker&, const void*) {}
 
-}  // namespace
+}  // namespace weak_container_unittest
 
 }  // namespace internal
 
 template <>
-struct TraceTrait<internal::TraceableGCed>
-    : public internal::TraceTraitBase<internal::TraceableGCed> {
+struct TraceTrait<internal::weak_container_unittest::TraceableGCed>
+    : public internal::TraceTraitBase<
+          internal::weak_container_unittest::TraceableGCed> {
   static TraceDescriptor GetWeakTraceDescriptor(const void* self) {
     return {self, Trace};
   }
 };
 
 template <>
-struct TraceTrait<internal::NonTraceableGCed>
-    : public internal::TraceTraitBase<internal::NonTraceableGCed> {
+struct TraceTrait<internal::weak_container_unittest::NonTraceableGCed>
+    : public internal::TraceTraitBase<
+          internal::weak_container_unittest::NonTraceableGCed> {
   static TraceDescriptor GetWeakTraceDescriptor(const void* self) {
     return {self, nullptr};
   }
 };
 
 namespace internal {
+
+namespace weak_container_unittest {
 
 TEST_F(WeakContainerTest, TraceableGCedTraced) {
   TraceableGCed* obj =
@@ -157,8 +162,6 @@ TEST_F(WeakContainerTest, ConservativeGCTracesWeakContainerOnce) {
   EXPECT_EQ(SizeOf<NonTraceableGCed>(), GetMarkedBytes());
 }
 
-namespace {
-
 struct WeakCallback {
   static void callback(const LivenessBroker&, const void* data) {
     n_callback_called++;
@@ -169,8 +172,6 @@ struct WeakCallback {
 };
 size_t WeakCallback::n_callback_called = 0u;
 const void* WeakCallback::obj = nullptr;
-
-}  // namespace
 
 TEST_F(WeakContainerTest, WeakContainerWeakCallbackCalled) {
   TraceableGCed* obj =
@@ -185,6 +186,8 @@ TEST_F(WeakContainerTest, WeakContainerWeakCallbackCalled) {
   EXPECT_EQ(SizeOf<TraceableGCed>(), GetMarkedBytes());
   EXPECT_EQ(obj, WeakCallback::obj);
 }
+
+}  // namespace weak_container_unittest
 
 }  // namespace internal
 }  // namespace cppgc

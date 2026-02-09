@@ -20,8 +20,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace heap_unittest {
 
 class GCHeapTest : public testing::TestWithHeap {
  public:
@@ -56,8 +55,6 @@ class GCed : public GarbageCollected<GCed<Size>> {
   char buf[Size];
 };
 
-}  // namespace
-
 TEST_F(GCHeapTest, PreciseGCReclaimsObjectOnStack) {
   Foo* volatile do_not_access =
       MakeGarbageCollected<Foo>(GetAllocationHandle());
@@ -69,16 +66,12 @@ TEST_F(GCHeapTest, PreciseGCReclaimsObjectOnStack) {
   EXPECT_EQ(1u, Foo::destructor_callcount);
 }
 
-namespace {
-
 const void* ConservativeGCReturningObject(cppgc::Heap* heap,
                                           const void* object) {
   internal::Heap::From(heap)->CollectGarbage(
       GCConfig::ConservativeAtomicConfig());
   return object;
 }
-
-}  // namespace
 
 TEST_F(GCHeapTest, ConservativeGCRetainsObjectOnStack) {
   Foo* volatile object = MakeGarbageCollected<Foo>(GetAllocationHandle());
@@ -90,8 +83,6 @@ TEST_F(GCHeapTest, ConservativeGCRetainsObjectOnStack) {
   PreciseGC();
   EXPECT_EQ(1u, Foo::destructor_callcount);
 }
-
-namespace {
 
 class GCedWithFinalizer final : public GarbageCollected<GCedWithFinalizer> {
  public:
@@ -121,8 +112,6 @@ class LargeObjectGCDuringCtor final
   char data[kDataSize];
   Member<GCedWithFinalizer> child_;
 };
-
-}  // namespace
 
 TEST_F(GCHeapTest, ConservativeGCFromLargeObjectCtorFindsObject) {
   GCedWithFinalizer::destructor_counter = 0;
@@ -260,8 +249,6 @@ TEST_F(GCHeapTest, IsSweeping) {
   EXPECT_FALSE(subtle::HeapState::IsSweeping(*heap));
 }
 
-namespace {
-
 class GCedExpectSweepingOnOwningThread final
     : public GarbageCollected<GCedExpectSweepingOnOwningThread> {
  public:
@@ -277,8 +264,6 @@ class GCedExpectSweepingOnOwningThread final
   const HeapHandle& heap_handle_;
 };
 
-}  // namespace
-
 TEST_F(GCHeapTest, IsSweepingOnOwningThread) {
   GCConfig config =
       GCConfig::PreciseIncrementalMarkingConcurrentSweepingConfig();
@@ -293,8 +278,6 @@ TEST_F(GCHeapTest, IsSweepingOnOwningThread) {
   heap->AsBase().sweeper().FinishIfRunning();
   EXPECT_FALSE(subtle::HeapState::IsSweepingOnOwningThread(*heap));
 }
-
-namespace {
 
 class ExpectAtomicPause final : public GarbageCollected<ExpectAtomicPause> {
   CPPGC_USING_PRE_FINALIZER(ExpectAtomicPause, PreFinalizer);
@@ -312,8 +295,6 @@ class ExpectAtomicPause final : public GarbageCollected<ExpectAtomicPause> {
  private:
   HeapHandle& handle_;
 };
-
-}  // namespace
 
 TEST_F(GCHeapTest, IsInAtomicPause) {
   GCConfig config = GCConfig::PreciseIncrementalConfig();
@@ -343,8 +324,6 @@ TEST_F(GCHeapTest, TerminateInvokesDestructor) {
   Heap::From(GetHeap())->Terminate();
   EXPECT_EQ(1u, Foo::destructor_callcount);
 }
-
-namespace {
 
 template <template <typename> class PersistentType>
 class Cloner final : public GarbageCollected<Cloner<PersistentType>> {
@@ -378,8 +357,6 @@ PersistentType<Cloner<PersistentType>> Cloner<PersistentType>::new_instance_;
 // static
 template <template <typename> class PersistentType>
 size_t Cloner<PersistentType>::destructor_count;
-
-}  // namespace
 
 template <template <typename> class PersistentType>
 void TerminateReclaimsNewState(std::shared_ptr<Platform> platform) {
@@ -429,5 +406,6 @@ TEST_F(GCHeapDeathTest, LargeChainOfNewStatesCrossThreadPersistent) {
   LargeChainOfNewStates<subtle::CrossThreadPersistent>(*GetHeap());
 }
 
+}  // namespace heap_unittest
 }  // namespace internal
 }  // namespace cppgc

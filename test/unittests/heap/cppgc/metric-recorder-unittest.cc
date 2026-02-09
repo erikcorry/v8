@@ -10,7 +10,8 @@
 namespace cppgc {
 namespace internal {
 
-namespace {
+namespace metric_recorder_unittest {
+
 class MetricRecorderImpl final : public MetricRecorder {
  public:
   void AddMainThreadEvent(const GCCycle& event) final {
@@ -62,7 +63,6 @@ class MetricRecorderTest : public testing::TestWithHeap {
 
   StatsCollector* stats;
 };
-}  // namespace
 
 TEST_F(MetricRecorderTest, IncrementalScopesReportedImmediately) {
   MetricRecorderImpl::GCCycle_callcount = 0u;
@@ -289,6 +289,8 @@ TEST_F(MetricRecorderTest, ObjectSizeMetricsWithAllocations) {
   EXPECT_EQ(300u, MetricRecorderImpl::GCCycle_event.memory.after_bytes);
   EXPECT_EQ(400u, MetricRecorderImpl::GCCycle_event.memory.freed_bytes);
 }
+
+}  // namespace metric_recorder_unittest
 
 }  // namespace internal
 }  // namespace cppgc

@@ -14,8 +14,8 @@
 
 namespace cppgc {
 namespace internal {
+namespace ephemeron_pair_unittest {
 
-namespace {
 class GCed : public GarbageCollected<GCed> {
  public:
   void Trace(cppgc::Visitor*) const {}
@@ -72,8 +72,6 @@ class EphemeronPairTest : public testing::TestWithHeap {
 
 // static
 constexpr MarkingConfig EphemeronPairTest::IncrementalPreciseMarkingConfig;
-
-}  // namespace
 
 TEST_F(EphemeronPairTest, ValueMarkedWhenKeyIsMarked) {
   GCed* key = MakeGarbageCollected<GCed>(GetAllocationHandle());
@@ -153,8 +151,6 @@ TEST_F(EphemeronPairGCTest, EphemeronPairValueIsCleared) {
   EXPECT_EQ(nullptr, holder->ephemeron_pair().value.Get());
 }
 
-namespace {
-
 class Mixin : public GarbageCollectedMixin {
  public:
   void Trace(Visitor* v) const override {}
@@ -190,8 +186,6 @@ class EphemeronHolderWithMixins
   EphemeronPair<Mixin, Mixin> ephemeron_pair_;
 };
 
-}  // namespace
-
 TEST_F(EphemeronPairTest, EphemeronPairWithMixinKey) {
   GCedWithMixin* key =
       MakeGarbageCollected<GCedWithMixin>(GetAllocationHandle());
@@ -223,8 +217,6 @@ TEST_F(EphemeronPairTest, EphemeronPairWithEmptyMixinValue) {
   FinishMarking();
 }
 
-namespace {
-
 class KeyWithCallback final : public GarbageCollected<KeyWithCallback> {
  public:
   template <typename Callback>
@@ -244,8 +236,6 @@ class EphemeronHolderForKeyWithCallback final
  private:
   const EphemeronPair<KeyWithCallback, GCed> ephemeron_pair_;
 };
-
-}  // namespace
 
 TEST_F(EphemeronPairTest, EphemeronPairWithKeyInConstruction) {
   GCed* value = MakeGarbageCollected<GCed>(GetAllocationHandle());
@@ -268,5 +258,6 @@ TEST_F(EphemeronPairTest, EphemeronPairWithKeyInConstruction) {
   EXPECT_TRUE(HeapObjectHeader::FromObject(value).IsMarked());
 }
 
+}  // namespace ephemeron_pair_unittest
 }  // namespace internal
 }  // namespace cppgc

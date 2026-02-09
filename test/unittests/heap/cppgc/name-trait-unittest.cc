@@ -12,8 +12,7 @@
 
 namespace cppgc {
 namespace internal {
-
-namespace {
+namespace name_trait_unittest {
 
 struct NoName : public GarbageCollected<NoName> {
   virtual void Trace(Visitor*) const {}
@@ -33,8 +32,6 @@ class ClassWithName final : public GarbageCollected<ClassWithName>,
  private:
   const char* name_;
 };
-
-}  // namespace
 
 class NameTraitTest : public testing::TestWithHeap {};
 
@@ -92,15 +89,11 @@ TEST_F(NameTraitTest, CustomName) {
                    .value);
 }
 
-namespace {
-
 class TraitTester : public NameTraitBase {
  public:
   // Expose type signature parser to allow testing various inputs.
   using NameTraitBase::GetNameFromTypeSignature;
 };
-
-}  // namespace
 
 TEST_F(NameTraitTest, NoTypeAvailable) {
   HeapObjectName name = TraitTester::GetNameFromTypeSignature(nullptr);
@@ -160,5 +153,6 @@ TEST_F(HeapObjectHeaderNameTest, LookupNameThroughGCInfo) {
   EXPECT_FALSE(class_with_name_tuple.name_was_hidden);
 }
 
+}  // namespace name_trait_unittest
 }  // namespace internal
 }  // namespace cppgc
