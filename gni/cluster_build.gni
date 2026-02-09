@@ -66,16 +66,28 @@ template("torque_cluster_action") {
   _prefix = invoker.prefix
   _output_dir = invoker.output_dir
 
-  # Count source files
+  # Handle optional excludes list (files too large to cluster)
+  if (defined(invoker.excludes)) {
+    _excludes = invoker.excludes
+  } else {
+    _excludes = []
+  }
+
+  # Count source files (excluding large files)
+  _num_excludes = 0
+  foreach(e, _excludes) {
+    _num_excludes += 1
+  }
   _num_sources = 0
   foreach(s, _sources) {
     _num_sources += 1
   }
+  _num_clustered = _num_sources - _num_excludes
 
   # Compute cluster file names using exec_script
   _cluster_filenames = exec_script("//tools/compute_cluster_filenames.py",
                                    [
-                                     "$_num_sources",
+                                     "$_num_clustered",
                                      "$torque_cluster_size",
                                      _prefix,
                                    ],
@@ -108,6 +120,15 @@ template("torque_cluster_action") {
         "--strip-prefix",
         _strip_prefix,
       ]
+
+      # Add exclude arguments
+      foreach(e, _excludes) {
+        args += [
+          "--exclude",
+          rebase_path(e, root_build_dir),
+        ]
+      }
+
       args += rebase_path(_sources, root_build_dir)
 
       forward_variables_from(invoker,

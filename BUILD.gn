@@ -2545,24 +2545,57 @@ foreach(file, torque_files) {
   }
 }
 
+# Large CSA files that should be compiled individually, not clustered.
+# These files are >100KB and would slow down cluster compilation.
+# Only the filename is matched, not the full path, for robustness.
+torque_csa_large_filenames = [
+  "arguments-tq-csa.cc",
+  "contexts-tq-csa.cc",
+  "fixed-array-tq-csa.cc",
+  "intl-objects-tq-csa.cc",
+  "js-objects-tq-csa.cc",
+  "ordered-hash-table-tq-csa.cc",
+  "scope-info-tq-csa.cc",
+  "shared-function-info-tq-csa.cc",
+  "string-tq-csa.cc",
+  "turbofan-types-tq-csa.cc",
+  "turboshaft-types-tq-csa.cc",
+]
+
+# Build the full paths for files that match the blacklist
+torque_csa_large_files = []
+foreach(file, torque_csa_cc_files) {
+  foreach(large, torque_csa_large_filenames) {
+    if (get_path_info(file, "file") == large) {
+      torque_csa_large_files += [ file ]
+    }
+  }
+}
+
 # Action to generate cluster files for torque CSA sources
 torque_cluster_action("generate_torque_csa_clusters") {
   visibility = [ ":*" ]
   sources = torque_csa_cc_files
+  excludes = torque_csa_large_files
   prefix = "torque-csa"
   output_dir = "$target_gen_dir/torque-generated"
   deps = [ ":run_torque" ]
 }
 
 # Compute cluster file names for use in the source set
+_torque_csa_num_large = 0
+foreach(f, torque_csa_large_files) {
+  _torque_csa_num_large += 1
+}
 _torque_csa_num_files = 0
 foreach(f, torque_csa_cc_files) {
   _torque_csa_num_files += 1
 }
+_torque_csa_num_clustered = _torque_csa_num_files - _torque_csa_num_large
 _torque_csa_cluster_filenames =
     exec_script("//tools/compute_cluster_filenames.py",
                 [
-                  "$_torque_csa_num_files",
+                  "$_torque_csa_num_clustered",
                   "$torque_cluster_size",
                   "torque-csa",
                 ],
@@ -2611,6 +2644,8 @@ v8_source_set("torque_generated_initializers") {
   # Add source files (clustered or individual)
   if (v8_enable_cluster_build) {
     sources += torque_csa_cluster_files
+    # Large files are compiled individually, not clustered
+    sources += torque_csa_large_files
     if (v8_enable_experimental_tq_to_tsa) {
       # TODO: Add clustering for TSA files if needed
       sources += torque_tsa_cc_files
