@@ -6,6 +6,8 @@
 
 #pragma clang diagnostic ignored "-Wheader-hygiene"
 
-#include "wasm/test-run-wasm-relaxed-simd.cc"
-#include "wasm/test-run-wasm-simd-liftoff.cc"
-#include "wasm/test-run-wasm-wrappers.cc"
+#include "test/cctest/wasm/test-wasm-serialization.cc"
+#include "test/cctest/wasm/test-wasm-shared-engine.cc"
+#include "test/cctest/wasm/test-wasm-stack.cc"
+#include "test/cctest/wasm/test-wasm-strings.cc"
+#include "test/cctest/wasm/test-wasm-trap-position.cc"

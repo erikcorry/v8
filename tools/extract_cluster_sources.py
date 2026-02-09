@@ -15,8 +15,15 @@ Usage:
 
 Output:
   One source file path per line, suitable for GN's "list lines" format.
+  Paths are relative to the same base directory as the cluster file paths.
+
+Note:
+  Include paths in cluster files are resolved relative to the cluster file's
+  directory. For example, if cluster file "heap/cppgc/cluster.cc" includes
+  "foo.cc", the output will be "heap/cppgc/foo.cc".
 """
 
+import os
 import re
 import sys
 
@@ -33,15 +40,34 @@ NAMESPACE_RE = re.compile(r'^\s*(namespace\s+\w*\s*\{|\})')
 def extract_includes(cluster_file):
   """Extracts .cc file paths from #include directives in a cluster file.
 
+  Include paths in cluster files can be:
+  1. Relative to BUILD.gn (e.g., "foo.cc" or "subdir/foo.cc")
+  2. Absolute from repo root (e.g., "test/unittests/heap/cppgc/foo.cc")
+
+  For absolute paths, this function strips the BUILD.gn directory prefix
+  to produce paths relative to BUILD.gn that match the sources list.
+
   Also validates that the file only contains blank lines, comments, and
   valid include directives.
   """
+  # Known BUILD.gn directory prefixes that should be stripped from include paths
+  # These are directories where BUILD.gn lives, so repo-root paths need the
+  # prefix stripped to match the BUILD.gn-relative source paths.
+  # Note: src/ is NOT included because the root BUILD.gn uses src/-prefixed paths.
+  KNOWN_BUILDGN_DIRS = ['test/unittests/', 'test/cctest/']
+
   includes = []
   with open(cluster_file, 'r') as f:
     for line_num, line in enumerate(f, 1):
       include_match = INCLUDE_RE.match(line)
       if include_match:
-        includes.append(include_match.group(1))
+        include_path = include_match.group(1)
+        # Strip known BUILD.gn directory prefix if present
+        for prefix in KNOWN_BUILDGN_DIRS:
+          if include_path.startswith(prefix):
+            include_path = include_path[len(prefix):]
+            break
+        includes.append(include_path)
       elif (not BLANK_RE.match(line) and not COMMENT_RE.match(line) and
             not PRAGMA_RE.match(line) and not NAMESPACE_RE.match(line)):
         print(

@@ -6,7 +6,7 @@
 
 #pragma clang diagnostic ignored "-Wheader-hygiene"
 
-#include "compiler/turboshaft-codegen-tester.cc"
-#include "compiler/turboshaft-test-branch-combine.cc"
-#include "compiler/turboshaft-test-compare-combine.cc"
-#include "compiler/turboshaft-test-select-combine.cc"
+#include "test/cctest/compiler/turboshaft-codegen-tester.cc"
+#include "test/cctest/compiler/turboshaft-test-branch-combine.cc"
+#include "test/cctest/compiler/turboshaft-test-compare-combine.cc"
+#include "test/cctest/compiler/turboshaft-test-select-combine.cc"
