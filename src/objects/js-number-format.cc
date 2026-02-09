@@ -35,7 +35,7 @@
 namespace v8 {
 namespace internal {
 
-namespace {
+namespace number_format {
 
 // This is to work around ICU's comparison operators not being compliant with
 // clang's -Wambiguous-reversed-operator in >=C++20.
@@ -149,9 +149,9 @@ UNumberSignDisplay ToUNumberSignDisplay(SignDisplay sign_display,
   }
 }
 
-}  // namespace
+}  // namespace number_format
 
-icu::number::Notation Intl::ToICUNotation(
+icu::number::Notation i::Intl::ToICUNotation(
     Intl::Notation notation, Intl::CompactDisplay compact_display) {
   switch (notation) {
     case Intl::Notation::STANDARD:
@@ -171,7 +171,7 @@ icu::number::Notation Intl::ToICUNotation(
   }
 }
 
-namespace {
+namespace number_format {
 
 UNumberFormatRoundingMode ToUNumberFormatRoundingMode(
     Intl::RoundingMode rounding_mode) {
@@ -413,7 +413,8 @@ const icu::UnicodeString CurrencyFromSkeleton(
   return skeleton.tempSubString(index, 3);
 }
 
-}  // namespace
+}  // namespace number_format
+
 const icu::UnicodeString JSNumberFormat::NumberingSystemFromSkeleton(
     const icu::UnicodeString& skeleton) {
   const char numbering_system[] = "numbering-system/";
@@ -426,7 +427,7 @@ const icu::UnicodeString JSNumberFormat::NumberingSystemFromSkeleton(
   return res.tempSubString(0, index);
 }
 
-namespace {
+namespace number_format {
 
 // Return CurrencySign as string based on skeleton.
 DirectHandle<String> CurrencySignString(Isolate* isolate,
@@ -458,7 +459,7 @@ DirectHandle<String> UnitDisplayString(Isolate* isolate,
   return isolate->factory()->short_string();
 }
 
-}  // anonymous namespace
+}  // namespace number_format
 
 // Parse Notation from skeleton.
 Intl::Notation Intl::NotationFromSkeleton(const icu::UnicodeString& skeleton) {
@@ -512,7 +513,7 @@ DirectHandle<String> Intl::CompactDisplayString(
   return isolate->factory()->short_string();
 }
 
-namespace {
+namespace number_format {
 
 // Return SignDisplay as string based on skeleton.
 DirectHandle<String> SignDisplayString(Isolate* isolate,
@@ -546,7 +547,7 @@ DirectHandle<String> SignDisplayString(Isolate* isolate,
   return isolate->factory()->auto_string();
 }
 
-}  // anonymous namespace
+}  // namespace number_format
 
 // Return RoundingMode as string based on skeleton.
 DirectHandle<String> JSNumberFormat::RoundingModeString(
@@ -745,7 +746,7 @@ bool JSNumberFormat::SignificantDigitsFromSkeleton(
   return true;
 }
 
-namespace {
+namespace number_format {
 
 // Ex: percent .### rounding-mode-half-up
 // Special case for "percent"
@@ -808,14 +809,14 @@ Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
   return Style::DECIMAL;
 }
 
-}  // anonymous namespace
+}  // namespace number_format
 
 icu::number::UnlocalizedNumberFormatter
 JSNumberFormat::SetDigitOptionsToFormatter(
     const icu::number::UnlocalizedNumberFormatter& settings,
     const Intl::NumberFormatDigitOptions& digit_options) {
   icu::number::UnlocalizedNumberFormatter result = settings.roundingMode(
-      ToUNumberFormatRoundingMode(digit_options.rounding_mode));
+      number_format::ToUNumberFormatRoundingMode(digit_options.rounding_mode));
 
   if (digit_options.minimum_integer_digits > 1) {
     result = result.integerWidth(icu::number::IntegerWidth::zeroFillTo(
@@ -866,6 +867,7 @@ JSNumberFormat::SetDigitOptionsToFormatter(
 // ecma402 #sec-intl.numberformat.prototype.resolvedoptions
 DirectHandle<JSObject> JSNumberFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format) {
+  using namespace number_format;
   Factory* factory = isolate->factory();
 
   UErrorCode status = U_ZERO_ERROR;
@@ -1057,6 +1059,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
 MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> options_obj, const char* service) {
+  using namespace number_format;
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -1484,7 +1487,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   return number_format;
 }
 
-namespace {
+namespace number_format {
 
 template <typename StringHandle>
 int32_t SignedStringLength(StringHandle string) {
@@ -1511,7 +1514,7 @@ icu::number::FormattedNumber FormatDecimalString(
   return lfmt->formatDecimal(converted, status);
 }
 
-}  // namespace
+}  // namespace number_format
 
 bool IntlMathematicalValue::IsNaN() const { return i::IsNaN(*value_); }
 
@@ -1527,7 +1530,8 @@ MaybeHandle<String> IntlMathematicalValue::ToString(Isolate* isolate) const {
   return Cast<String>(value_);
 }
 
-namespace {
+namespace number_format {
+
 Maybe<icu::number::FormattedNumber> IcuFormatNumber(
     Isolate* isolate,
     std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
@@ -1585,7 +1589,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
   return Just(std::move(formatted));
 }
 
-}  // namespace
+}  // namespace number_format
 
 Maybe<icu::number::FormattedNumber> IntlMathematicalValue::FormatNumeric(
     Isolate* isolate,
@@ -1595,15 +1599,15 @@ Maybe<icu::number::FormattedNumber> IntlMathematicalValue::FormatNumeric(
     Handle<String> string;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, string, x.ToString(isolate));
     UErrorCode status = U_ZERO_ERROR;
-    icu::number::FormattedNumber result =
-        FormatDecimalString(isolate, std::move(lfmt), string, status);
+    icu::number::FormattedNumber result = number_format::FormatDecimalString(
+        isolate, std::move(lfmt), string, status);
     if (U_FAILURE(status)) {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
     }
     return Just(std::move(result));
   }
   CHECK(IsNumber(*x.value_) || IsBigInt(*x.value_));
-  return IcuFormatNumber(isolate, std::move(lfmt), x.value_);
+  return number_format::IcuFormatNumber(isolate, std::move(lfmt), x.value_);
 }
 
 Maybe<icu::number::FormattedNumberRange> IntlMathematicalValue::FormatRange(
@@ -1627,7 +1631,8 @@ Maybe<icu::number::FormattedNumberRange> IntlMathematicalValue::FormatRange(
   return Just(std::move(result));
 }
 
-namespace {
+namespace number_format {
+
 // Return the index of the end of leading white space or line terminator
 // and the index of the start of trailing white space or line terminator.
 template <typename Char>
@@ -1674,11 +1679,12 @@ Handle<String> TrimWhiteSpaceOrLineTerminator(Isolate* isolate,
                                           whitespace_offsets.second);
 }
 
-}  // namespace
+}  // namespace number_format
 
 // #sec-tointlmathematicalvalue
 Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
                                                          Handle<Object> value) {
+  using namespace number_format;
   Factory* factory = isolate->factory();
   // 1. Let primValue be ? ToPrimitive(value, number).
   Handle<Object> prim_value;
@@ -1779,7 +1785,7 @@ Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
   {
     DisallowGarbageCollection no_gc;
     const String::FlatContent& flat = string->GetFlatContent(no_gc);
-    int32_t length = SignedStringLength(string);
+    int32_t length = number_format::SignedStringLength(string);
     if (flat.IsOneByte()) {
       icu::Formattable result(
           {reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
@@ -1795,7 +1801,8 @@ Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
   THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
 }
 
-namespace {
+namespace number_format {
+
 bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
                           const NumberFormatSpan& b) {
   // Regions that start earlier should be encountered earlier.
@@ -1811,7 +1818,7 @@ bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
   return a.field_id < b.field_id;
 }
 
-}  // namespace
+}  // namespace number_format
 
 // Flattens a list of possibly-overlapping "regions" to a list of
 // non-overlapping "parts". At least one of the input regions must span the
@@ -1851,7 +1858,8 @@ std::vector<NumberFormatSpan> FlattenRegionsToParts(
   // smaller regions are "on top" of larger regions, and we output a birds-eye
   // view of the mountains, so that smaller regions take priority over larger
   // regions.
-  std::sort(regions->begin(), regions->end(), cmp_NumberFormatSpan);
+  std::sort(regions->begin(), regions->end(),
+            number_format::cmp_NumberFormatSpan);
   std::vector<size_t> overlapping_region_index_stack;
   // At least one item in regions must be a region spanning the entire string.
   // Due to the sorting above, the first item in the vector will be one of them.
@@ -1903,7 +1911,8 @@ std::vector<NumberFormatSpan> FlattenRegionsToParts(
   return out_parts;
 }
 
-namespace {
+namespace number_format {
+
 Maybe<int> ConstructParts(Isolate* isolate,
                           const icu::FormattedValue& formatted,
                           DirectHandle<JSArray> result, int start_index,
@@ -1982,17 +1991,17 @@ Maybe<int> ConstructParts(Isolate* isolate,
   return Just(index);
 }
 
-}  // namespace
+}  // namespace number_format
 
 Maybe<int> Intl::AddNumberElements(Isolate* isolate,
                                    const icu::FormattedValue& formatted,
                                    DirectHandle<JSArray> result,
                                    int start_index, DirectHandle<String> unit) {
-  return ConstructParts(isolate, formatted, result, start_index, true, false,
-                        false, true, unit);
+  return number_format::ConstructParts(isolate, formatted, result, start_index,
+                                       true, false, false, true, unit);
 }
 
-namespace {
+namespace number_format {
 
 // #sec-partitionnumberrangepattern
 template <typename T,
@@ -2054,6 +2063,7 @@ MaybeDirectHandle<String> FormatToString(Isolate* isolate,
   }
   return Intl::ToString(isolate, result);
 }
+
 MaybeDirectHandle<String> FormatToString(
     Isolate* isolate, const icu::FormattedValue& formatted,
     std::shared_ptr<icu::number::LocalizedNumberFormatter>, bool) {
@@ -2087,7 +2097,7 @@ MaybeDirectHandle<JSArray> FormatRangeToJSArray(
   return FormatToJSArray(isolate, formatted, std::move(lfmt), is_nan, true);
 }
 
-}  // namespace
+}  // namespace number_format
 
 Maybe<icu::number::LocalizedNumberRangeFormatter>
 JSNumberFormat::GetRangeFormatter(
@@ -2112,11 +2122,11 @@ MaybeDirectHandle<String> JSNumberFormat::FormatNumeric(
     std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
     Handle<Object> numeric_obj) {
   Maybe<icu::number::FormattedNumber> maybe_format =
-      IcuFormatNumber(isolate, std::move(lfmt), numeric_obj);
+      number_format::IcuFormatNumber(isolate, std::move(lfmt), numeric_obj);
   MAYBE_RETURN(maybe_format, DirectHandle<String>());
   icu::number::FormattedNumber formatted = std::move(maybe_format).FromJust();
 
-  return FormatToString(isolate, formatted);
+  return number_format::FormatToString(isolate, formatted);
 }
 
 MaybeDirectHandle<String> JSNumberFormat::NumberFormatFunction(
@@ -2135,7 +2145,7 @@ MaybeDirectHandle<String> JSNumberFormat::NumberFormatFunction(
   icu::number::FormattedNumber formatted =
       std::move(maybe_formatted).FromJust();
 
-  return FormatToString(isolate, formatted);
+  return number_format::FormatToString(isolate, formatted);
 }
 
 MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
@@ -2153,8 +2163,8 @@ MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
   icu::number::FormattedNumber formatted =
       std::move(maybe_formatted).FromJust();
 
-  return FormatToJSArray(isolate, formatted, std::move(lfmt), value.IsNaN(),
-                         false);
+  return number_format::FormatToJSArray(isolate, formatted, std::move(lfmt),
+                                        value.IsNaN(), false);
 }
 
 // #sec-number-format-functions
@@ -2162,7 +2172,8 @@ MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
 MaybeDirectHandle<String> JSNumberFormat::FormatNumericRange(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> x_obj, Handle<Object> y_obj) {
-  return PartitionNumberRangePattern<String, FormatToString>(
+  return number_format::PartitionNumberRangePattern<
+      String, number_format::FormatToString>(
       isolate, number_format, x_obj, y_obj,
       "Intl.NumberFormat.prototype.formatRange");
 }
@@ -2170,22 +2181,24 @@ MaybeDirectHandle<String> JSNumberFormat::FormatNumericRange(
 MaybeDirectHandle<JSArray> JSNumberFormat::FormatNumericRangeToParts(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> x_obj, Handle<Object> y_obj) {
-  return PartitionNumberRangePattern<JSArray, FormatRangeToJSArray>(
+  return number_format::PartitionNumberRangePattern<
+      JSArray, number_format::FormatRangeToJSArray>(
       isolate, number_format, x_obj, y_obj,
       "Intl.NumberFormat.prototype.formatRangeToParts");
 }
 
-namespace {
+namespace number_format {
 
 struct CheckNumberElements {
   static const char* key() { return "NumberElements"; }
   static const char* path() { return nullptr; }
 };
 
-}  // namespace
+}  // namespace number_format
 
 const std::set<std::string>& JSNumberFormat::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<CheckNumberElements>>::type
+  static base::LazyInstance<
+      Intl::AvailableLocales<number_format::CheckNumberElements>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

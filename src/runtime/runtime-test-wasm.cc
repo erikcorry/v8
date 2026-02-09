@@ -135,7 +135,7 @@ RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-namespace {
+namespace runtime_test_wasm_internal {
 
 int WasmStackSize(Isolate* isolate) {
   // TODO(wasm): Fix this for mixed JS/Wasm stacks with both --trace and
@@ -147,7 +147,7 @@ int WasmStackSize(Isolate* isolate) {
   return n;
 }
 
-}  // anonymous namespace
+}  // namespace runtime_test_wasm_internal
 
 // TODO(jkummerow): I think this should just iterate the WasmCodePointerTable
 // directly, not individual dispatch tables.
@@ -248,7 +248,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceEnter) {
   HandleScope shs(isolate);
   // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
   DCHECK_EQ(0, args.length());
-  PrintIndentation(WasmStackSize(isolate));
+  runtime_test_wasm_internal::PrintIndentation(runtime_test_wasm_internal::WasmStackSize(isolate));
 
   // Find the caller wasm frame.
   wasm::WasmCodeRefScope wasm_code_ref_scope;
@@ -288,7 +288,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceExit) {
   DCHECK_EQ(1, args.length());
   Tagged<Smi> return_addr_smi = Cast<Smi>(args[0]);
 
-  PrintIndentation(WasmStackSize(isolate));
+  runtime_test_wasm_internal::PrintIndentation(runtime_test_wasm_internal::WasmStackSize(isolate));
   PrintF("}");
 
   // Find the caller wasm frame.

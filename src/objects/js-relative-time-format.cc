@@ -28,7 +28,8 @@
 namespace v8 {
 namespace internal {
 
-namespace {
+namespace relative_time_format {
+
 // Style: identifying the relative time format style used.
 //
 // ecma402/#sec-properties-of-intl-relativetimeformat-instances
@@ -64,11 +65,13 @@ Style fromIcuStyle(UDateRelativeDateTimeFormatterStyle icu_style) {
   }
   UNREACHABLE();
 }
-}  // namespace
+
+}  // namespace relative_time_format
 
 MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> input_options, const char* service) {
+  using namespace relative_time_format;
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -231,7 +234,7 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   return relative_time_format_holder;
 }
 
-namespace {
+namespace relative_time_format {
 
 DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
   switch (style) {
@@ -245,7 +248,7 @@ DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
   UNREACHABLE();
 }
 
-}  // namespace
+}  // namespace relative_time_format
 
 DirectHandle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSRelativeTimeFormat> format_holder) {
@@ -260,9 +263,11 @@ DirectHandle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
                                        isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
-  JSObject::AddProperty(
-      isolate, result, factory->style_string(),
-      StyleAsString(isolate, fromIcuStyle(formatter->getFormatStyle())), NONE);
+  JSObject::AddProperty(isolate, result, factory->style_string(),
+                        relative_time_format::StyleAsString(
+                            isolate, relative_time_format::fromIcuStyle(
+                                         formatter->getFormatStyle())),
+                        NONE);
   JSObject::AddProperty(isolate, result, factory->numeric_string(),
                         format_holder->NumericAsString(isolate), NONE);
   JSObject::AddProperty(isolate, result, factory->numberingSystem_string(),
@@ -280,7 +285,7 @@ Handle<String> JSRelativeTimeFormat::NumericAsString(Isolate* isolate) const {
   UNREACHABLE();
 }
 
-namespace {
+namespace relative_time_format {
 
 DirectHandle<String> UnitAsString(Isolate* isolate,
                                   URelativeDateTimeUnit unit_enum) {
@@ -481,22 +486,24 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
   return array;
 }
 
-}  // namespace
+}  // namespace relative_time_format
 
 MaybeDirectHandle<String> JSRelativeTimeFormat::Format(
     Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
     DirectHandle<JSRelativeTimeFormat> format) {
-  return FormatCommon<String>(isolate, format, value_obj, unit_obj,
-                              "Intl.RelativeTimeFormat.prototype.format",
-                              FormatToString);
+  return relative_time_format::FormatCommon<String>(
+      isolate, format, value_obj, unit_obj,
+      "Intl.RelativeTimeFormat.prototype.format",
+      relative_time_format::FormatToString);
 }
 
 MaybeDirectHandle<JSArray> JSRelativeTimeFormat::FormatToParts(
     Isolate* isolate, Handle<Object> value_obj, Handle<Object> unit_obj,
     DirectHandle<JSRelativeTimeFormat> format) {
-  return FormatCommon<JSArray>(
+  return relative_time_format::FormatCommon<JSArray>(
       isolate, format, value_obj, unit_obj,
-      "Intl.RelativeTimeFormat.prototype.formatToParts", FormatToJSArray);
+      "Intl.RelativeTimeFormat.prototype.formatToParts",
+      relative_time_format::FormatToJSArray);
 }
 
 const std::set<std::string>& JSRelativeTimeFormat::GetAvailableLocales() {

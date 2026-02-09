@@ -186,12 +186,14 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   }
 }
 
+namespace read_only_deserializer_internal {
 void NoExternalReferencesCallback() {
   // The following check will trigger if a function or object template with
   // references to native functions have been deserialized from snapshot, but
   // no actual external references were provided when the isolate was created.
   FATAL("No external references provided via API");
 }
+}  // namespace read_only_deserializer_internal
 
 class ObjectPostProcessor final {
  public:
@@ -237,7 +239,7 @@ class ObjectPostProcessor final {
       const intptr_t* refs = isolate_->api_external_references();
       Address address =
           refs == nullptr
-              ? reinterpret_cast<Address>(NoExternalReferencesCallback)
+              ? reinterpret_cast<Address>(read_only_deserializer_internal::NoExternalReferencesCallback)
               : static_cast<Address>(refs[index]);
       DCHECK_NE(address, kNullAddress);
       return address;

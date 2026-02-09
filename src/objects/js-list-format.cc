@@ -196,7 +196,7 @@ Handle<String> JSListFormat::TypeAsString(Isolate* isolate) const {
   UNREACHABLE();
 }
 
-namespace {
+namespace js_list_format_internal {
 
 // Extract String from FixedArray into array of UnicodeString
 Maybe<std::vector<icu::UnicodeString>> ToUnicodeStringArray(
@@ -273,22 +273,22 @@ MaybeDirectHandle<JSArray> FormattedListToJSArray(
   return array;
 }
 
-}  // namespace
+}  // namespace js_list_format_internal
 
 // ecma402 #sec-formatlist
 MaybeDirectHandle<String> JSListFormat::FormatList(
     Isolate* isolate, DirectHandle<JSListFormat> format,
     DirectHandle<FixedArray> list) {
-  return FormatListCommon<String>(isolate, format, list,
-                                  Intl::FormattedToString);
+  return js_list_format_internal::FormatListCommon<String>(
+      isolate, format, list, Intl::FormattedToString);
 }
 
 // ecma42 #sec-formatlisttoparts
 MaybeDirectHandle<JSArray> JSListFormat::FormatListToParts(
     Isolate* isolate, DirectHandle<JSListFormat> format,
     DirectHandle<FixedArray> list) {
-  return FormatListCommon<JSArray>(isolate, format, list,
-                                   FormattedListToJSArray);
+  return js_list_format_internal::FormatListCommon<JSArray>(
+      isolate, format, list, js_list_format_internal::FormattedListToJSArray);
 }
 
 namespace {
