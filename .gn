@@ -46,5 +46,6 @@ default_args = {
 # discouraged except for gypi_to_gn calls.
 exec_script_allowlist = build_dotfile_settings.exec_script_allowlist + [
                           "//build_overrides/build.gni",
+                          "//BUILD.gn",
                           "//gni/cluster_build.gni",
                         ]

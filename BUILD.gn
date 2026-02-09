@@ -2530,6 +2530,48 @@ v8_header_set("torque_runtime_support") {
   configs = [ ":internal_config" ]
 }
 
+# Build lists of torque-generated .cc and .h files for clustering
+torque_csa_cc_files = []
+torque_csa_h_files = []
+torque_tsa_cc_files = []
+torque_tsa_h_files = []
+foreach(file, torque_files) {
+  filetq = string_replace(file, ".tq", "-tq")
+  torque_csa_cc_files += [ "$target_gen_dir/torque-generated/$filetq-csa.cc" ]
+  torque_csa_h_files += [ "$target_gen_dir/torque-generated/$filetq-csa.h" ]
+  if (v8_enable_experimental_tq_to_tsa) {
+    torque_tsa_cc_files += [ "$target_gen_dir/torque-generated/$filetq-tsa.cc" ]
+    torque_tsa_h_files += [ "$target_gen_dir/torque-generated/$filetq-tsa.h" ]
+  }
+}
+
+# Action to generate cluster files for torque CSA sources
+torque_cluster_action("generate_torque_csa_clusters") {
+  visibility = [ ":*" ]
+  sources = torque_csa_cc_files
+  prefix = "torque-csa"
+  output_dir = "$target_gen_dir/torque-generated"
+  deps = [ ":run_torque" ]
+}
+
+# Compute cluster file names for use in the source set
+_torque_csa_num_files = 0
+foreach(f, torque_csa_cc_files) {
+  _torque_csa_num_files += 1
+}
+_torque_csa_cluster_filenames =
+    exec_script("//tools/compute_cluster_filenames.py",
+                [
+                  "$_torque_csa_num_files",
+                  "$torque_cluster_size",
+                  "torque-csa",
+                ],
+                "list lines")
+torque_csa_cluster_files = []
+foreach(f, _torque_csa_cluster_filenames) {
+  torque_csa_cluster_files += [ "$target_gen_dir/torque-generated/$f" ]
+}
+
 v8_source_set("torque_generated_initializers") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -2542,6 +2584,9 @@ v8_source_set("torque_generated_initializers") {
   ]
   if (v8_enable_experimental_tq_to_tsa) {
     deps += [ ":run_torque_to_tsa" ]
+  }
+  if (v8_enable_cluster_build) {
+    deps += [ ":generate_torque_csa_clusters" ]
   }
 
   public_deps = [
@@ -2556,17 +2601,24 @@ v8_source_set("torque_generated_initializers") {
     "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler.h",
   ]
-  foreach(file, torque_files) {
-    filetq = string_replace(file, ".tq", "-tq")
-    sources += [
-      "$target_gen_dir/torque-generated/$filetq-csa.cc",
-      "$target_gen_dir/torque-generated/$filetq-csa.h",
-    ]
+
+  # Add headers (always included)
+  sources += torque_csa_h_files
+  if (v8_enable_experimental_tq_to_tsa) {
+    sources += torque_tsa_h_files
+  }
+
+  # Add source files (clustered or individual)
+  if (v8_enable_cluster_build) {
+    sources += torque_csa_cluster_files
     if (v8_enable_experimental_tq_to_tsa) {
-      sources += [
-        "$target_gen_dir/torque-generated/$filetq-tsa.cc",
-        "$target_gen_dir/torque-generated/$filetq-tsa.h",
-      ]
+      # TODO: Add clustering for TSA files if needed
+      sources += torque_tsa_cc_files
+    }
+  } else {
+    sources += torque_csa_cc_files
+    if (v8_enable_experimental_tq_to_tsa) {
+      sources += torque_tsa_cc_files
     }
   }
 
@@ -2585,6 +2637,45 @@ v8_source_set("torque_generated_initializers") {
   }
 }
 
+# Build lists of torque-generated definition files for clustering
+torque_def_cc_files = []
+torque_def_inc_files = []
+foreach(file, torque_files) {
+  filetq = string_replace(file, ".tq", "-tq")
+  torque_def_cc_files += [ "$target_gen_dir/torque-generated/$filetq.cc" ]
+  torque_def_inc_files += [
+    "$target_gen_dir/torque-generated/$filetq-inl.inc",
+    "$target_gen_dir/torque-generated/$filetq.inc",
+  ]
+}
+
+# Action to generate cluster files for torque definition sources
+torque_cluster_action("generate_torque_def_clusters") {
+  visibility = [ ":*" ]
+  sources = torque_def_cc_files
+  prefix = "torque-def"
+  output_dir = "$target_gen_dir/torque-generated"
+  deps = [ ":run_torque" ]
+}
+
+# Compute cluster file names for use in the source set
+_torque_def_num_files = 0
+foreach(f, torque_def_cc_files) {
+  _torque_def_num_files += 1
+}
+_torque_def_cluster_filenames =
+    exec_script("//tools/compute_cluster_filenames.py",
+                [
+                  "$_torque_def_num_files",
+                  "$torque_cluster_size",
+                  "torque-def",
+                ],
+                "list lines")
+torque_def_cluster_files = []
+foreach(f, _torque_def_cluster_filenames) {
+  torque_def_cluster_files += [ "$target_gen_dir/torque-generated/$f" ]
+}
+
 v8_source_set("torque_generated_definitions") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -2599,6 +2690,9 @@ v8_source_set("torque_generated_definitions") {
   if (v8_enable_experimental_tq_to_tsa) {
     deps += [ ":run_torque_to_tsa" ]
   }
+  if (v8_enable_cluster_build) {
+    deps += [ ":generate_torque_def_clusters" ]
+  }
 
   public_deps = [
     ":v8_abseil",
@@ -2612,13 +2706,15 @@ v8_source_set("torque_generated_definitions") {
     "$target_gen_dir/torque-generated/factory.cc",
     "$target_gen_dir/torque-generated/objects-printer.cc",
   ]
-  foreach(file, torque_files) {
-    filetq = string_replace(file, ".tq", "-tq")
-    sources += [
-      "$target_gen_dir/torque-generated/$filetq-inl.inc",
-      "$target_gen_dir/torque-generated/$filetq.cc",
-      "$target_gen_dir/torque-generated/$filetq.inc",
-    ]
+
+  # Add .inc files (always included, not compiled directly)
+  sources += torque_def_inc_files
+
+  # Add source files (clustered or individual)
+  if (v8_enable_cluster_build) {
+    sources += torque_def_cluster_files
+  } else {
+    sources += torque_def_cc_files
   }
 
   configs = [ ":internal_config" ]

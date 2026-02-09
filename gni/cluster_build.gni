@@ -5,6 +5,9 @@
 import("//build/config/v8_target_cpu.gni")
 import("v8.gni")
 
+# Number of source files per cluster for generated files.
+torque_cluster_size = 10
+
 # Creates a v8_source_set with cluster build filtering applied to sources.
 # When cluster build is enabled, removes files that are #included by cluster
 # files. When disabled, removes the cluster files themselves.
@@ -37,5 +40,92 @@ template("v8_cluster_source_set") {
   v8_source_set(target_name) {
     sources = _filtered
     forward_variables_from(invoker, "*", [ "sources" ])
+  }
+}
+
+# Generates cluster files for a list of generated .cc files.
+# This is used for torque-generated files where the cluster files
+# need to be created during the build.
+#
+# Arguments:
+#   sources: List of generated .cc files to cluster
+#   prefix: Prefix for cluster file names (e.g., "torque-csa")
+#   output_dir: Directory to write cluster files to
+#   deps: Dependencies (e.g., run_torque action)
+#
+# Outputs:
+#   cluster_sources: List of cluster file paths (for use in source sets)
+#   In cluster mode: creates an action to generate cluster files
+#   In non-cluster mode: creates a no-op group
+template("torque_cluster_action") {
+  assert(defined(invoker.sources), "sources must be defined")
+  assert(defined(invoker.prefix), "prefix must be defined")
+  assert(defined(invoker.output_dir), "output_dir must be defined")
+
+  _sources = invoker.sources
+  _prefix = invoker.prefix
+  _output_dir = invoker.output_dir
+
+  # Count source files
+  _num_sources = 0
+  foreach(s, _sources) {
+    _num_sources += 1
+  }
+
+  # Compute cluster file names using exec_script
+  _cluster_filenames = exec_script("//tools/compute_cluster_filenames.py",
+                                   [
+                                     "$_num_sources",
+                                     "$torque_cluster_size",
+                                     _prefix,
+                                   ],
+                                   "list lines")
+
+  # Add directory prefix to get full paths
+  _cluster_outputs = []
+  foreach(f, _cluster_filenames) {
+    _cluster_outputs += [ "$_output_dir/$f" ]
+  }
+
+  if (v8_enable_cluster_build) {
+    # Compute the strip prefix - this is the path to the output directory
+    # relative to the build directory, used to convert source file paths
+    # to paths relative to the cluster file location.
+    _strip_prefix = rebase_path(_output_dir, root_build_dir) + "/"
+
+    action(target_name) {
+      script = "//tools/generate_cluster_files.py"
+
+      outputs = _cluster_outputs
+
+      args = [
+        "--output-dir",
+        rebase_path(_output_dir, root_build_dir),
+        "--prefix",
+        _prefix,
+        "--cluster-size",
+        "$torque_cluster_size",
+        "--strip-prefix",
+        _strip_prefix,
+      ]
+      args += rebase_path(_sources, root_build_dir)
+
+      forward_variables_from(invoker,
+                             [
+                               "deps",
+                               "public_deps",
+                               "visibility",
+                             ])
+    }
+  } else {
+    # In non-cluster mode, create a group that just passes through deps
+    group(target_name) {
+      forward_variables_from(invoker,
+                             [
+                               "deps",
+                               "public_deps",
+                               "visibility",
+                             ])
+    }
   }
 }
