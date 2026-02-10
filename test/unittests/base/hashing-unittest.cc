@@ -146,12 +146,12 @@ TYPED_TEST(HashingTest, BitEqualToImpliesSameBitHash) {
 
 namespace {
 
-struct Foo {
+struct Bar {
   int x;
   double y;
 };
 
-size_t hash_value(Foo const& v) { return hash_combine(v.x, v.y); }
+size_t hash_value(Bar const& v) { return hash_combine(v.x, v.y); }
 
 }  // namespace
 
@@ -163,8 +163,8 @@ TEST(HashingTest, HashUsesArgumentDependentLookup) {
       std::numeric_limits<double>::max()};
   TRACED_FOREACH(int, x, kIntValues) {
     TRACED_FOREACH(double, y, kDoubleValues) {
-      hash<Foo> h;
-      Foo foo = {x, y};
+      hash<Bar> h;
+      Bar foo = {x, y};
       EXPECT_EQ(hash_combine(x, y), h(foo));
     }
   }

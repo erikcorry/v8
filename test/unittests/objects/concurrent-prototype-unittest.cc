@@ -20,9 +20,9 @@ using ConcurrentPrototypeTest = TestWithContext;
 
 namespace internal {
 
-static constexpr int kNumHandles = kHandleBlockSize * 2 + kHandleBlockSize / 2;
+namespace concurrent_prototype_test {
 
-namespace {
+static constexpr int kNumHandles = kHandleBlockSize * 2 + kHandleBlockSize / 2;
 
 class ConcurrentSearchThread final : public v8::base::Thread {
  public:
@@ -191,7 +191,7 @@ TEST_F(ConcurrentPrototypeTest, ProtoWalkBackground_PrototypeChainWrite) {
   thread->Join();
 }
 
-}  // anonymous namespace
+}  // namespace concurrent_prototype_test
 
 }  // namespace internal
 }  // namespace v8

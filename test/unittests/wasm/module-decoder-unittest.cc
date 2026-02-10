@@ -4215,8 +4215,6 @@ TEST_F(WasmModuleVerifyTest, ContTypesNotSubtype) {
 #undef SIG_ENTRY_i_k
 #undef SIG_ENTRY_k_i
 #undef UNKNOWN_SECTION
-#undef ADD_COUNT
-#undef SECTION
 #undef TYPE_SECTION
 #undef FUNCTION_SECTION
 #undef FOO_STRING

@@ -177,7 +177,11 @@ template("v8_cluster_source_set") {
         ]
         args += rebase_path(_cc_sources, root_build_dir)
 
-        forward_variables_from(invoker, [ "deps" ])
+        forward_variables_from(invoker,
+                               [
+                                 "deps",
+                                 "testonly",
+                               ])
       }
 
       # The actual source set with cluster files plus arch-specific files

@@ -119,14 +119,6 @@ class AccessCheckTest : public TestWithIsolate {
 
 namespace {
 
-inline v8::Local<v8::String> v8_str(const char* x) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
-}
-
-inline v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* x) {
-  return v8::String::NewFromUtf8(isolate, x).ToLocalChecked();
-}
-
 bool AccessCheck(Local<Context> accessing_context,
                  Local<Object> accessed_object, Local<Value> data) {
   return false;

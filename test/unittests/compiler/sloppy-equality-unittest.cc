@@ -13,8 +13,8 @@ namespace compiler {
 
 using SloppyEqualityTest = TestWithContextAndZone;
 
-struct TestCase {
-  TestCase(const char* l, const char* r, NodeObserver* observer)
+struct SloppyEqualityTestCase {
+  SloppyEqualityTestCase(const char* l, const char* r, NodeObserver* observer)
       : warmup{std::make_pair(l, r)}, observer(observer) {
     DCHECK_NOT_NULL(observer);
   }
@@ -65,7 +65,7 @@ TEST_F(SloppyEqualityTest, SloppyEqualityTest) {
   TestSloppyEqualityFactory f(zone());
   // TODO(nicohartmann@, v8:5660): Collect more precise feedback for some useful
   // cases.
-  TestCase cases[] = {
+  SloppyEqualityTestCase cases[] = {
       {"3", "8", f.SpeculativeNumberEqual(NumberOperationHint::kSignedSmall)},
       //{"3", "null",
       // f.SpeculativeNumberEqual(NumberOperationHint::kNumberOrOddball)},
