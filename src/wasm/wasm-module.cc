@@ -753,34 +753,30 @@ size_t WasmModule::EstimateStoredSize() const {
 
 template <class Value>
 size_t AdaptiveMap<Value>::EstimateCurrentMemoryConsumption() const {
-  UNREACHABLE();  // Explicit implementations below.
-}
-
-template <>
-size_t NameMap::EstimateCurrentMemoryConsumption() const {
   size_t result = ContentSize(vector_);
-  if (map_) result += ContentSize(*map_);
+  if constexpr (is_adaptive_map<Value>::value) {
+    for (const auto& inner_map : vector_) {
+      result += inner_map.EstimateCurrentMemoryConsumption();
+    }
+  }
+  if (map_) {
+    result += ContentSize(*map_);
+    if constexpr (is_adaptive_map<Value>::value) {
+      for (const auto& [key, inner_map] : *map_) {
+        result += inner_map.EstimateCurrentMemoryConsumption();
+      }
+    }
+  }
   return result;
 }
+
+// Explicit instantiations.
+template size_t NameMap::EstimateCurrentMemoryConsumption() const;
+template size_t IndirectNameMap::EstimateCurrentMemoryConsumption() const;
 
 size_t LazilyGeneratedNames::EstimateCurrentMemoryConsumption() const {
   base::MutexGuard lock(&mutex_);
   return function_names_.EstimateCurrentMemoryConsumption();
-}
-
-template <>
-size_t IndirectNameMap::EstimateCurrentMemoryConsumption() const {
-  size_t result = ContentSize(vector_);
-  for (const auto& inner_map : vector_) {
-    result += inner_map.EstimateCurrentMemoryConsumption();
-  }
-  if (map_) {
-    result += ContentSize(*map_);
-    for (const auto& [outer_index, inner_map] : *map_) {
-      result += inner_map.EstimateCurrentMemoryConsumption();
-    }
-  }
-  return result;
 }
 
 size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {

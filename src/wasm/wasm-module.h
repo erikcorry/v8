@@ -357,11 +357,11 @@ class AdaptiveMap {
 using NameMap = AdaptiveMap<WireBytesRef>;
 using IndirectNameMap = AdaptiveMap<AdaptiveMap<WireBytesRef>>;
 
-// Explicit specialization declarations (defined in wasm-module.cc).
-template <>
-size_t NameMap::EstimateCurrentMemoryConsumption() const;
-template <>
-size_t IndirectNameMap::EstimateCurrentMemoryConsumption() const;
+// Type trait to detect AdaptiveMap types.
+template <typename T>
+struct is_adaptive_map : std::false_type {};
+template <typename V>
+struct is_adaptive_map<AdaptiveMap<V>> : std::true_type {};
 
 struct ModuleWireBytes;
 
