@@ -616,17 +616,18 @@ MaybeDirectHandle<Object> JSDisplayNames::Of(
   return Intl::ToString(isolate, result).ToHandleChecked();
 }
 
-namespace {
+namespace js_display_names_internal {
 
 struct CheckCalendar {
   static const char* key() { return "calendar"; }
   static const char* path() { return nullptr; }
 };
 
-}  // namespace
+}  // namespace js_display_names_internal
 
 const std::set<std::string>& JSDisplayNames::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<CheckCalendar>>::type
+  static base::LazyInstance<
+      Intl::AvailableLocales<js_display_names_internal::CheckCalendar>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

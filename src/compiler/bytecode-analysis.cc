@@ -23,7 +23,6 @@ using interpreter::BytecodeOperands;
 using interpreter::Bytecodes;
 using interpreter::ImplicitRegisterUse;
 using interpreter::OperandType;
-using interpreter::Register;
 
 BytecodeLoopAssignments::BytecodeLoopAssignments(int parameter_count,
                                                  int register_count, Zone* zone)
@@ -92,6 +91,7 @@ template <Bytecode bytecode, OperandType operand_type, size_t i>
 void UpdateInLivenessForOutOperand(
     BytecodeLivenessState* in_liveness,
     const interpreter::BytecodeArrayIterator& iterator) {
+  using interpreter::Register;
   if constexpr (operand_type == OperandType::kRegOut ||
                 operand_type == OperandType::kRegInOut) {
     Register r = iterator.GetRegisterOperand(i);
@@ -132,6 +132,7 @@ template <Bytecode bytecode, OperandType operand_type, size_t i>
 void UpdateInLivenessForInOperand(
     BytecodeLivenessState* in_liveness,
     const interpreter::BytecodeArrayIterator& iterator) {
+  using interpreter::Register;
   if constexpr (operand_type == OperandType::kReg ||
                 operand_type == OperandType::kRegInOut) {
     Register r = iterator.GetRegisterOperand(i);
@@ -150,7 +151,7 @@ void UpdateInLivenessForInOperand(
     uint32_t reg_count = iterator.GetRegisterCountOperand(i + 1);
     if (!r.is_parameter()) {
       for (uint32_t j = 0; j < reg_count; ++j) {
-        DCHECK(!interpreter::Register(r.index() + j).is_parameter());
+        DCHECK(!Register(r.index() + j).is_parameter());
         in_liveness->MarkRegisterLive(r.index() + j);
       }
     }
@@ -190,7 +191,8 @@ void UpdateInLiveness(BytecodeLivenessState* in_liveness,
 
   if constexpr (BytecodeOperands::WritesImplicitRegister(
                     implicit_register_use)) {
-    in_liveness->MarkRegisterDead(Register::FromShortStar(bytecode).index());
+    in_liveness->MarkRegisterDead(
+        interpreter::Register::FromShortStar(bytecode).index());
   }
 
   if constexpr (BytecodeOperands::ReadsAccumulator(implicit_register_use)) {

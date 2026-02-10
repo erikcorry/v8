@@ -73,7 +73,7 @@ enum ObjectDataKind {
 
 namespace {
 
-bool Is64() { return kSystemPointerSize == 8; }
+bool IsSystemPointer64() { return kSystemPointerSize == 8; }
 
 }  // namespace
 
@@ -1203,7 +1203,8 @@ bool MapRef::CanInlineElementAccess() const {
   ElementsKind kind = elements_kind();
   if (IsFastElementsKind(kind)) return true;
   if (IsTypedArrayElementsKind(kind) &&
-      (Is64() || (kind != BIGINT64_ELEMENTS && kind != BIGUINT64_ELEMENTS))) {
+      (IsSystemPointer64() ||
+       (kind != BIGINT64_ELEMENTS && kind != BIGUINT64_ELEMENTS))) {
     return true;
   }
   if (IsRabGsabTypedArrayElementsKind(kind) &&

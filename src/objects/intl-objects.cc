@@ -2831,17 +2831,18 @@ const std::set<std::string>& Intl::GetAvailableLocales() {
   return available_locales.Pointer()->Get();
 }
 
-namespace {
+namespace intl_objects_internal {
 
 struct CheckCalendar {
   static const char* key() { return "calendar"; }
   static const char* path() { return nullptr; }
 };
 
-}  // namespace
+}  // namespace intl_objects_internal
 
 const std::set<std::string>& Intl::GetAvailableLocalesForDateFormat() {
-  static base::LazyInstance<Intl::AvailableLocales<CheckCalendar>>::type
+  static base::LazyInstance<
+      Intl::AvailableLocales<intl_objects_internal::CheckCalendar>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

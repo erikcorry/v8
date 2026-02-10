@@ -256,10 +256,12 @@ MaybeDirectHandle<String> JSPluralRules::ResolvePluralRange(
 }
 
 namespace {
+namespace js_plural_rules_internal {
 
-void CreateDataPropertyForOptions(Isolate* isolate,
-                                  DirectHandle<JSObject> options,
-                                  DirectHandle<Object> value, const char* key) {
+void CreatePluralRulesDataProperty(Isolate* isolate,
+                                   DirectHandle<JSObject> options,
+                                   DirectHandle<Object> value,
+                                   const char* key) {
   DirectHandle<String> key_str =
       isolate->factory()->NewStringFromAsciiChecked(key);
 
@@ -271,25 +273,27 @@ void CreateDataPropertyForOptions(Isolate* isolate,
   USE(maybe);
 }
 
-void CreateDataPropertyForOptions(Isolate* isolate,
-                                  DirectHandle<JSObject> options, int value,
-                                  const char* key) {
+void CreatePluralRulesDataProperty(Isolate* isolate,
+                                   DirectHandle<JSObject> options, int value,
+                                   const char* key) {
   DirectHandle<Smi> value_smi(Smi::FromInt(value), isolate);
-  CreateDataPropertyForOptions(isolate, options, value_smi, key);
+  CreatePluralRulesDataProperty(isolate, options, value_smi, key);
 }
 
+}  // namespace js_plural_rules_internal
 }  // namespace
 
 DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSPluralRules> plural_rules) {
+  using namespace js_plural_rules_internal;
   DirectHandle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
   DirectHandle<String> locale_value(plural_rules->locale(), isolate);
-  CreateDataPropertyForOptions(isolate, options, locale_value, "locale");
+  CreatePluralRulesDataProperty(isolate, options, locale_value, "locale");
 
-  CreateDataPropertyForOptions(isolate, options,
-                               plural_rules->TypeAsString(isolate), "type");
+  CreatePluralRulesDataProperty(isolate, options,
+                                plural_rules->TypeAsString(isolate), "type");
 
   UErrorCode status = U_ZERO_ERROR;
   icu::number::LocalizedNumberFormatter* icu_number_formatter =
@@ -311,23 +315,23 @@ DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
               .FromJust());
   }
 
-  CreateDataPropertyForOptions(
+  CreatePluralRulesDataProperty(
       isolate, options,
       JSNumberFormat::MinimumIntegerDigitsFromSkeleton(skeleton),
       "minimumIntegerDigits");
   int32_t min = 0, max = 0;
 
   if (JSNumberFormat::SignificantDigitsFromSkeleton(skeleton, &min, &max)) {
-    CreateDataPropertyForOptions(isolate, options, min,
-                                 "minimumSignificantDigits");
-    CreateDataPropertyForOptions(isolate, options, max,
-                                 "maximumSignificantDigits");
+    CreatePluralRulesDataProperty(isolate, options, min,
+                                  "minimumSignificantDigits");
+    CreatePluralRulesDataProperty(isolate, options, max,
+                                  "maximumSignificantDigits");
   } else {
     JSNumberFormat::FractionDigitsFromSkeleton(skeleton, &min, &max);
-    CreateDataPropertyForOptions(isolate, options, min,
-                                 "minimumFractionDigits");
-    CreateDataPropertyForOptions(isolate, options, max,
-                                 "maximumFractionDigits");
+    CreatePluralRulesDataProperty(isolate, options, min,
+                                  "minimumFractionDigits");
+    CreatePluralRulesDataProperty(isolate, options, max,
+                                  "maximumFractionDigits");
   }
 
   // 6. Let pluralCategories be a List of Strings containing all possible
@@ -369,8 +373,8 @@ DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
   // CreateArrayFromList(pluralCategories)).
   DirectHandle<JSArray> plural_categories_value =
       factory->NewJSArrayWithElements(plural_categories);
-  CreateDataPropertyForOptions(isolate, options, plural_categories_value,
-                               "pluralCategories");
+  CreatePluralRulesDataProperty(isolate, options, plural_categories_value,
+                                "pluralCategories");
 
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->roundingIncrement_string(),

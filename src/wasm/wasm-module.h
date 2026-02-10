@@ -357,6 +357,12 @@ class AdaptiveMap {
 using NameMap = AdaptiveMap<WireBytesRef>;
 using IndirectNameMap = AdaptiveMap<AdaptiveMap<WireBytesRef>>;
 
+// Explicit specialization declarations (defined in wasm-module.cc).
+template <>
+size_t NameMap::EstimateCurrentMemoryConsumption() const;
+template <>
+size_t IndirectNameMap::EstimateCurrentMemoryConsumption() const;
+
 struct ModuleWireBytes;
 
 class V8_EXPORT_PRIVATE LazilyGeneratedNames {
