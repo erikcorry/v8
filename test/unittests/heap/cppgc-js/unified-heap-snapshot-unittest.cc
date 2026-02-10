@@ -70,6 +70,7 @@ struct SpaceTrait<v8::internal::CompactableGCed> {
 
 namespace v8 {
 namespace internal {
+namespace unified_heap_snapshot_test {
 
 namespace {
 
@@ -970,5 +971,6 @@ TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {
        "system / CppHeapExternal", GetExpectedName<ExternalData>()}));
 }
 
+}  // namespace unified_heap_snapshot_test
 }  // namespace internal
 }  // namespace v8

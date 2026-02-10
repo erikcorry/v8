@@ -33,8 +33,6 @@
 
 namespace v8 {
 
-// Helper functions for creating v8::String from C strings.
-// These are commonly used in unit tests.
 inline v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* x) {
   return v8::String::NewFromUtf8(isolate, x).ToLocalChecked();
 }
@@ -43,8 +41,6 @@ inline v8::Local<v8::String> v8_str(const char* x) {
   return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
 }
 
-// Helper function for compiling and running JavaScript code.
-// Commonly used in unit tests.
 inline v8::Local<v8::Value> CompileRun(v8::Isolate* isolate,
                                        const char* source) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
