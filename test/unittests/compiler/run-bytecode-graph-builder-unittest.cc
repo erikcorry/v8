@@ -56,20 +56,15 @@ static MaybeHandle<Object> CallFunction(Isolate* isolate,
                          {arguments, sizeof...(args)});
 }
 
-static v8::Local<v8::Value> CompileRun(v8::Isolate* isolate,
-                                       const char* source) {
+// Version of CompileRun that doesn't crash when the script throws.
+// Used by tests that intentionally run code that throws errors.
+static void TryCompileRun(v8::Isolate* isolate, const char* source) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Script> script =
       v8::Script::Compile(
           context, v8::String::NewFromUtf8(isolate, source).ToLocalChecked())
           .ToLocalChecked();
-
-  v8::Local<v8::Value> result;
-  if (script->Run(context).ToLocal(&result)) {
-    return result;
-  } else {
-    return v8::Local<v8::Value>();
-  }
+  USE(script->Run(context));
 }
 
 template <class... A>
@@ -124,7 +119,7 @@ class BytecodeGraphTester {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
     v8::Local<v8::Context> context = v8_isolate->GetCurrentContext();
 
-    CompileRun(v8_isolate, script_);
+    TryCompileRun(v8_isolate, script_);
 
     Local<Function> api_function = Local<Function>::Cast(
         context->Global()

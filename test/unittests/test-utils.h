@@ -16,6 +16,7 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-object.h"
 #include "include/v8-primitive.h"
+#include "include/v8-script.h"
 #include "include/v8-template.h"
 #include "src/api/api-inl.h"
 #include "src/base/macros.h"
@@ -40,6 +41,24 @@ inline v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* x) {
 
 inline v8::Local<v8::String> v8_str(const char* x) {
   return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
+}
+
+// Helper function for compiling and running JavaScript code.
+// Commonly used in unit tests.
+inline v8::Local<v8::Value> CompileRun(v8::Isolate* isolate,
+                                       const char* source) {
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(
+          context, v8::String::NewFromUtf8(isolate, source).ToLocalChecked())
+          .ToLocalChecked();
+  return script->Run(context).ToLocalChecked();
+}
+
+// Overload for internal::Isolate*.
+inline v8::Local<v8::Value> CompileRun(i::Isolate* isolate,
+                                       const char* source) {
+  return CompileRun(reinterpret_cast<v8::Isolate*>(isolate), source);
 }
 
 class ArrayBufferAllocator;

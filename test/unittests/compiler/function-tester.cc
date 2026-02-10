@@ -21,17 +21,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-v8::Local<v8::Value> CompileRun(Isolate* isolate, const char* source) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8::Local<v8::Context> context = v8_isolate->GetCurrentContext();
-  v8::Local<v8::Script> script =
-      v8::Script::Compile(
-          context, v8::String::NewFromUtf8(v8_isolate, source).ToLocalChecked())
-          .ToLocalChecked();
-  return script->Run(context).ToLocalChecked();
-}
-}  // namespace
 
 FunctionTester::FunctionTester(Isolate* isolate, const char* source,
                                uint32_t flags)

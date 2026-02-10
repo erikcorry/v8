@@ -14,15 +14,6 @@
 namespace v8::internal::compiler {
 
 namespace {
-v8::Local<v8::Value> CompileRun(v8::Isolate* isolate, const char* source) {
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::Local<v8::Script> script =
-      v8::Script::Compile(
-          context, v8::String::NewFromUtf8(isolate, source).ToLocalChecked())
-          .ToLocalChecked();
-  return script->Run(context).ToLocalChecked();
-}
-
 struct TestCase {
   std::string_view code;
   std::string_view expected_truthy;

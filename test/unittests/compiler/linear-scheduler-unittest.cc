@@ -38,8 +38,8 @@ class LinearSchedulerTest : public TestWithIsolateAndZone {
 
 namespace {
 
-const Operator kIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add", 2, 0,
-                       0, 1, 0, 0);
+const Operator kLinearIntAdd(IrOpcode::kInt32Add, Operator::kPure, "Int32Add",
+                             2, 0, 0, 1, 0, 0);
 
 }  // namespace
 
@@ -144,7 +144,7 @@ TARGET_TEST_F(LinearSchedulerTest, LoopedFloatingDiamond) {
   Node* loop = graph()->NewNode(common()->Loop(2), start, start);
   Node* ind = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                                p0, p0, loop);
-  Node* add = graph()->NewNode(&kIntAdd, ind, c);
+  Node* add = graph()->NewNode(&kLinearIntAdd, ind, c);
 
   Node* br = graph()->NewNode(common()->Branch(), add, loop);
   Node* t = graph()->NewNode(common()->IfTrue(), br);
