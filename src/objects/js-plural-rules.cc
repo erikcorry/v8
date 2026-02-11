@@ -256,7 +256,6 @@ MaybeDirectHandle<String> JSPluralRules::ResolvePluralRange(
 }
 
 namespace {
-namespace js_plural_rules_internal {
 
 void CreatePluralRulesDataProperty(Isolate* isolate,
                                    DirectHandle<JSObject> options,
@@ -280,12 +279,10 @@ void CreatePluralRulesDataProperty(Isolate* isolate,
   CreatePluralRulesDataProperty(isolate, options, value_smi, key);
 }
 
-}  // namespace js_plural_rules_internal
 }  // namespace
 
 DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSPluralRules> plural_rules) {
-  using namespace js_plural_rules_internal;
   DirectHandle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 

@@ -28,11 +28,10 @@ import os
 import sys
 from collections import defaultdict
 
-
 # Architecture-specific directory names to skip
 ARCH_DIRS = frozenset([
-    'x64', 'arm64', 'arm', 'ia32', 'mips64', 'mips64el',
-    'riscv64', 'riscv32', 'loong64', 'ppc64', 's390x', 's390'
+    'x64', 'arm64', 'arm', 'ia32', 'mips64', 'mips64el', 'riscv64', 'riscv32',
+    'loong64', 'ppc64', 's390x', 's390'
 ])
 
 
@@ -62,8 +61,9 @@ def sanitize_dir_name(dir_path):
 
 def main():
   if len(sys.argv) < 3:
-    print(f'Usage: {sys.argv[0]} <cluster_size> <prefix> [--group-by-dir] [--skip-arch-dirs] <files...>',
-          file=sys.stderr)
+    print(
+        f'Usage: {sys.argv[0]} <cluster_size> <prefix> [--group-by-dir] [--skip-arch-dirs] <files...>',
+        file=sys.stderr)
     return 1
 
   cluster_size = int(sys.argv[1])

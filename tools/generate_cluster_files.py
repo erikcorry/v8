@@ -24,15 +24,15 @@ import os
 import sys
 from collections import defaultdict
 
-
 # Architecture-specific directory names to skip
 ARCH_DIRS = frozenset([
-    'x64', 'arm64', 'arm', 'ia32', 'mips64', 'mips64el',
-    'riscv64', 'riscv32', 'loong64', 'ppc64', 's390x', 's390'
+    'x64', 'arm64', 'arm', 'ia32', 'mips64', 'mips64el', 'riscv64', 'riscv32',
+    'loong64', 'ppc64', 's390x', 's390'
 ])
 
 
-def generate_cluster_content(files, cluster_name, prefix, strip_prefix, include_prefix):
+def generate_cluster_content(files, cluster_name, prefix, strip_prefix,
+                             include_prefix):
   """Generate the content of a cluster file."""
   lines = [
       '// Copyright 2026 the V8 project authors. All rights reserved.',
@@ -86,13 +86,9 @@ def main():
   parser = argparse.ArgumentParser(
       description='Generate cluster build files from source files.')
   parser.add_argument(
-      '--output-dir',
-      required=True,
-      help='Directory to write cluster files to')
+      '--output-dir', required=True, help='Directory to write cluster files to')
   parser.add_argument(
-      '--prefix',
-      required=True,
-      help='Prefix for cluster file names')
+      '--prefix', required=True, help='Prefix for cluster file names')
   parser.add_argument(
       '--cluster-size',
       type=int,
@@ -119,10 +115,7 @@ def main():
       action='append',
       default=[],
       help='File patterns to exclude from clustering (can be repeated)')
-  parser.add_argument(
-      'files',
-      nargs='*',
-      help='Source files to cluster')
+  parser.add_argument('files', nargs='*', help='Source files to cluster')
 
   args = parser.parse_args()
 
@@ -161,7 +154,8 @@ def main():
         cluster_path = os.path.join(args.output_dir, cluster_filename)
 
         content = generate_cluster_content(chunk, cluster_name, args.prefix,
-                                           args.strip_prefix, args.include_prefix)
+                                           args.strip_prefix,
+                                           args.include_prefix)
 
         # Only write if content changed (to avoid unnecessary rebuilds)
         write_needed = True

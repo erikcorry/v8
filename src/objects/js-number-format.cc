@@ -35,15 +35,19 @@
 namespace v8 {
 namespace internal {
 
-namespace number_format {
-
 // This is to work around ICU's comparison operators not being compliant with
 // clang's -Wambiguous-reversed-operator in >=C++20.
 #define AVOID_AMBIGUOUS_OP_WARNING(x) *static_cast<icu::UObject*>(&x)
 
+namespace number_format {
+
 // [[Style]] is one of the values "decimal", "percent", "currency",
 // or "unit" identifying the style of the number format.
 enum class Style { DECIMAL, PERCENT, CURRENCY, UNIT };
+
+}  // namespace number_format
+
+namespace {
 
 // [[CurrencyDisplay]] is one of the values "code", "symbol", "name",
 // or "narrowSymbol" identifying the display of the currency number format.
@@ -149,7 +153,7 @@ UNumberSignDisplay ToUNumberSignDisplay(SignDisplay sign_display,
   }
 }
 
-}  // namespace number_format
+}  // namespace
 
 icu::number::Notation i::Intl::ToICUNotation(
     Intl::Notation notation, Intl::CompactDisplay compact_display) {
@@ -171,7 +175,7 @@ icu::number::Notation i::Intl::ToICUNotation(
   }
 }
 
-namespace number_format {
+namespace {
 
 UNumberFormatRoundingMode ToUNumberFormatRoundingMode(
     Intl::RoundingMode rounding_mode) {
@@ -336,6 +340,10 @@ bool IsWellFormedCurrencyCode(const std::string& currency) {
   return (IsAToZ(currency[0]) && IsAToZ(currency[1]) && IsAToZ(currency[2]));
 }
 
+}  // anonymous namespace
+
+namespace number_format {
+
 // Return the style as a String.
 DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
   switch (style) {
@@ -350,6 +358,10 @@ DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
   }
   UNREACHABLE();
 }
+
+}  // namespace number_format
+
+namespace {
 
 // Parse the 'currencyDisplay' from the skeleton.
 DirectHandle<String> CurrencyDisplayString(Isolate* isolate,
@@ -413,8 +425,7 @@ const icu::UnicodeString CurrencyFromSkeleton(
   return skeleton.tempSubString(index, 3);
 }
 
-}  // namespace number_format
-
+}  // namespace
 const icu::UnicodeString JSNumberFormat::NumberingSystemFromSkeleton(
     const icu::UnicodeString& skeleton) {
   const char numbering_system[] = "numbering-system/";
@@ -427,7 +438,7 @@ const icu::UnicodeString JSNumberFormat::NumberingSystemFromSkeleton(
   return res.tempSubString(0, index);
 }
 
-namespace number_format {
+namespace {
 
 // Return CurrencySign as string based on skeleton.
 DirectHandle<String> CurrencySignString(Isolate* isolate,
@@ -459,7 +470,7 @@ DirectHandle<String> UnitDisplayString(Isolate* isolate,
   return isolate->factory()->short_string();
 }
 
-}  // namespace number_format
+}  // anonymous namespace
 
 // Parse Notation from skeleton.
 Intl::Notation Intl::NotationFromSkeleton(const icu::UnicodeString& skeleton) {
@@ -513,7 +524,7 @@ DirectHandle<String> Intl::CompactDisplayString(
   return isolate->factory()->short_string();
 }
 
-namespace number_format {
+namespace {
 
 // Return SignDisplay as string based on skeleton.
 DirectHandle<String> SignDisplayString(Isolate* isolate,
@@ -547,7 +558,7 @@ DirectHandle<String> SignDisplayString(Isolate* isolate,
   return isolate->factory()->auto_string();
 }
 
-}  // namespace number_format
+}  // anonymous namespace
 
 // Return RoundingMode as string based on skeleton.
 DirectHandle<String> JSNumberFormat::RoundingModeString(
@@ -746,7 +757,7 @@ bool JSNumberFormat::SignificantDigitsFromSkeleton(
   return true;
 }
 
-namespace number_format {
+namespace {
 
 // Ex: percent .### rounding-mode-half-up
 // Special case for "percent"
@@ -790,7 +801,8 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   return str.substr(begin, end - begin);
 }
 
-Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
+number_format::Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
+  using number_format::Style;
   if (skeleton.indexOf("currency/") >= 0) {
     return Style::CURRENCY;
   }
@@ -809,14 +821,14 @@ Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
   return Style::DECIMAL;
 }
 
-}  // namespace number_format
+}  // anonymous namespace
 
 icu::number::UnlocalizedNumberFormatter
 JSNumberFormat::SetDigitOptionsToFormatter(
     const icu::number::UnlocalizedNumberFormatter& settings,
     const Intl::NumberFormatDigitOptions& digit_options) {
   icu::number::UnlocalizedNumberFormatter result = settings.roundingMode(
-      number_format::ToUNumberFormatRoundingMode(digit_options.rounding_mode));
+      ToUNumberFormatRoundingMode(digit_options.rounding_mode));
 
   if (digit_options.minimum_integer_digits > 1) {
     result = result.integerWidth(icu::number::IntegerWidth::zeroFillTo(
@@ -1487,7 +1499,7 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   return number_format;
 }
 
-namespace number_format {
+namespace {
 
 template <typename StringHandle>
 int32_t SignedStringLength(StringHandle string) {
@@ -1514,7 +1526,7 @@ icu::number::FormattedNumber FormatDecimalString(
   return lfmt->formatDecimal(converted, status);
 }
 
-}  // namespace number_format
+}  // namespace
 
 bool IntlMathematicalValue::IsNaN() const { return i::IsNaN(*value_); }
 
@@ -1530,8 +1542,7 @@ MaybeHandle<String> IntlMathematicalValue::ToString(Isolate* isolate) const {
   return Cast<String>(value_);
 }
 
-namespace number_format {
-
+namespace {
 Maybe<icu::number::FormattedNumber> IcuFormatNumber(
     Isolate* isolate,
     std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
@@ -1589,7 +1600,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
   return Just(std::move(formatted));
 }
 
-}  // namespace number_format
+}  // namespace
 
 Maybe<icu::number::FormattedNumber> IntlMathematicalValue::FormatNumeric(
     Isolate* isolate,
@@ -1599,15 +1610,15 @@ Maybe<icu::number::FormattedNumber> IntlMathematicalValue::FormatNumeric(
     Handle<String> string;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, string, x.ToString(isolate));
     UErrorCode status = U_ZERO_ERROR;
-    icu::number::FormattedNumber result = number_format::FormatDecimalString(
-        isolate, std::move(lfmt), string, status);
+    icu::number::FormattedNumber result =
+        FormatDecimalString(isolate, std::move(lfmt), string, status);
     if (U_FAILURE(status)) {
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
     }
     return Just(std::move(result));
   }
   CHECK(IsNumber(*x.value_) || IsBigInt(*x.value_));
-  return number_format::IcuFormatNumber(isolate, std::move(lfmt), x.value_);
+  return IcuFormatNumber(isolate, std::move(lfmt), x.value_);
 }
 
 Maybe<icu::number::FormattedNumberRange> IntlMathematicalValue::FormatRange(
@@ -1631,8 +1642,7 @@ Maybe<icu::number::FormattedNumberRange> IntlMathematicalValue::FormatRange(
   return Just(std::move(result));
 }
 
-namespace number_format {
-
+namespace {
 // Return the index of the end of leading white space or line terminator
 // and the index of the start of trailing white space or line terminator.
 template <typename Char>
@@ -1679,12 +1689,12 @@ Handle<String> TrimWhiteSpaceOrLineTerminator(Isolate* isolate,
                                           whitespace_offsets.second);
 }
 
-}  // namespace number_format
+}  // namespace
 
 // #sec-tointlmathematicalvalue
 Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
                                                          Handle<Object> value) {
-  using namespace number_format;
+  using number_format::Style;
   Factory* factory = isolate->factory();
   // 1. Let primValue be ? ToPrimitive(value, number).
   Handle<Object> prim_value;
@@ -1785,7 +1795,7 @@ Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
   {
     DisallowGarbageCollection no_gc;
     const String::FlatContent& flat = string->GetFlatContent(no_gc);
-    int32_t length = number_format::SignedStringLength(string);
+    int32_t length = SignedStringLength(string);
     if (flat.IsOneByte()) {
       icu::Formattable result(
           {reinterpret_cast<const char*>(flat.ToOneByteVector().begin()),
@@ -1801,8 +1811,7 @@ Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
   THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
 }
 
-namespace number_format {
-
+namespace {
 bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
                           const NumberFormatSpan& b) {
   // Regions that start earlier should be encountered earlier.
@@ -1818,7 +1827,7 @@ bool cmp_NumberFormatSpan(const NumberFormatSpan& a,
   return a.field_id < b.field_id;
 }
 
-}  // namespace number_format
+}  // namespace
 
 // Flattens a list of possibly-overlapping "regions" to a list of
 // non-overlapping "parts". At least one of the input regions must span the
@@ -1858,8 +1867,7 @@ std::vector<NumberFormatSpan> FlattenRegionsToParts(
   // smaller regions are "on top" of larger regions, and we output a birds-eye
   // view of the mountains, so that smaller regions take priority over larger
   // regions.
-  std::sort(regions->begin(), regions->end(),
-            number_format::cmp_NumberFormatSpan);
+  std::sort(regions->begin(), regions->end(), cmp_NumberFormatSpan);
   std::vector<size_t> overlapping_region_index_stack;
   // At least one item in regions must be a region spanning the entire string.
   // Due to the sorting above, the first item in the vector will be one of them.
@@ -1911,8 +1919,7 @@ std::vector<NumberFormatSpan> FlattenRegionsToParts(
   return out_parts;
 }
 
-namespace number_format {
-
+namespace {
 Maybe<int> ConstructParts(Isolate* isolate,
                           const icu::FormattedValue& formatted,
                           DirectHandle<JSArray> result, int start_index,
@@ -1991,17 +1998,17 @@ Maybe<int> ConstructParts(Isolate* isolate,
   return Just(index);
 }
 
-}  // namespace number_format
+}  // namespace
 
 Maybe<int> Intl::AddNumberElements(Isolate* isolate,
                                    const icu::FormattedValue& formatted,
                                    DirectHandle<JSArray> result,
                                    int start_index, DirectHandle<String> unit) {
-  return number_format::ConstructParts(isolate, formatted, result, start_index,
-                                       true, false, false, true, unit);
+  return ConstructParts(isolate, formatted, result, start_index, true, false,
+                        false, true, unit);
 }
 
-namespace number_format {
+namespace {
 
 // #sec-partitionnumberrangepattern
 template <typename T,
@@ -2075,7 +2082,8 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
     std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt, bool is_nan,
     bool output_source) {
   UErrorCode status = U_ZERO_ERROR;
-  bool is_unit = Style::UNIT == StyleFromSkeleton(lfmt->toSkeleton(status));
+  bool is_unit =
+      number_format::Style::UNIT == StyleFromSkeleton(lfmt->toSkeleton(status));
   CHECK(U_SUCCESS(status));
 
   Factory* factory = isolate->factory();
@@ -2097,7 +2105,7 @@ MaybeDirectHandle<JSArray> FormatRangeToJSArray(
   return FormatToJSArray(isolate, formatted, std::move(lfmt), is_nan, true);
 }
 
-}  // namespace number_format
+}  // namespace
 
 Maybe<icu::number::LocalizedNumberRangeFormatter>
 JSNumberFormat::GetRangeFormatter(
@@ -2122,11 +2130,11 @@ MaybeDirectHandle<String> JSNumberFormat::FormatNumeric(
     std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt,
     Handle<Object> numeric_obj) {
   Maybe<icu::number::FormattedNumber> maybe_format =
-      number_format::IcuFormatNumber(isolate, std::move(lfmt), numeric_obj);
+      IcuFormatNumber(isolate, std::move(lfmt), numeric_obj);
   MAYBE_RETURN(maybe_format, DirectHandle<String>());
   icu::number::FormattedNumber formatted = std::move(maybe_format).FromJust();
 
-  return number_format::FormatToString(isolate, formatted);
+  return FormatToString(isolate, formatted);
 }
 
 MaybeDirectHandle<String> JSNumberFormat::NumberFormatFunction(
@@ -2145,7 +2153,7 @@ MaybeDirectHandle<String> JSNumberFormat::NumberFormatFunction(
   icu::number::FormattedNumber formatted =
       std::move(maybe_formatted).FromJust();
 
-  return number_format::FormatToString(isolate, formatted);
+  return FormatToString(isolate, formatted);
 }
 
 MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
@@ -2163,8 +2171,8 @@ MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
   icu::number::FormattedNumber formatted =
       std::move(maybe_formatted).FromJust();
 
-  return number_format::FormatToJSArray(isolate, formatted, std::move(lfmt),
-                                        value.IsNaN(), false);
+  return FormatToJSArray(isolate, formatted, std::move(lfmt), value.IsNaN(),
+                         false);
 }
 
 // #sec-number-format-functions
@@ -2172,8 +2180,7 @@ MaybeDirectHandle<JSArray> JSNumberFormat::FormatToParts(
 MaybeDirectHandle<String> JSNumberFormat::FormatNumericRange(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> x_obj, Handle<Object> y_obj) {
-  return number_format::PartitionNumberRangePattern<
-      String, number_format::FormatToString>(
+  return PartitionNumberRangePattern<String, FormatToString>(
       isolate, number_format, x_obj, y_obj,
       "Intl.NumberFormat.prototype.formatRange");
 }
@@ -2181,24 +2188,22 @@ MaybeDirectHandle<String> JSNumberFormat::FormatNumericRange(
 MaybeDirectHandle<JSArray> JSNumberFormat::FormatNumericRangeToParts(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
     Handle<Object> x_obj, Handle<Object> y_obj) {
-  return number_format::PartitionNumberRangePattern<
-      JSArray, number_format::FormatRangeToJSArray>(
+  return PartitionNumberRangePattern<JSArray, FormatRangeToJSArray>(
       isolate, number_format, x_obj, y_obj,
       "Intl.NumberFormat.prototype.formatRangeToParts");
 }
 
-namespace number_format {
+namespace {
 
 struct CheckNumberElements {
   static const char* key() { return "NumberElements"; }
   static const char* path() { return nullptr; }
 };
 
-}  // namespace number_format
+}  // namespace
 
 const std::set<std::string>& JSNumberFormat::GetAvailableLocales() {
-  static base::LazyInstance<
-      Intl::AvailableLocales<number_format::CheckNumberElements>>::type
+  static base::LazyInstance<Intl::AvailableLocales<CheckNumberElements>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }
