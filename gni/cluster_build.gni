@@ -103,18 +103,38 @@ template("cluster_action") {
 #
 # Arguments: Same as v8_source_set, plus:
 #   cluster_prefix: Optional prefix for cluster file names (defaults to target_name)
+#   exclude_from_cluster: Optional list of .cc files to exclude from clustering
+#                         (they will be compiled individually)
 template("v8_cluster_source_set") {
   _target_name = target_name
 
   if (v8_enable_cluster_build) {
+    # Build a set of excluded files for fast lookup
+    _excluded_files = []
+    if (defined(invoker.exclude_from_cluster)) {
+      _excluded_files = invoker.exclude_from_cluster
+    }
+
     # Extract .cc files from sources for clustering
     _cc_sources = []
+    _excluded_cc_sources = []
     _other_sources = []
     if (defined(invoker.sources)) {
       foreach(s, invoker.sources) {
         _ext = get_path_info(s, "extension")
         if (_ext == "cc") {
-          _cc_sources += [ s ]
+          # Check if this file is excluded
+          _is_excluded = false
+          foreach(_excl, _excluded_files) {
+            if (s == _excl) {
+              _is_excluded = true
+            }
+          }
+          if (_is_excluded) {
+            _excluded_cc_sources += [ s ]
+          } else {
+            _cc_sources += [ s ]
+          }
         } else {
           _other_sources += [ s ]
         }
@@ -191,10 +211,11 @@ template("v8_cluster_source_set") {
                                [
                                  "sources",
                                  "cluster_prefix",
+                                 "exclude_from_cluster",
                                ])
 
-        # Start with non-.cc files and cluster files
-        sources = _other_sources + _cluster_files
+        # Start with non-.cc files, cluster files, and excluded files
+        sources = _other_sources + _cluster_files + _excluded_cc_sources
 
         # Add back arch-specific .cc files (they're compiled individually)
         foreach(s, _cc_sources) {
@@ -234,13 +255,23 @@ template("v8_cluster_source_set") {
     } else {
       # No .cc files to cluster, just pass through
       v8_source_set(_target_name) {
-        forward_variables_from(invoker, "*", [ "cluster_prefix" ])
+        forward_variables_from(invoker,
+                               "*",
+                               [
+                                 "cluster_prefix",
+                                 "exclude_from_cluster",
+                               ])
       }
     }
   } else {
     # Non-cluster mode: just use v8_source_set directly
     v8_source_set(_target_name) {
-      forward_variables_from(invoker, "*", [ "cluster_prefix" ])
+      forward_variables_from(invoker,
+                             "*",
+                             [
+                               "cluster_prefix",
+                               "exclude_from_cluster",
+                             ])
     }
   }
 }

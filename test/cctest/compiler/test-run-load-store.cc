@@ -19,6 +19,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace test_run_load_store {
 
 enum TestAlignment {
   kAligned,
@@ -191,8 +192,6 @@ TEST(RunLoadStoreFloat64Offset) {
 TEST(RunUnalignedLoadStoreFloat64Offset) {
   RunLoadStoreFloat64Offset(TestAlignment::kUnaligned);
 }
-
-namespace {
 
 // Mostly same as CHECK_EQ() but customized for compressed tagged values.
 template <typename CType>
@@ -380,7 +379,6 @@ void RunUnalignedLoadStoreUnalignedAccess(MachineType type) {
     }
   }
 }
-}  // namespace
 
 TEST(RunLoadImmIndex) {
   RunLoadImmIndex<int8_t>(MachineType::Int8(), TestAlignment::kAligned);
@@ -465,7 +463,6 @@ TEST(RunUnalignedLoadStoreUnalignedAccess) {
 #endif
 }
 
-namespace {
 void RunLoadStoreSignExtend32(TestAlignment t) {
   int32_t buffer[4];
   RawMachineAssemblerTester<int32_t> m;
@@ -532,7 +529,6 @@ void RunLoadStoreZeroExtend32(TestAlignment t) {
     CHECK_EQ(i, buffer[3]);
   }
 }
-}  // namespace
 
 TEST(RunLoadStoreSignExtend32) {
   RunLoadStoreSignExtend32(TestAlignment::kAligned);
@@ -552,7 +548,6 @@ TEST(RunUnalignedLoadStoreZeroExtend32) {
 
 #if V8_TARGET_ARCH_64_BIT
 
-namespace {
 void RunLoadStoreSignExtend64(TestAlignment t) {
   if ((true)) return;  // TODO(titzer): sign extension of loads to 64-bit.
   int64_t buffer[5];
@@ -638,8 +633,6 @@ void RunLoadStoreZeroExtend64(TestAlignment t) {
   }
 }
 
-}  // namespace
-
 TEST(RunLoadStoreSignExtend64) {
   RunLoadStoreSignExtend64(TestAlignment::kAligned);
 }
@@ -658,7 +651,6 @@ TEST(RunUnalignedLoadStoreZeroExtend64) {
 
 #endif
 
-namespace {
 template <typename IntType>
 void LoadStoreTruncation(MachineType kRepresentation, TestAlignment t) {
   IntType input;
@@ -699,7 +691,6 @@ void LoadStoreTruncation(MachineType kRepresentation, TestAlignment t) {
     CHECK_EQ(static_cast<IntType>(i + 1), input);
   }
 }
-}  // namespace
 
 TEST(RunLoadStoreTruncation) {
   LoadStoreTruncation<int8_t>(MachineType::Int8(), TestAlignment::kAligned);
@@ -714,6 +705,7 @@ TEST(RunUnalignedLoadStoreTruncation) {
 #undef A_BILLION
 #undef A_GIG
 
+}  // namespace test_run_load_store
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

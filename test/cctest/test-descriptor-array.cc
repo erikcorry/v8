@@ -19,7 +19,7 @@ namespace internal {
 
 #include "src/codegen/define-code-stub-assembler-macros.inc"
 
-namespace {
+namespace test_descriptor_array {
 
 using Label = compiler::CodeAssemblerLabel;
 template <class T>
@@ -210,8 +210,6 @@ DirectHandle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
 
   return result_function;
 }
-
-}  // namespace
 
 TEST(DescriptorArrayHashCollisionMassive) {
   CcTest::InitializeVM();
@@ -422,6 +420,8 @@ TEST(TransitionArrayHashCollision) {
   transition_array->Sort();
   CheckTransitionArrayLookups(isolate, transition_array, maps, csa_lookup);
 }
+
+}  // namespace test_descriptor_array
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"
 

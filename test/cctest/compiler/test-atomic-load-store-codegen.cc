@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace test_atomic_load_store_codegen {
 
 #if V8_TARGET_LITTLE_ENDIAN
 #define LSB(addr, bytes) addr
@@ -78,7 +79,6 @@ TEST(SeqCstLoadInteger) {
 #endif
 }
 
-namespace {
 // Mostly same as CHECK_EQ() but customized for compressed tagged values.
 template <typename CType>
 void CheckEq(CType in_value, CType out_value) {
@@ -159,7 +159,6 @@ void AtomicLoadTagged(MachineType type, AtomicMemoryOrder order) {
     CheckEq<Tagged<T>>(buffer[i], m.Call());
   }
 }
-}  // namespace
 
 TEST(AcquireLoadTagged) {
   AtomicLoadTagged<Smi>(MachineType::TaggedSigned(),
@@ -243,7 +242,6 @@ TEST(SeqCstStoreInteger) {
 #endif
 }
 
-namespace {
 template <typename T>
 void AtomicStoreTagged(MachineType type, AtomicMemoryOrder order) {
   // This tests that tagged values are correctly transferred by atomic loads and
@@ -304,7 +302,6 @@ void AtomicStoreTagged(MachineType type, AtomicMemoryOrder order) {
     }
   }
 }
-}  // namespace
 
 TEST(ReleaseStoreTagged) {
   AtomicStoreTagged<Smi>(MachineType::TaggedSigned(),
@@ -326,7 +323,6 @@ TEST(SeqCstStoreTagged) {
 
 #if V8_TARGET_ARCH_32_BIT
 
-namespace {
 void TestAtomicPairLoadInteger(AtomicMemoryOrder order) {
   uint64_t buffer[1];
   uint32_t high;
@@ -352,7 +348,6 @@ void TestAtomicPairLoadInteger(AtomicMemoryOrder order) {
     CHECK_EQ(i, make_uint64(high, low));
   }
 }
-}  // namespace
 
 TEST(AcquirePairLoadInteger) {
   TestAtomicPairLoadInteger(AtomicMemoryOrder::kAcqRel);
@@ -362,7 +357,6 @@ TEST(SeqCstPairLoadInteger) {
   TestAtomicPairLoadInteger(AtomicMemoryOrder::kSeqCst);
 }
 
-namespace {
 void TestAtomicPairStoreInteger(AtomicMemoryOrder order) {
   uint64_t buffer[1];
 
@@ -384,7 +378,6 @@ void TestAtomicPairStoreInteger(AtomicMemoryOrder order) {
     CHECK_EQ(i, buffer[0]);
   }
 }
-}  // namespace
 
 TEST(ReleasePairStoreInteger) {
   TestAtomicPairStoreInteger(AtomicMemoryOrder::kAcqRel);
@@ -396,6 +389,7 @@ TEST(SeqCstPairStoreInteger) {
 
 #endif  // V8_TARGET_ARCH_32_BIT
 
+}  // namespace test_atomic_load_store_codegen
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

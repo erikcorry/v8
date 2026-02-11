@@ -10,6 +10,7 @@
 #include "test/unittests/test-utils.h"
 
 namespace v8::internal::wasm {
+namespace float32_cross_compiler_determinism_fuzztest {
 
 class Float32CrossCompilerDeterminismTest
     : public fuzztest::PerFuzzTestFixtureAdapter<TestWithNativeContext> {
@@ -351,4 +352,5 @@ V8_FUZZ_TEST_F(Float32CrossCompilerDeterminismTest, TestUnOp)
         ArbitraryFloat32())
     .WithSeeds(kUnOpSeeds);
 
+}  // namespace float32_cross_compiler_determinism_fuzztest
 }  // namespace v8::internal::wasm

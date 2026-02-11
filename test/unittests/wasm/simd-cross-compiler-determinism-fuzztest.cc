@@ -10,6 +10,7 @@
 #include "test/unittests/test-utils.h"
 
 namespace v8::internal::wasm {
+namespace simd_cross_compiler_determinism_fuzztest {
 
 class SimdCrossCompilerDeterminismTest
     : public fuzztest::PerFuzzTestFixtureAdapter<TestWithNativeContext> {
@@ -586,4 +587,5 @@ V8_FUZZ_TEST_F(SimdCrossCompilerDeterminismTest, TestShuffleTree)
         // allow_avx
         fuzztest::Arbitrary<bool>());
 
+}  // namespace simd_cross_compiler_determinism_fuzztest
 }  // namespace v8::internal::wasm
