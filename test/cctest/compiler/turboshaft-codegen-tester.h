@@ -212,12 +212,15 @@ class BufferedRawMachineAssemblerTester
     std::array<MachineType, sizeof...(p)> p_arr{{p...}};
     for (size_t i = 0; i < p_arr.size(); ++i) {
       parameter_nodes_[i] = Load(
-          p_arr[i], RawMachineAssemblerTester::Parameter(static_cast<int>(i)));
+          p_arr[i],
+          RawMachineAssemblerTester<int32_t>::Parameter(static_cast<int>(i)));
     }
-    return_param_ = RawMachineAssemblerTester::Parameter(sizeof...(p));
+    return_param_ = RawMachineAssemblerTester<int32_t>::Parameter(sizeof...(p));
   }
 
-  Address Generate() override { return RawMachineAssemblerTester::Generate(); }
+  Address Generate() override {
+    return RawMachineAssemblerTester<int32_t>::Generate();
+  }
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter
