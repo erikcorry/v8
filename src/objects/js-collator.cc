@@ -25,7 +25,7 @@
 namespace v8 {
 namespace internal {
 
-namespace {
+namespace js_collator_internal {
 
 enum class Usage {
   SORT,
@@ -54,9 +54,9 @@ Maybe<CaseFirst> GetCaseFirst(Isolate* isolate,
 }
 
 // TODO(gsathya): Consider internalizing the value strings.
-void CreateDataPropertyForOptions(Isolate* isolate,
-                                  DirectHandle<JSObject> options,
-                                  DirectHandle<String> key, const char* value) {
+void CreateCollatorDataProperty(Isolate* isolate,
+                                DirectHandle<JSObject> options,
+                                DirectHandle<String> key, const char* value) {
   DCHECK_NOT_NULL(value);
   DirectHandle<String> value_str =
       isolate->factory()->NewStringFromAsciiChecked(value);
@@ -69,9 +69,9 @@ void CreateDataPropertyForOptions(Isolate* isolate,
   USE(maybe);
 }
 
-void CreateDataPropertyForOptions(Isolate* isolate,
-                                  DirectHandle<JSObject> options,
-                                  DirectHandle<String> key, bool value) {
+void CreateCollatorDataProperty(Isolate* isolate,
+                                DirectHandle<JSObject> options,
+                                DirectHandle<String> key, bool value) {
   DirectHandle<Object> value_obj = isolate->factory()->ToBoolean(value);
 
   // This is a brand new JSObject that shouldn't already have the same
@@ -82,11 +82,12 @@ void CreateDataPropertyForOptions(Isolate* isolate,
   USE(maybe);
 }
 
-}  // anonymous namespace
+}  // namespace js_collator_internal
 
 // static
 DirectHandle<JSObject> JSCollator::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSCollator> collator) {
+  using js_collator_internal::CreateCollatorDataProperty;
   DirectHandle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
@@ -230,27 +231,27 @@ DirectHandle<JSObject> JSCollator::ResolvedOptions(
   } else {
     // Just return from the collator for most of the cases that we can recover
     // from the collator.
-    CreateDataPropertyForOptions(
+    CreateCollatorDataProperty(
         isolate, options, isolate->factory()->locale_string(), locale.c_str());
   }
 
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->usage_string(), usage);
-  CreateDataPropertyForOptions(
+  CreateCollatorDataProperty(isolate, options,
+                             isolate->factory()->usage_string(), usage);
+  CreateCollatorDataProperty(
       isolate, options, isolate->factory()->sensitivity_string(), sensitivity);
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->ignorePunctuation_string(),
-                               ignore_punctuation);
-  CreateDataPropertyForOptions(
-      isolate, options, isolate->factory()->collation_string(), collation);
-  CreateDataPropertyForOptions(isolate, options,
-                               isolate->factory()->numeric_string(), numeric);
-  CreateDataPropertyForOptions(
+  CreateCollatorDataProperty(isolate, options,
+                             isolate->factory()->ignorePunctuation_string(),
+                             ignore_punctuation);
+  CreateCollatorDataProperty(isolate, options,
+                             isolate->factory()->collation_string(), collation);
+  CreateCollatorDataProperty(isolate, options,
+                             isolate->factory()->numeric_string(), numeric);
+  CreateCollatorDataProperty(
       isolate, options, isolate->factory()->caseFirst_string(), case_first);
   return options;
 }
 
-namespace {
+namespace js_collator_internal {
 
 CaseFirst ToCaseFirst(const char* str) {
   if (strcmp(str, "upper") == 0) return CaseFirst::kUpper;
@@ -287,13 +288,16 @@ void SetCaseFirstOption(icu::Collator* icu_collator, CaseFirst case_first) {
   DCHECK(U_SUCCESS(status));
 }
 
-}  // anonymous namespace
+}  // namespace js_collator_internal
 
 // static
 MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
                                         DirectHandle<Object> locales,
                                         DirectHandle<Object> options_obj,
                                         const char* service) {
+  using js_collator_internal::CaseFirst;
+  using js_collator_internal::Sensitivity;
+  using js_collator_internal::Usage;
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
       Intl::CanonicalizeLocaleList(isolate, locales);
@@ -365,7 +369,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
 
   // 14. Let caseFirst be ? GetOption(options, "caseFirst", "string",
   //     « "upper", "lower", "false" », undefined).
-  Maybe<CaseFirst> maybe_case_first = GetCaseFirst(isolate, options, service);
+  Maybe<CaseFirst> maybe_case_first =
+      js_collator_internal::GetCaseFirst(isolate, options, service);
   MAYBE_RETURN(maybe_case_first, MaybeHandle<JSCollator>());
   CaseFirst case_first = maybe_case_first.FromJust();
 
@@ -466,7 +471,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   status = U_ZERO_ERROR;
   auto kn_extension_it = r.extensions.find("kn");
   if (found_numeric.FromJust()) {
-    SetNumericOption(icu_collator.get(), numeric);
+    js_collator_internal::SetNumericOption(icu_collator.get(), numeric);
     if (kn_extension_it != r.extensions.end() &&
         (kn_extension_it->second == "false") == numeric) {
       icu_locale.setUnicodeKeywordValue("kn", nullptr, status);
@@ -474,7 +479,8 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
     }
   } else {
     if (kn_extension_it != r.extensions.end()) {
-      SetNumericOption(icu_collator.get(), (kn_extension_it->second == "true"));
+      js_collator_internal::SetNumericOption(
+          icu_collator.get(), (kn_extension_it->second == "true"));
     }
   }
 
@@ -488,14 +494,16 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, DirectHandle<Map> map,
   if (case_first != CaseFirst::kUndefined) {
     SetCaseFirstOption(icu_collator.get(), case_first);
     if (kf_extension_it != r.extensions.end() &&
-        case_first != ToCaseFirst(kf_extension_it->second.c_str())) {
+        case_first != js_collator_internal::ToCaseFirst(
+                          kf_extension_it->second.c_str())) {
       icu_locale.setUnicodeKeywordValue("kf", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
   } else {
     if (kf_extension_it != r.extensions.end()) {
-      SetCaseFirstOption(icu_collator.get(),
-                         ToCaseFirst(kf_extension_it->second.c_str()));
+      SetCaseFirstOption(
+          icu_collator.get(),
+          js_collator_internal::ToCaseFirst(kf_extension_it->second.c_str()));
     }
   }
 
