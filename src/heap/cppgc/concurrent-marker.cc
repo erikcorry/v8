@@ -21,9 +21,10 @@ static constexpr double kMarkingScheduleRatioBeforeConcurrentPriorityIncrease =
 
 static constexpr size_t kDefaultConcurrentDeadlineCheckInterval = 750u;
 
-template <StatsCollector::ConcurrentScopeId scope_id,
-          size_t kDeadlineCheckInterval = kDefaultConcurrentDeadlineCheckInterval,
-          typename WorklistLocal, typename Callback>
+template <
+    StatsCollector::ConcurrentScopeId scope_id,
+    size_t kDeadlineCheckInterval = kDefaultConcurrentDeadlineCheckInterval,
+    typename WorklistLocal, typename Callback>
 bool DrainWorklistWithYielding(JobDelegate* job_delegate,
                                StatsCollector* stats_collector,
                                ConcurrentMarkingState& marking_state,

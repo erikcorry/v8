@@ -9,7 +9,6 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/regexp/regexp-canonicalize.h"
-
 #include "unicode/uniset.h"
 
 namespace v8 {
