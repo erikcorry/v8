@@ -35,19 +35,15 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
 // This is to work around ICU's comparison operators not being compliant with
 // clang's -Wambiguous-reversed-operator in >=C++20.
 #define AVOID_AMBIGUOUS_OP_WARNING(x) *static_cast<icu::UObject*>(&x)
 
-namespace number_format {
-
 // [[Style]] is one of the values "decimal", "percent", "currency",
 // or "unit" identifying the style of the number format.
 enum class Style { DECIMAL, PERCENT, CURRENCY, UNIT };
-
-}  // namespace number_format
-
-namespace {
 
 // [[CurrencyDisplay]] is one of the values "code", "symbol", "name",
 // or "narrowSymbol" identifying the display of the currency number format.
@@ -155,7 +151,7 @@ UNumberSignDisplay ToUNumberSignDisplay(SignDisplay sign_display,
 
 }  // namespace
 
-icu::number::Notation i::Intl::ToICUNotation(
+icu::number::Notation Intl::ToICUNotation(
     Intl::Notation notation, Intl::CompactDisplay compact_display) {
   switch (notation) {
     case Intl::Notation::STANDARD:
@@ -340,10 +336,6 @@ bool IsWellFormedCurrencyCode(const std::string& currency) {
   return (IsAToZ(currency[0]) && IsAToZ(currency[1]) && IsAToZ(currency[2]));
 }
 
-}  // anonymous namespace
-
-namespace number_format {
-
 // Return the style as a String.
 DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
   switch (style) {
@@ -358,10 +350,6 @@ DirectHandle<String> StyleAsString(Isolate* isolate, Style style) {
   }
   UNREACHABLE();
 }
-
-}  // namespace number_format
-
-namespace {
 
 // Parse the 'currencyDisplay' from the skeleton.
 DirectHandle<String> CurrencyDisplayString(Isolate* isolate,
@@ -801,8 +789,7 @@ std::string UnitFromSkeleton(const icu::UnicodeString& skeleton) {
   return str.substr(begin, end - begin);
 }
 
-number_format::Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
-  using number_format::Style;
+Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
   if (skeleton.indexOf("currency/") >= 0) {
     return Style::CURRENCY;
   }
@@ -879,7 +866,6 @@ JSNumberFormat::SetDigitOptionsToFormatter(
 // ecma402 #sec-intl.numberformat.prototype.resolvedoptions
 DirectHandle<JSObject> JSNumberFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSNumberFormat> number_format) {
-  using namespace number_format;
   Factory* factory = isolate->factory();
 
   UErrorCode status = U_ZERO_ERROR;
@@ -1071,7 +1057,6 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
 MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
     Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
     DirectHandle<Object> options_obj, const char* service) {
-  using namespace number_format;
   Factory* factory = isolate->factory();
 
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
@@ -1694,7 +1679,6 @@ Handle<String> TrimWhiteSpaceOrLineTerminator(Isolate* isolate,
 // #sec-tointlmathematicalvalue
 Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
                                                          Handle<Object> value) {
-  using number_format::Style;
   Factory* factory = isolate->factory();
   // 1. Let primValue be ? ToPrimitive(value, number).
   Handle<Object> prim_value;
@@ -2070,7 +2054,6 @@ MaybeDirectHandle<String> FormatToString(Isolate* isolate,
   }
   return Intl::ToString(isolate, result);
 }
-
 MaybeDirectHandle<String> FormatToString(
     Isolate* isolate, const icu::FormattedValue& formatted,
     std::shared_ptr<icu::number::LocalizedNumberFormatter>, bool) {
@@ -2082,8 +2065,7 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
     std::shared_ptr<icu::number::LocalizedNumberFormatter> lfmt, bool is_nan,
     bool output_source) {
   UErrorCode status = U_ZERO_ERROR;
-  bool is_unit =
-      number_format::Style::UNIT == StyleFromSkeleton(lfmt->toSkeleton(status));
+  bool is_unit = Style::UNIT == StyleFromSkeleton(lfmt->toSkeleton(status));
   CHECK(U_SUCCESS(status));
 
   Factory* factory = isolate->factory();
