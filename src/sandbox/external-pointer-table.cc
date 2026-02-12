@@ -308,15 +308,16 @@ void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
 
 #ifdef OBJECT_PRINT
 
-namespace {
+namespace external_pointer_table {
 
 constexpr std::string_view entry_spacer =
     "+-----------------------------------------+\n";
 
-}  // namespace
+}  // namespace external_pointer_table
 
 // static
 void ExternalPointerTableEntryPrinter::PrintHeader(const char* space_name) {
+  use external_pointer_table::entry_spacer;
   PrintF(stderr, "%s", entry_spacer.data());
   PrintF(stderr, "| %*s |\n", static_cast<int>(entry_spacer.size() - 5),
          space_name);
@@ -346,7 +347,7 @@ void ExternalPointerTableEntryPrinter::PrintIfInUse(
 
 // static
 void ExternalPointerTableEntryPrinter::PrintFooter() {
-  PrintF(stderr, "%s", entry_spacer.data());
+  PrintF(stderr, "%s", external_pointer_table::entry_spacer.data());
 }
 
 #endif  // OBJECT_PRINT
