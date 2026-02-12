@@ -205,7 +205,6 @@ TEST_F(MarkingVerifierDeathTest, DieOnUnexpectedLiveByteCount) {
                             "");
 }
 
-namespace {
 void EscapeControlRegexCharacters(std::string& s) {
   for (std::string::size_type start_pos = 0;
        (start_pos = s.find_first_of("().*+\\", start_pos)) != std::string::npos;
