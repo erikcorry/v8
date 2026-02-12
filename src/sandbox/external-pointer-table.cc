@@ -317,7 +317,7 @@ constexpr std::string_view entry_spacer =
 
 // static
 void ExternalPointerTableEntryPrinter::PrintHeader(const char* space_name) {
-  use external_pointer_table::entry_spacer;
+  using external_pointer_table::entry_spacer;
   PrintF(stderr, "%s", entry_spacer.data());
   PrintF(stderr, "| %*s |\n", static_cast<int>(entry_spacer.size() - 5),
          space_name);
