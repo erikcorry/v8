@@ -21,6 +21,7 @@
 #include "src/compiler/zone-stats.h"
 #include "src/objects/code-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/compiler/codegen-tester.h"
 #include "test/common/call-tester.h"
 
 namespace v8::internal::compiler::turboshaft {
