@@ -45,8 +45,18 @@ def is_arch_specific(filepath):
 
 
 def get_directory(filepath):
-  """Get the directory part of a filepath."""
-  return os.path.dirname(filepath)
+  """Get the directory part of a filepath.
+
+  Files ending in -tsa.cc are grouped into a virtual 'tsa' subdirectory
+  to keep them separate from other files. This avoids conflicts between
+  TurboShaft Assembler files (which use turboshaft::Operation) and other
+  files (which may use the Operation enum).
+  """
+  dir_path = os.path.dirname(filepath)
+  basename = os.path.basename(filepath)
+  if basename.endswith('-tsa.cc'):
+    return os.path.join(dir_path, 'tsa')
+  return dir_path
 
 
 def sanitize_dir_name(dir_path):
