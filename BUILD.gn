@@ -3280,10 +3280,6 @@ v8_cluster_source_set("v8_initializers") {
 
   allow_circular_includes_from = [ ":torque_generated_initializers" ]
 
-  # TSA files use turboshaft::Operation which conflicts with the Operation enum
-  # used in binary-op-assembler.h when clustered together.
-  exclude_from_cluster = [ "src/interpreter/interpreter-generator-tsa.cc" ]
-
   deps = [
     ":torque_generated_initializers",
     ":v8_base_without_compiler",
