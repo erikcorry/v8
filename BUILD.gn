@@ -5826,7 +5826,10 @@ v8_cluster_source_set("v8_base_without_compiler") {
   split_count = 2
 
   # Files excluded from clustering due to template instantiation order issues.
-  exclude_from_cluster = [ "src/snapshot/deserializer.cc" ]
+  exclude_from_cluster = [
+    "src/snapshot/deserializer.cc",
+    "src/wasm/wasm-module.cc",
+  ]
 
   sources = [
     ### gcmole(all) ###

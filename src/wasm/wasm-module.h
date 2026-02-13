@@ -357,12 +357,6 @@ class AdaptiveMap {
 using NameMap = AdaptiveMap<WireBytesRef>;
 using IndirectNameMap = AdaptiveMap<AdaptiveMap<WireBytesRef>>;
 
-// Type trait to detect AdaptiveMap types.
-template <typename T>
-struct is_adaptive_map : std::false_type {};
-template <typename V>
-struct is_adaptive_map<AdaptiveMap<V>> : std::true_type {};
-
 struct ModuleWireBytes;
 
 class V8_EXPORT_PRIVATE LazilyGeneratedNames {
