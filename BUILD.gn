@@ -5824,6 +5824,10 @@ v8_cluster_source_set("v8_base_without_compiler") {
 
   # Split static libraries on windows into two.
   split_count = 2
+
+  # Files excluded from clustering due to template instantiation order issues.
+  exclude_from_cluster = [ "src/snapshot/deserializer.cc" ]
+
   sources = [
     ### gcmole(all) ###
     "src/api/api-arguments.cc",
