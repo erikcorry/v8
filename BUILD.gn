@@ -2547,7 +2547,6 @@ v8_cluster_source_set("torque_generated_initializers") {
   cluster_prefix = "torque-csa"
   cluster_output_dir = "$target_gen_dir/torque-generated"
   generated_sources = true
-  group_by_dir = false
 
   deps = [
     ":generate_bytecode_builtins_list",
@@ -2616,7 +2615,6 @@ v8_cluster_source_set("torque_generated_definitions") {
   cluster_prefix = "torque-def"
   cluster_output_dir = "$target_gen_dir/torque-generated"
   generated_sources = true
-  group_by_dir = false
 
   deps = [
     ":generate_bytecode_builtins_list",

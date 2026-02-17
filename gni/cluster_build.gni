@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/v8_target_cpu.gni")
 import("v8.gni")
 
 # Number of source files per cluster.
@@ -18,8 +17,6 @@ cluster_size = 10
 #                       Defaults to $target_gen_dir/clustered.
 #   cluster_prefix: Optional prefix for cluster file names.
 #                   Defaults to target_name.
-#   group_by_dir: Optional bool to group files by directory before clustering.
-#                 Defaults to true.
 #   exclude_from_cluster: Optional list of .cc files to compile individually.
 #   generated_sources: Set to true if sources are generated files located in
 #                      cluster_output_dir. This affects how include paths are
@@ -76,11 +73,6 @@ template("v8_cluster_source_set") {
         _output_dir = invoker.cluster_output_dir
       }
 
-      _group_by_dir = true
-      if (defined(invoker.group_by_dir)) {
-        _group_by_dir = invoker.group_by_dir
-      }
-
       _generated_sources = false
       if (defined(invoker.generated_sources)) {
         _generated_sources = invoker.generated_sources
@@ -93,10 +85,8 @@ template("v8_cluster_source_set") {
         "$cluster_size",
         "--prefix",
         _cluster_prefix,
+        "--group-by-dir",
       ]
-      if (_group_by_dir) {
-        _compute_args += [ "--group-by-dir" ]
-      }
 
       # Compute cluster file names using exec_script
       _cluster_filenames =
@@ -143,10 +133,7 @@ template("v8_cluster_source_set") {
           ]
         }
 
-        if (_group_by_dir) {
-          args += [ "--group-by-dir" ]
-        }
-
+        args += [ "--group-by-dir" ]
         args += rebase_path(_cluster_sources, root_build_dir)
 
         forward_variables_from(invoker,
@@ -164,8 +151,7 @@ template("v8_cluster_source_set") {
                                  "sources",
                                  "cluster_prefix",
                                  "cluster_output_dir",
-                                 "group_by_dir",
-                                 "exclude_from_cluster",
+                                                                  "exclude_from_cluster",
                                  "generated_sources",
                                ])
 
@@ -185,8 +171,7 @@ template("v8_cluster_source_set") {
                                [
                                  "cluster_prefix",
                                  "cluster_output_dir",
-                                 "group_by_dir",
-                                 "exclude_from_cluster",
+                                                                  "exclude_from_cluster",
                                  "generated_sources",
                                ])
       }
@@ -199,8 +184,7 @@ template("v8_cluster_source_set") {
                              [
                                "cluster_prefix",
                                "cluster_output_dir",
-                               "group_by_dir",
-                               "exclude_from_cluster",
+                                                              "exclude_from_cluster",
                                "generated_sources",
                              ])
     }
