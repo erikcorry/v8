@@ -2541,12 +2541,13 @@ foreach(file, torque_files) {
   }
 }
 
-generated_cluster_source_set("torque_generated_initializers") {
+v8_cluster_source_set("torque_generated_initializers") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-  cluster_sources = torque_csa_cc_files
   cluster_prefix = "torque-csa"
   cluster_output_dir = "$target_gen_dir/torque-generated"
+  generated_sources = true
+  group_by_dir = false
 
   deps = [
     ":generate_bytecode_builtins_list",
@@ -2565,7 +2566,7 @@ generated_cluster_source_set("torque_generated_initializers") {
     ":v8_maybe_icu",
   ]
 
-  sources = [
+  sources = torque_csa_cc_files + [
     "$target_gen_dir/torque-generated/csa-types.h",
     "$target_gen_dir/torque-generated/enum-verifiers.cc",
     "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
@@ -2579,6 +2580,7 @@ generated_cluster_source_set("torque_generated_initializers") {
 
     # TSA cc files are not clustered yet
     sources += torque_tsa_cc_files
+    exclude_from_cluster = torque_tsa_cc_files
   }
 
   configs = [ ":internal_config" ]
@@ -2608,12 +2610,13 @@ foreach(file, torque_files) {
   ]
 }
 
-generated_cluster_source_set("torque_generated_definitions") {
+v8_cluster_source_set("torque_generated_definitions") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-  cluster_sources = torque_def_cc_files
   cluster_prefix = "torque-def"
   cluster_output_dir = "$target_gen_dir/torque-generated"
+  generated_sources = true
+  group_by_dir = false
 
   deps = [
     ":generate_bytecode_builtins_list",
@@ -2632,7 +2635,7 @@ generated_cluster_source_set("torque_generated_definitions") {
     ":v8_maybe_icu",
   ]
 
-  sources = [
+  sources = torque_def_cc_files + [
     "$target_gen_dir/torque-generated/class-forward-declarations.h",
     "$target_gen_dir/torque-generated/class-verifiers.cc",
     "$target_gen_dir/torque-generated/class-verifiers.h",
