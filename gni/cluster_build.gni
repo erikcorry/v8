@@ -89,10 +89,10 @@ template("v8_cluster_source_set") {
       ]
 
       # Compute cluster file names using exec_script
-      _cluster_filenames =
-          exec_script(v8_path_prefix + "/tools/cluster_files.py",
-                      _compute_args + rebase_path(_cluster_sources, root_build_dir),
-                      "list lines")
+      _cluster_filenames = exec_script(
+              v8_path_prefix + "/tools/cluster_files.py",
+              _compute_args + rebase_path(_cluster_sources, root_build_dir),
+              "list lines")
 
       _cluster_files = []
       foreach(f, _cluster_filenames) {
@@ -151,7 +151,7 @@ template("v8_cluster_source_set") {
                                  "sources",
                                  "cluster_prefix",
                                  "cluster_output_dir",
-                                                                  "exclude_from_cluster",
+                                 "exclude_from_cluster",
                                  "generated_sources",
                                ])
 
@@ -171,7 +171,7 @@ template("v8_cluster_source_set") {
                                [
                                  "cluster_prefix",
                                  "cluster_output_dir",
-                                                                  "exclude_from_cluster",
+                                 "exclude_from_cluster",
                                  "generated_sources",
                                ])
       }
@@ -184,7 +184,7 @@ template("v8_cluster_source_set") {
                              [
                                "cluster_prefix",
                                "cluster_output_dir",
-                                                              "exclude_from_cluster",
+                               "exclude_from_cluster",
                                "generated_sources",
                              ])
     }

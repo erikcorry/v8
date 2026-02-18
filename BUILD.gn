@@ -2566,11 +2566,11 @@ v8_cluster_source_set("torque_generated_initializers") {
   ]
 
   sources = torque_csa_cc_files + [
-    "$target_gen_dir/torque-generated/csa-types.h",
-    "$target_gen_dir/torque-generated/enum-verifiers.cc",
-    "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
-    "$target_gen_dir/torque-generated/exported-macros-assembler.h",
-  ]
+              "$target_gen_dir/torque-generated/csa-types.h",
+              "$target_gen_dir/torque-generated/enum-verifiers.cc",
+              "$target_gen_dir/torque-generated/exported-macros-assembler.cc",
+              "$target_gen_dir/torque-generated/exported-macros-assembler.h",
+            ]
 
   # Add headers (always included)
   sources += torque_csa_h_files
@@ -2634,12 +2634,12 @@ v8_cluster_source_set("torque_generated_definitions") {
   ]
 
   sources = torque_def_cc_files + [
-    "$target_gen_dir/torque-generated/class-forward-declarations.h",
-    "$target_gen_dir/torque-generated/class-verifiers.cc",
-    "$target_gen_dir/torque-generated/class-verifiers.h",
-    "$target_gen_dir/torque-generated/factory.cc",
-    "$target_gen_dir/torque-generated/objects-printer.cc",
-  ]
+              "$target_gen_dir/torque-generated/class-forward-declarations.h",
+              "$target_gen_dir/torque-generated/class-verifiers.cc",
+              "$target_gen_dir/torque-generated/class-verifiers.h",
+              "$target_gen_dir/torque-generated/factory.cc",
+              "$target_gen_dir/torque-generated/objects-printer.cc",
+            ]
 
   # Add .inc files (always included, not compiled directly)
   sources += torque_def_inc_files
