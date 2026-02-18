@@ -91,10 +91,6 @@ def generate_cluster_content(files, cluster_name, prefix, strip_prefix,
                              include_prefix):
   """Generate the content of a cluster file."""
   lines = [
-      '// Copyright 2026 the V8 project authors. All rights reserved.',
-      '// Use of this source code is governed by a BSD-style license that can be',
-      '// found in the LICENSE file.',
-      '',
       f'// Auto-generated cluster build file for {prefix} ({cluster_name})',
       '',
       '#pragma clang diagnostic ignored "-Wheader-hygiene"',
