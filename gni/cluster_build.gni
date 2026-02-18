@@ -90,7 +90,7 @@ template("v8_cluster_source_set") {
 
       # Compute cluster file names using exec_script
       _cluster_filenames =
-          exec_script("//tools/cluster_files.py",
+          exec_script(v8_path_prefix + "/tools/cluster_files.py",
                       _compute_args + rebase_path(_cluster_sources, root_build_dir),
                       "list lines")
 
@@ -102,7 +102,7 @@ template("v8_cluster_source_set") {
       # Action to generate cluster files
       action("${_target_name}_generate_clusters") {
         visibility = [ ":*" ]
-        script = "//tools/cluster_files.py"
+        script = v8_path_prefix + "/tools/cluster_files.py"
 
         outputs = _cluster_files
 
