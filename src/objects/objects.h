@@ -4,7 +4,7 @@
 
 #ifndef V8_OBJECTS_OBJECTS_H_
 #define V8_OBJECTS_OBJECTS_H_
-// erik
+
 #include <iosfwd>
 #include <memory>
 
