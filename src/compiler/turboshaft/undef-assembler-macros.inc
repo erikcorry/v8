@@ -39,6 +39,9 @@
 #undef UNLIKELY
 #undef WHILE
 
+#undef EMIT_OP
+#undef TRACE
+
 #undef FORCE_UNROLL_LOOP
 #undef NO_SHADOW
 #undef RE_SHADOW
