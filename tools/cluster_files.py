@@ -14,7 +14,7 @@ This script has two modes:
 
    Usage:
      cluster_files.py --compute-filenames --cluster-size <n> --prefix <prefix> \
-         [--group-by-dir] <file1> [file2] ...
+         <file1> [file2] ...
 
 2. Generate files (--generate):
    Called at build-time to create the actual cluster files with #include directives.
@@ -22,7 +22,7 @@ This script has two modes:
    Usage:
      cluster_files.py --generate --output-dir <dir> --prefix <prefix> \
          --cluster-size <n> [--strip-prefix <prefix>] [--include-prefix <prefix>] \
-         [--group-by-dir] <file1.cc> [file2.cc] ...
+         <file1.cc> [file2.cc] ...
 """
 
 import argparse
@@ -65,30 +65,22 @@ def group_files_by_directory(files):
   return files_by_dir
 
 
-def compute_cluster_info(files, cluster_size, prefix, group_by_dir):
+def compute_cluster_info(files, cluster_size, prefix):
   """Compute cluster information (filenames and file assignments).
 
   Returns a list of tuples: (cluster_filename, list_of_source_files)
   """
   clusters = []
 
-  if group_by_dir:
-    files_by_dir = group_files_by_directory(files)
-    for dir_path in sorted(files_by_dir.keys()):
-      dir_files = sorted(files_by_dir[dir_path])
-      dir_name = sanitize_dir_name(dir_path)
-      cluster_num = 1
-      for i in range(0, len(dir_files), cluster_size):
-        chunk = dir_files[i:i + cluster_size]
-        cluster_filename = f'{prefix}-{dir_name}-cluster-{cluster_num}.cc'
-        clusters.append((cluster_filename, chunk))
-        cluster_num += 1
-  else:
-    files = sorted(files)
+  # Group by directory
+  files_by_dir = group_files_by_directory(files)
+  for dir_path in sorted(files_by_dir.keys()):
+    dir_files = sorted(files_by_dir[dir_path])
+    dir_name = sanitize_dir_name(dir_path)
     cluster_num = 1
-    for i in range(0, len(files), cluster_size):
-      chunk = files[i:i + cluster_size]
-      cluster_filename = f'{prefix}-cluster-{cluster_num}.cc'
+    for i in range(0, len(dir_files), cluster_size):
+      chunk = dir_files[i:i + cluster_size]
+      cluster_filename = f'{prefix}-{dir_name}-cluster-{cluster_num}.cc'
       clusters.append((cluster_filename, chunk))
       cluster_num += 1
 
@@ -129,8 +121,7 @@ def cmd_compute_filenames(args):
   if not files:
     return 0
 
-  clusters = compute_cluster_info(files, args.cluster_size, args.prefix,
-                                  args.group_by_dir)
+  clusters = compute_cluster_info(files, args.cluster_size, args.prefix)
 
   for cluster_filename, _ in clusters:
     print(cluster_filename)
@@ -148,8 +139,7 @@ def cmd_generate(args):
   # Create output directory if needed
   os.makedirs(args.output_dir, exist_ok=True)
 
-  clusters = compute_cluster_info(files, args.cluster_size, args.prefix,
-                                  args.group_by_dir)
+  clusters = compute_cluster_info(files, args.cluster_size, args.prefix)
 
   for cluster_filename, source_files in clusters:
     cluster_name = cluster_filename[len(args.prefix) +
@@ -196,10 +186,6 @@ def main():
       type=int,
       default=10,
       help='Number of files per cluster (default: 10)')
-  parser.add_argument(
-      '--group-by-dir',
-      action='store_true',
-      help='Group files by directory before clustering')
 
   # Generate-specific arguments
   parser.add_argument(

@@ -85,7 +85,6 @@ template("v8_cluster_source_set") {
         "$cluster_size",
         "--prefix",
         _cluster_prefix,
-        "--group-by-dir",
       ]
 
       # Compute cluster file names using exec_script
@@ -133,7 +132,6 @@ template("v8_cluster_source_set") {
           ]
         }
 
-        args += [ "--group-by-dir" ]
         args += rebase_path(_cluster_sources, root_build_dir)
 
         forward_variables_from(invoker,
