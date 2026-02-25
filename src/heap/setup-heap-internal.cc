@@ -1352,6 +1352,27 @@ bool Heap::CreateReadOnlyObjects() {
     set_preallocated_number_string_table(*preallocated_number_string_table);
   }
 
+  // Allocate and initialize table for two-character one-byte strings.
+  {
+    HandleScope handle_scope(isolate());
+    Handle<FixedArray> two_char_table = factory->NewFixedArray(
+        String::kTwoCharStringTableSize, AllocationType::kReadOnly);
+
+    uint8_t buffer[2];
+    for (int c1 = 0; c1 < String::kTwoCharStringTableLimit; ++c1) {
+      buffer[0] = static_cast<uint8_t>(c1);
+      for (int c2 = 0; c2 < String::kTwoCharStringTableLimit; ++c2) {
+        buffer[1] = static_cast<uint8_t>(c2);
+        Handle<String> str =
+            factory->InternalizeString(base::Vector<const uint8_t>(buffer, 2));
+        DCHECK(ReadOnlyHeap::Contains(*str));
+        int index = c1 * String::kTwoCharStringTableLimit + c2;
+        two_char_table->set(index, *str);
+      }
+    }
+    set_two_char_string_table(*two_char_table);
+  }
+
   // Initialize the wasm null_value.
 
 #ifdef V8_ENABLE_WEBASSEMBLY

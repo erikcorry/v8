@@ -163,6 +163,16 @@ class ObjectPreProcessor final {
   ExternalReferenceEncoder extref_encoder_;
 };
 
+// Returns true if the object will need post-processing during deserialization.
+bool NeedsPostProcessing(Isolate* isolate, Tagged<HeapObject> o) {
+  const InstanceType itype = o->map(isolate)->instance_type();
+#define V(TYPE) \
+  if (InstanceTypeChecker::Is##TYPE(itype)) return true;
+  RO_POST_PROCESS_TYPE_LIST(V)
+#undef V
+  return false;
+}
+
 struct ReadOnlySegmentForSerialization {
   ReadOnlySegmentForSerialization(Isolate* isolate, const ReadOnlyPage* page,
                                   Address segment_start, size_t segment_size,
@@ -395,6 +405,7 @@ class ReadOnlyHeapImageSerializer {
     }
 
     EmitReadOnlyRootsTable();
+    EmitPostProcessRanges();
     sink_->Put(Bytecode::kFinalizeReadOnlySpace, "space end");
     sink_->PutUint30(isolate_->next_unique_sfi_id(), "shared function info ID");
   }
@@ -418,6 +429,49 @@ class ReadOnlyHeapImageSerializer {
       auto page_addr = page->ChunkAddress();
       sink_->PutUint32(V8HeapCompressionScheme::CompressAny(page_addr),
                        "page start offset");
+    }
+  }
+
+  void EmitPostProcessRanges() {
+    // Use 4KB granules to minimize scanning of non-post-process objects.
+    // Objects are attributed to the granule where they start.
+    static constexpr size_t kGranuleSize = 4 * KB;
+
+    ReadOnlySpace* ro_space = isolate_->read_only_heap()->read_only_space();
+    for (const ReadOnlyPage* page : ro_space->pages()) {
+      const size_t page_size = page->HighWaterMark() - page->area_start();
+      const size_t num_granules = (page_size + kGranuleSize - 1) / kGranuleSize;
+
+      // Track first/end for each granule.
+      std::vector<Address> granule_first(num_granules, kNullAddress);
+      std::vector<Address> granule_end(num_granules, kNullAddress);
+
+      ReadOnlyPageObjectIterator it(page, page->area_start());
+      for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+        if (o.address() >= page->HighWaterMark()) break;
+        if (NeedsPostProcessing(isolate_, o)) {
+          size_t idx = (o.address() - page->area_start()) / kGranuleSize;
+          DCHECK_LT(idx, num_granules);
+          if (granule_first[idx] == kNullAddress) {
+            granule_first[idx] = o.address();
+          }
+          granule_end[idx] = o.address() + o->Size();
+        }
+      }
+
+      // Emit a range for each granule that has post-process objects.
+      for (size_t i = 0; i < num_granules; i++) {
+        if (granule_first[i] != kNullAddress) {
+          sink_->Put(Bytecode::kPostProcessRange, "post-process range");
+          sink_->PutUint30(IndexOf(page), "page index");
+          sink_->PutUint30(
+              static_cast<uint32_t>(granule_first[i] - page->area_start()),
+              "first offset");
+          sink_->PutUint30(
+              static_cast<uint32_t>(granule_end[i] - page->area_start()),
+              "end offset");
+        }
+      }
     }
   }
 

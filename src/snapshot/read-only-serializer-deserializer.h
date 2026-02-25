@@ -40,6 +40,14 @@ enum Bytecode {
   //   IF_STATIC_ROOTS(... ro roots table slots)
   kReadOnlyRootsTable,
   //
+  // kPostProcessRange parameters:
+  //   Uint30 page_index
+  //   Uint30 first_offset (offset of first object needing post-processing)
+  //   Uint30 end_offset (offset past last object needing post-processing)
+  // Emitted for each page that has objects needing post-processing.
+  // If a page has no such objects, no kPostProcessRange is emitted for it.
+  kPostProcessRange,
+  //
   kFinalizeReadOnlySpace,
 };
 static constexpr int kNumberOfBytecodes =
@@ -150,6 +158,18 @@ struct EncodedExternalReference {
 };
 static_assert(EncodedExternalReference::kSize ==
               sizeof(EncodedExternalReference));
+
+// List of object types that require post-processing after deserialization.
+// These objects have external pointer slots or other fields that need to be
+// decoded/initialized at deserialization time. Used by both read-only-promotion
+// (to place these objects at the end of the snapshot) and
+// read-only-deserializer (to perform the actual post-processing).
+#define RO_POST_PROCESS_TYPE_LIST(V) \
+  V(AccessorInfo)                    \
+  V(InterceptorInfo)                 \
+  V(JSExternalObject)                \
+  V(FunctionTemplateInfo)            \
+  V(Code)
 
 }  // namespace ro
 }  // namespace internal
