@@ -57,8 +57,17 @@ class ReadOnlyHeapImageDeserializer final {
         case Bytecode::kPostProcessRange:
           ReadPostProcessRange();
           break;
+        case Bytecode::kRoSpaceImage:
+          DeserializeRoSpaceImage();
+          break;
         case Bytecode::kFinalizeReadOnlySpace:
           ro_space()->FinalizeSpaceForDeserialization(source_->GetUint30());
+          // The RO bytecode stream is self-terminating at
+          // kFinalizeReadOnlySpace. Skip to the end so the base
+          // Deserializer destructor's padding check is satisfied.
+          // (In the blob path, alignment padding and the blob image
+          // follow the bytecodes; in the legacy path, Pad() nops do.)
+          source_->set_position(source_->length());
           return;
       }
     }
@@ -156,6 +165,39 @@ class ReadOnlyHeapImageDeserializer final {
     range.first_offset = source_->GetUint30();
     range.end_offset = source_->GetUint30();
     post_process_ranges_->push_back(range);
+  }
+
+  void DeserializeRoSpaceImage() {
+    uint32_t blob_offset_from_end = source_->GetUint32();
+
+    // The blob is at the end of the payload.
+    CHECK_LE(blob_offset_from_end, source_->length());
+    const uint8_t* blob_start =
+        source_->data() + source_->length() - blob_offset_from_end;
+    uint32_t blob_size = blob_offset_from_end;
+
+    // Verify the blob is aligned within the payload.
+    DCHECK(IsAligned(static_cast<size_t>(blob_start - source_->data()),
+                     ro::kLargestPossibleOSPageSize));
+
+    const auto& pages = ro_space()->pages();
+    DCHECK(!pages.empty());
+
+    // First page is at cage base.
+    Address cage_base = pages.front()->ChunkAddress();
+
+    // Copy entire pages from the blob, including headers. The blob has
+    // pre-populated MemoryChunk headers with the correct flags and metadata
+    // index.
+    for (const ReadOnlyPage* page : pages) {
+      size_t page_offset_in_blob = page->ChunkAddress() - cage_base;
+      size_t page_used = page->HighWaterMark() - page->ChunkAddress();
+
+      CHECK_LE(page_offset_in_blob + page_used, blob_size);
+
+      memcpy(reinterpret_cast<void*>(page->ChunkAddress()),
+             blob_start + page_offset_in_blob, page_used);
+    }
   }
 
   ReadOnlySpace* ro_space() const {

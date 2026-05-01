@@ -14,6 +14,10 @@ namespace ro {
 
 // Common functionality for RO serialization and deserialization.
 
+// The largest possible OS page size across all supported platforms.
+// Used for aligning the RO space image blob in the snapshot.
+static constexpr size_t kLargestPossibleOSPageSize = 64 * KB;
+
 enum Bytecode {
   // kAllocatePage parameters:
   //   Uint30 page_index
@@ -47,6 +51,20 @@ enum Bytecode {
   // Emitted for each page that has objects needing post-processing.
   // If a page has no such objects, no kPostProcessRange is emitted for it.
   kPostProcessRange,
+  //
+  // kRoSpaceImage parameters:
+  //   Uint32 blob_offset_from_end
+  //     Byte offset from the end of the payload to the start of the blob.
+  //     Equal to the blob size since the blob is the last thing in the
+  //     payload.  The blob is aligned to kLargestPossibleOSPageSize (64KB)
+  //     within the payload and contains the full contiguous RO space image
+  //     (complete pages including headers). The blob data is at natural
+  //     cage-relative offsets. Page headers are pre-populated with the
+  //     correct flags and metadata index so the mmap path won't need to
+  //     write them.
+  // Only emitted when V8_STATIC_ROOTS_BOOL and contiguous RO space are
+  // enabled. In that configuration, kSegment bytecodes are not emitted.
+  kRoSpaceImage,
   //
   kFinalizeReadOnlySpace,
 };
