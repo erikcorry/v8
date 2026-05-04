@@ -680,52 +680,56 @@ class ReadOnlyHeapImageSerializer {
     // Allocate zero-initialized blob.
     std::vector<uint8_t> blob(blob_size, 0);
 
+    size_t header_size =
+        MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
+
+    // Pass 1: Populate headers and copy area content into the blob, skipping
+    // unmapped bodies (hole/WasmNull payloads) which may have been
+    // decommitted at runtime. The blob has zeros there from initialization.
     for (const ReadOnlyPage* page : pages) {
       size_t page_offset = page->ChunkAddress() - cage_base;
-      size_t header_size =
-          MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
-
-      // Populate the MemoryChunk header in the blob.
-      // For contiguous compressed RO space, flags are NO_FLAGS (0) — already
-      // zero from initialization. The metadata index is deterministic:
-      // just the page number within the cage.
       PopulatePageHeader(blob.data() + page_offset, page_offset, page);
 
-      // Copy the area content into the blob.
-      Address area_start = page->area_start();
-      size_t area_used = page->HighWaterMark() - area_start;
-      MemCopy(blob.data() + page_offset + header_size,
-              reinterpret_cast<void*>(area_start), area_used);
-    }
-
-    // Pre-process objects (encode external pointers, etc.) in the blob copy.
-    // Then zero unmapped bodies.
-    for (const ReadOnlyPage* page : pages) {
-      size_t page_offset = page->ChunkAddress() - cage_base;
-      size_t header_size =
-          MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(RO_SPACE);
       uint8_t* page_area_in_blob = blob.data() + page_offset + header_size;
+      Address area_start = page->area_start();
+      Address segment_start = area_start;
 
-      ReadOnlyPageObjectIterator it(page, page->area_start(),
-                                    SkipFreeSpaceOrFiller::kNo);
+      ReadOnlyPageObjectIterator it(page, SkipFreeSpaceOrFiller::kNo);
       for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
         if (o.address() >= page->HighWaterMark()) break;
+        std::optional<UnmappedBody> unmapped = GetUnmappedBody(o);
+        if (unmapped && unmapped->size > 0) {
+          if (segment_start < unmapped->start) {
+            MemCopy(page_area_in_blob + (segment_start - area_start),
+                    reinterpret_cast<void*>(segment_start),
+                    unmapped->start - segment_start);
+          }
+          segment_start = unmapped->start + unmapped->size;
+        }
+      }
+      Address high_water_mark = page->HighWaterMark();
+      if (segment_start < high_water_mark) {
+        MemCopy(page_area_in_blob + (segment_start - area_start),
+                reinterpret_cast<void*>(segment_start),
+                high_water_mark - segment_start);
+      }
+    }
 
-        // Pre-process the copy in the blob. Use o.ptr() (tagged) to preserve
-        // the heap object tag, matching the segment-based approach.
-        size_t o_offset = o.ptr() - page->area_start();
+    // Pass 2: Pre-process all objects in the blob copy (encode external
+    // pointers etc.).
+    for (const ReadOnlyPage* page : pages) {
+      size_t page_offset = page->ChunkAddress() - cage_base;
+      uint8_t* page_area_in_blob = blob.data() + page_offset + header_size;
+      Address area_start = page->area_start();
+
+      ReadOnlyPageObjectIterator it(page, SkipFreeSpaceOrFiller::kNo);
+      for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+        if (o.address() >= page->HighWaterMark()) break;
+        size_t o_offset = o.ptr() - area_start;
         Address o_in_blob =
             reinterpret_cast<Address>(page_area_in_blob) + o_offset;
         pre_processor_.PreProcessIfNeeded(
             Cast<HeapObject>(Tagged<Object>(o_in_blob)));
-
-        // Zero unmapped bodies in the blob.
-        std::optional<UnmappedBody> unmapped = GetUnmappedBody(o);
-        if (unmapped && unmapped->size > 0) {
-          size_t body_offset_in_page = unmapped->start - page->ChunkAddress();
-          memset(blob.data() + page_offset + body_offset_in_page, 0,
-                 unmapped->size);
-        }
       }
     }
 
