@@ -166,8 +166,8 @@ class ObjectPreProcessor final {
 };
 
 // Returns true if the object will need post-processing during deserialization.
-bool NeedsPostProcessing(Isolate* isolate, Tagged<HeapObject> o) {
-  const InstanceType itype = o->map(isolate)->instance_type();
+bool NeedsPostProcessing(Tagged<HeapObject> o) {
+  const InstanceType itype = o->map()->instance_type();
 #define V(TYPE) \
   if (InstanceTypeChecker::Is##TYPE(itype)) return true;
   RO_POST_PROCESS_TYPE_LIST(V)
@@ -487,7 +487,7 @@ class ReadOnlyHeapImageSerializer {
       ReadOnlyPageObjectIterator it(page, page->area_start());
       for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
         if (o.address() >= page->HighWaterMark()) break;
-        if (NeedsPostProcessing(isolate_, o)) {
+        if (NeedsPostProcessing(o)) {
           size_t idx = (o.address() - page->area_start()) / kGranuleSize;
           DCHECK_LT(idx, num_granules);
           if (granule_first[idx] == kNullAddress) {
