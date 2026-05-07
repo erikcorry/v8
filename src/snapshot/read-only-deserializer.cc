@@ -176,9 +176,16 @@ class ReadOnlyHeapImageDeserializer final {
         source_->data() + source_->length() - blob_offset_from_end;
     uint32_t blob_size = blob_offset_from_end;
 
-    // Verify the blob is aligned within the payload.
-    DCHECK(IsAligned(static_cast<size_t>(blob_start - source_->data()),
-                     ro::kLargestPossibleOSPageSize));
+    // When the snapshot blob is compiled into the binary with proper alignment
+    // (alignas(kTargetMinimumOSPageSize) on blob_data[] in the generated
+    // snapshot .cc), the RO space image blob will be page-aligned here. This
+    // enables future mmap-based deserialization. The alignment won't hold when
+    // the snapshot is loaded from an external file or when snapshot compression
+    // is enabled.
+#if !defined(V8_USE_EXTERNAL_STARTUP_DATA) && !defined(V8_SNAPSHOT_COMPRESSION)
+    CHECK(IsAligned(reinterpret_cast<uintptr_t>(blob_start),
+                    kMinimumOSPageSize));
+#endif
 
     const auto& pages = ro_space()->pages();
     DCHECK(!pages.empty());

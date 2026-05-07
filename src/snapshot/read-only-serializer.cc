@@ -428,9 +428,13 @@ class ReadOnlyHeapImageSerializer {
     sink_->Put(Bytecode::kFinalizeReadOnlySpace, "space end");
     sink_->PutUint30(isolate_->next_unique_sfi_id(), "shared function info ID");
 
-    // Pad to kLargestPossibleOSPageSize alignment, then write the blob.
-    size_t aligned_blob_start =
-        RoundUp(sink_->Position(), ro::kLargestPossibleOSPageSize);
+    // Pad to page alignment within the payload, then write the blob.
+    // The snapshot blob header is padded so that this payload starts at a
+    // page-aligned offset within the blob. When the blob is compiled into
+    // the binary with alignas(kTargetMinimumOSPageSize), the blob will be
+    // at an absolute page-aligned address.
+    size_t aligned_blob_start = RoundUp(
+        sink_->Position(), static_cast<size_t>(kTargetMinimumOSPageSize));
     sink_->PutN(aligned_blob_start - sink_->Position(), 0,
                 "blob alignment padding");
     sink_->PutRaw(blob.data(), static_cast<int>(blob_size),
