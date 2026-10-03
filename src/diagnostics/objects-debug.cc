@@ -97,6 +97,7 @@
 #include "src/objects/oddball-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/property-descriptor-object-inl.h"
+#include "src/objects/read-only-string-table.h"
 #include "src/objects/sort-state.h"
 #include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/struct-inl.h"
@@ -3991,12 +3992,18 @@ class StringTableVerifier : public RootVisitor {
         // table.
         uint32_t raw_hash = Cast<Name>(object)->raw_hash_field();
         CHECK(!Name::IsInternalizedForwardingIndex(raw_hash));
+        // Read-only strings belong in the ReadOnlyStringTable once it exists
+        // and no more of them can be created.
+        CHECK_IMPLIES(read_only_table_sealed_, !ReadOnlyHeap::Contains(object));
       }
     }
   }
 
  private:
   Isolate* isolate_;
+  const bool read_only_table_sealed_ =
+      isolate_->read_only_heap()->string_table() != kNullAddress &&
+      !isolate_->heap()->read_only_space()->writable();
 };
 
 void StringTable::VerifyIfOwnedBy(Isolate* isolate) {
@@ -4004,6 +4011,8 @@ void StringTable::VerifyIfOwnedBy(Isolate* isolate) {
   if (!isolate->OwnsStringTables()) return;
   StringTableVerifier verifier(isolate);
   IterateElements(&verifier);
+  VerifyConsistentCounts(isolate);
+  ReadOnlyStringTable::Verify(isolate, read_only_table());
 }
 
 #endif  // VERIFY_HEAP

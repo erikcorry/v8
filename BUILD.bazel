@@ -68,6 +68,7 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_enable_snapshot_compression
 # v8_control_flow_integrity
 # v8_enable_sandbox
+# v8_enable_ro_snapshot_full_page_format
 # cppgc_enable_caged_heap
 # cppgc_enable_api_checks
 # cppgc_enable_check_assignments_in_prefinalizers
@@ -146,6 +147,8 @@ v8_flag(
     name = "v8_enable_static_roots",
     default = True,
 )
+
+v8_flag(name = "v8_enable_ro_snapshot_full_page_format")
 
 v8_flag(name = "v8_enable_trace_maps")
 
@@ -547,6 +550,7 @@ v8_config(
         "v8_enable_slow_dchecks": "ENABLE_SLOW_DCHECKS",
         "v8_enable_runtime_call_stats": "V8_RUNTIME_CALL_STATS",
         "v8_enable_snapshot_native_code_counters": "V8_SNAPSHOT_NATIVE_CODE_COUNTERS",
+        "v8_enable_ro_snapshot_full_page_format": "V8_RO_SNAPSHOT_FULL_PAGE_FORMAT",
         "v8_enable_trace_maps": "V8_TRACE_MAPS",
         "v8_enable_turbofan": "V8_ENABLE_TURBOFAN",
         "v8_enable_v8_checks": "V8_ENABLE_CHECKS",
@@ -2415,6 +2419,9 @@ filegroup(
         "src/objects/string-inl.h",
         "src/objects/string-set.h",
         "src/objects/string-set-inl.h",
+        "src/objects/read-only-string-table.cc",
+        "src/objects/read-only-string-table.h",
+        "src/objects/read-only-string-table-inl.h",
         "src/objects/string-table.cc",
         "src/objects/string-table.h",
         "src/objects/string-table-inl.h",

@@ -1849,6 +1849,7 @@ class Heap final {
   bool CreateLateReadOnlyNonJSReceiverMaps();
   bool CreateLateReadOnlyJSReceiverMaps();
   bool CreateReadOnlyObjects();
+  void CreateWasmNullAndHoleObjects();
 
   void CreateInternalAccessorInfoObjects();
   void CreateInitialMutableObjects();

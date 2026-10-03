@@ -220,6 +220,15 @@ bool Heap::CreateReadOnlyHeapObjects() {
 
   CreateReadOnlyApiObjects();
 
+  // Allocate WasmNull and holes last so that the other read-only objects are
+  // dense and their positions are independent of kLargestPossibleOSPageSize.
+  // These objects have large payloads aligned to OS page boundaries (for
+  // decommitting at runtime), so they fragment the space.  Placing them at the
+  // end also ensures their static-root addresses are deterministic: they depend
+  // only on the initial read-only layout above, not on promoted objects (whose
+  // set varies between debug/release builds) that are appended later.
+  CreateWasmNullAndHoleObjects();
+
 #ifdef DEBUG
   ReadOnlyRoots roots(isolate());
   for (auto pos = RootIndex::kFirstReadOnlyRoot;
@@ -1349,8 +1358,13 @@ bool Heap::CreateReadOnlyObjects() {
     set_preallocated_number_string_table(*preallocated_number_string_table);
   }
 
-  // Initialize the wasm null_value.
+  return true;
+}
 
+void Heap::CreateWasmNullAndHoleObjects() {
+  ReadOnlyRoots roots(isolate());
+
+  // Initialize the wasm null_value.
 #ifdef V8_ENABLE_WEBASSEMBLY
   // Allocate the wasm-null object. It is a regular V8 heap object contained in
   // a V8 page.
@@ -1383,9 +1397,7 @@ bool Heap::CreateReadOnlyObjects() {
 #endif  // V8_UNMAP_WASM_NULL_PAYLOAD
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  auto make_hole = [this, roots, factory]() {
-    USE(factory);
-
+  auto make_hole = [this, roots]() {
     static_assert(sizeof(Hole) == sizeof(Hole::map_) + Hole::kPayloadSize);
     Tagged<HeapObject> hole_obj =
         read_only_space_
@@ -1421,8 +1433,6 @@ bool Heap::CreateReadOnlyObjects() {
   set_self_reference_marker(UncheckedCast<SelfReferenceMarker>(make_hole()));
   set_basic_block_counters_marker(
       UncheckedCast<BasicBlockCountersMarker>(make_hole()));
-
-  return true;
 }
 
 void Heap::CreateMutableApiObjects() {

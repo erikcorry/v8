@@ -136,6 +136,17 @@ class TestSerializer {
     return v8_isolate;
   }
 
+  static v8::Isolate* NewIsolateFromDefaultSnapshotForSerialization() {
+    // Reserialize the production default snapshot instead of bootstrapping a
+    // new read-only heap from scratch.
+    DisableEmbeddedBlobRefcounting();
+    v8::Isolate::CreateParams params;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* v8_isolate = NewIsolate(true);
+    v8::Isolate::Initialize(v8_isolate, params);
+    return v8_isolate;
+  }
+
  private:
   // Creates an Isolate instance configured for testing.
   static v8::Isolate* NewIsolate(bool with_serializer) {
@@ -288,6 +299,109 @@ void TestStartupSerializerOnceImpl() {
 UNINITIALIZED_TEST(StartupSerializerOnce) {
   TestStartupSerializerOnceImpl();
 }
+
+#if defined(V8_RO_SNAPSHOT_FULL_PAGE_FORMAT) && defined(V8_COMPRESS_POINTERS)
+UNINITIALIZED_TEST(ReadOnlyPageSerializationPreservesLayout) {
+  // Keep hole payloads readable so every readable byte in each page can be
+  // compared directly. WasmNull is always decommitted in its entirety.
+  FlagScope<bool> keep_hole_payloads_mapped(&v8_flags.unmap_holes, false);
+
+  v8::Isolate* isolate =
+      TestSerializer::NewIsolateFromDefaultSnapshotForSerialization();
+  StartupBlobs blobs = Serialize(isolate);
+
+  struct SavedRegion {
+    size_t offset;
+    std::vector<uint8_t> bytes;
+  };
+  struct SavedPage {
+    size_t size;
+    std::vector<SavedRegion> regions;
+  };
+  size_t original_space_size;
+  std::vector<SavedPage> original_pages;
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    ReadOnlySpace* original_space =
+        i_isolate->read_only_heap()->read_only_space();
+    original_space_size = original_space->Size();
+    const auto& pages = original_space->pages();
+    CHECK(!pages.empty());
+    original_pages.reserve(pages.size());
+    Address wasm_null_start = kNullAddress;
+    Address wasm_null_end = kNullAddress;
+#if V8_ENABLE_WEBASSEMBLY && V8_STATIC_ROOTS_BOOL
+    wasm_null_start = i_isolate->factory()->wasm_null()->address();
+    wasm_null_end = wasm_null_start + WasmNull::kSize;
+#endif
+    for (const ReadOnlyPage* page : pages) {
+      Address page_start = page->ChunkAddress();
+      Address compare_start = page_start;
+#ifndef V8_ENABLE_SANDBOX
+      compare_start += sizeof(MemoryChunk);
+#endif
+      Address page_end = page_start + page->size();
+      std::vector<SavedRegion> regions;
+      auto save_region = [&](Address start, Address end) {
+        if (start == end) return;
+        const uint8_t* bytes = reinterpret_cast<const uint8_t*>(start);
+        regions.push_back({start - page_start,
+                           std::vector<uint8_t>(bytes, bytes + end - start)});
+      };
+      if (page_start < wasm_null_end && wasm_null_start < page_end) {
+        save_region(compare_start, wasm_null_start);
+        save_region(wasm_null_end, page_end);
+      } else {
+        save_region(compare_start, page_end);
+      }
+      original_pages.push_back({page->size(), std::move(regions)});
+    }
+  }
+  isolate->Dispose();
+
+  isolate = Deserialize(blobs);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+    ReadOnlySpace* deserialized_space =
+        i_isolate->read_only_heap()->read_only_space();
+    CHECK_EQ(original_space_size, deserialized_space->Size());
+    const auto& deserialized_pages = deserialized_space->pages();
+    CHECK_EQ(original_pages.size(), deserialized_pages.size());
+    for (size_t page_index = 0; page_index < deserialized_pages.size();
+         ++page_index) {
+      const ReadOnlyPage* page = deserialized_pages[page_index];
+      const SavedPage& original_page = original_pages[page_index];
+      CHECK_EQ(original_page.size, page->size());
+#ifndef V8_ENABLE_SANDBOX
+      CHECK_EQ(MemoryChunk::FromAddress(page->ChunkAddress())->Metadata(),
+               page);
+#endif
+      for (const SavedRegion& region : original_page.regions) {
+        CHECK_LE(region.offset + region.bytes.size(), page->size());
+        const uint8_t* actual = reinterpret_cast<const uint8_t*>(
+            page->ChunkAddress() + region.offset);
+        if (memcmp(region.bytes.data(), actual, region.bytes.size()) != 0) {
+          for (size_t offset = 0; offset < region.bytes.size(); ++offset) {
+            if (region.bytes[offset] != actual[offset]) {
+              PrintF("Read-only page %zu differs at byte offset %zu\n",
+                     page_index, region.offset + offset);
+            }
+            CHECK_EQ(region.bytes[offset], actual[offset]);
+          }
+          UNREACHABLE();
+        }
+      }
+    }
+  }
+
+  isolate->Dispose();
+  blobs.Dispose();
+  FreeCurrentEmbeddedBlob();
+}
+#endif  // defined(V8_RO_SNAPSHOT_FULL_PAGE_FORMAT) &&
+        // defined(V8_COMPRESS_POINTERS)
 
 UNINITIALIZED_TEST(StartupSerializerTwice) {
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();

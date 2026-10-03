@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+class FixedArray;
+
 // A generic key for lookups into the string table, which allows heteromorphic
 // lookup and on-demand creation of new strings.
 class StringTableKey {
@@ -86,13 +88,22 @@ class V8_EXPORT_PRIVATE StringTable {
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                   Address raw_string);
 
-  // Insert a range of strings. Only for use during isolate deserialization.
+  // Insert a range of strings that are not yet in the table. Only for use
+  // during isolate deserialization.
   void InsertForIsolateDeserialization(
       Isolate* isolate,
       const base::Vector<DirectHandle<InternalizedString>>& strings);
 
   // Insert the single empty string. Only for use during heap bootstrapping.
   void InsertEmptyStringForBootstrapping(Isolate* isolate);
+
+  // Builds the ReadOnlyStringTable from the strings in read-only space and
+  // drops them from this table. Only for use when creating a snapshot, while
+  // read-only space is still writable.
+  void MoveReadOnlyStringsToReadOnlyTable(Isolate* isolate);
+
+  // The ReadOnlyStringTable directory, or null if there is none.
+  Tagged<FixedArray> read_only_table() const;
 
   void Print(PtrComprCageBase cage_base) const;
   size_t GetCurrentMemoryUsage() const;
@@ -110,6 +121,7 @@ class V8_EXPORT_PRIVATE StringTable {
   class OffHeapStringHashSet;
   class Data;
 
+  void VerifyConsistentCounts(Isolate* isolate) const;
   Data* EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);
 
   std::atomic<Data*> data_;

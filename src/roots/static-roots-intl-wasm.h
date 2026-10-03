@@ -1220,6 +1220,18 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kManyClosuresCell = kShadowRealmScopeInfo + 24;
   static constexpr Tagged_t kPreallocatedNumberStringTable =
       kManyClosuresCell + 16;
+  static constexpr Tagged_t kJSMessageObjectMap =
+      kPreallocatedNumberStringTable + 1848;
+  static constexpr Tagged_t kExternalMap = kJSMessageObjectMap + 40;
+  static constexpr Tagged_t kCppHeapExternalMap = kExternalMap + 40;
+  static constexpr Tagged_t kCppGCManagedBaseMap = kCppHeapExternalMap + 40;
+  static constexpr Tagged_t kJSSharedArrayMap = kCppGCManagedBaseMap + 40;
+  static constexpr Tagged_t kJSAtomicsMutexMap = kJSSharedArrayMap + 68;
+  static constexpr Tagged_t kJSAtomicsConditionMap = kJSAtomicsMutexMap + 40;
+  static constexpr Tagged_t kNoOpNamedInterceptorInfo =
+      kJSAtomicsConditionMap + 40;
+  static constexpr Tagged_t kNoOpIndexedInterceptorInfo =
+      kNoOpNamedInterceptorInfo + 84;
   static constexpr Tagged_t kWasmNull = 0x10001;
   static constexpr Tagged_t kTheHoleValue = 0x2fffd;
   // -- End of page 0 --
@@ -1245,19 +1257,9 @@ struct StaticReadOnlyRoot {
   // -- End of page 5 --
   static constexpr Tagged_t kSelfReferenceMarker = 0x18fffd;
   static constexpr Tagged_t kBasicBlockCountersMarker = 0x1afffd;
-  // -- End of page 6 --
-  static constexpr Tagged_t kJSMessageObjectMap = 0x1c0011;
-  static constexpr Tagged_t kExternalMap = 0x1c0039;
-  static constexpr Tagged_t kCppHeapExternalMap = 0x1c0061;
-  static constexpr Tagged_t kCppGCManagedBaseMap = 0x1c0089;
-  static constexpr Tagged_t kJSSharedArrayMap = 0x1c00b1;
-  static constexpr Tagged_t kJSAtomicsMutexMap = 0x1c00f5;
-  static constexpr Tagged_t kJSAtomicsConditionMap = 0x1c011d;
-  static constexpr Tagged_t kNoOpNamedInterceptorInfo = 0x1c0145;
-  static constexpr Tagged_t kNoOpIndexedInterceptorInfo = 0x1c0199;
 
   static constexpr Tagged_t kFirstAllocatedRoot = 0x11;
-  static constexpr Tagged_t kLastAllocatedRoot = 0x1c0199;
+  static constexpr Tagged_t kLastAllocatedRoot = 0x1afffd;
 };
 
 static constexpr std::array<Tagged_t, 1043> StaticReadOnlyRootsPointerTable = {

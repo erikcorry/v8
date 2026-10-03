@@ -23,15 +23,22 @@ namespace internal {
 
 class ReadOnlyHeapImageDeserializer final {
  public:
-  static void Deserialize(Isolate* isolate, SnapshotByteSource* source) {
-    ReadOnlyHeapImageDeserializer{isolate, source}.DeserializeImpl();
+  static void Deserialize(
+      Isolate* isolate, SnapshotByteSource* source,
+      std::optional<std::vector<PostProcessRange>>* ranges) {
+    ReadOnlyHeapImageDeserializer{isolate, source, ranges}.DeserializeImpl();
   }
 
  private:
   using Bytecode = ro::Bytecode;
 
-  ReadOnlyHeapImageDeserializer(Isolate* isolate, SnapshotByteSource* source)
-      : source_(source), isolate_(isolate) {}
+  ReadOnlyHeapImageDeserializer(
+      Isolate* isolate, SnapshotByteSource* source,
+      std::optional<std::vector<PostProcessRange>>* ranges)
+      : source_(source), isolate_(isolate), post_process_ranges_(ranges) {
+    USE(post_process_ranges_);
+    DCHECK(!ranges->has_value());
+  }
 
   void DeserializeImpl() {
     while (true) {
@@ -45,19 +52,70 @@ class ReadOnlyHeapImageDeserializer final {
           AllocatePage(true);
           break;
         case Bytecode::kSegment:
-          DeserializeSegment();
+          HandleSegment();
           break;
         case Bytecode::kRelocateSegment:
-          UNREACHABLE();  // Handled together with kSegment.
+          HandleRelocateSegment();
+          break;
+        case Bytecode::kRoSpaceImageRuns:
+          HandleRoSpaceImageRuns();
+          break;
         case Bytecode::kReadOnlyRootsTable:
           DeserializeReadOnlyRootsTable();
           break;
+        case Bytecode::kStringTable: {
+          uint32_t encoded_as_int = source_->GetUint32();
+          Address directory =
+              Decode(ro::EncodedTagged::FromUint32(encoded_as_int));
+          isolate_->read_only_heap()->set_string_table(directory +
+                                                       kHeapObjectTag);
+          break;
+        }
+        case Bytecode::kPostProcessRange:
+          HandleReadPostProcessRange();
+          break;
+        case Bytecode::kPostProcessWholeHeap:
+          HandlePostProcessWholeHeap();
+          break;
         case Bytecode::kFinalizeReadOnlySpace:
           ro_space()->FinalizeSpaceForDeserialization(source_->GetUint30());
+#ifdef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
+          // The RO bytecode stream is self-terminating at
+          // kFinalizeReadOnlySpace. Skip to the end so the base
+          // Deserializer destructor's padding check is satisfied.
+          // Alignment padding and the blob image follow the bytecodes.
+          source_->set_position(source_->length());
+#endif
           return;
       }
     }
   }
+
+#ifdef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
+  void HandleSegment() {
+    FATAL("Read-only snapshot uses the legacy segment format");
+  }
+  void HandleRelocateSegment() { RelocateSegment(); }
+  void HandleRoSpaceImageRuns() { DeserializeRoSpaceImageRuns(); }
+  void HandleReadPostProcessRange() { ReadPostProcessRange(); }
+  void HandlePostProcessWholeHeap() {
+    CHECK(!post_process_ranges_->has_value());
+  }
+#else
+  void HandleSegment() { DeserializeSegment(); }
+  void HandleRelocateSegment() {
+    UNREACHABLE();  // Handled together with kSegment.
+  }
+  void HandleRoSpaceImageRuns() {
+    FATAL("Read-only snapshot uses the full-page format");
+  }
+  void HandleReadPostProcessRange() {
+    FATAL("Read-only snapshot uses the full-page format");
+  }
+  void HandlePostProcessWholeHeap() {
+    FATAL("Read-only snapshot uses the full-page format");
+  }
+#endif
 
   void AllocatePage(bool fixed_offset) {
     CHECK_EQ(V8_STATIC_ROOTS_BOOL, fixed_offset);
@@ -80,6 +138,7 @@ class ReadOnlyHeapImageDeserializer final {
                                                  area_size_in_bytes);
   }
 
+#ifndef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
   void DeserializeSegment() {
     uint32_t page_index = source_->GetUint30();
     ReadOnlyPage* page = PageAt(page_index);
@@ -103,6 +162,7 @@ class ReadOnlyHeapImageDeserializer final {
       source_->Advance(static_cast<int>(tagged_slots.size_in_bytes()));
     }
   }
+#endif
 
   Address Decode(ro::EncodedTagged encoded) const {
     ReadOnlyPage* page = PageAt(encoded.page_index);
@@ -145,12 +205,109 @@ class ReadOnlyHeapImageDeserializer final {
     }
   }
 
+#ifdef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
+  void RelocateSegment() {
+    uint32_t page_index = source_->GetUint30();
+    ReadOnlyPage* page = PageAt(page_index);
+
+    // Copy over raw contents.
+    Address start = page->area_start() + source_->GetUint30();
+    int size_in_bytes = source_->GetUint30();
+    CHECK_LE(start + size_in_bytes, page->area_end());
+
+    int tagged_slots_size_in_bits = size_in_bytes / kTaggedSize;
+    // The const_cast is unfortunate, but we promise not to mutate data.
+    uint8_t* data = const_cast<uint8_t*>(source_->data() + source_->position());
+    ro::BitSet tagged_slots(data, tagged_slots_size_in_bits);
+    DecodeTaggedSlots(start, tagged_slots);
+    CHECK_LE(tagged_slots.size_in_bytes(), std::numeric_limits<int>::max());
+    source_->Advance(static_cast<int>(tagged_slots.size_in_bytes()));
+  }
+
+  void ReadPostProcessRange() {
+    PostProcessRange range;
+    range.page_index = source_->GetUint30();
+    range.first_offset = source_->GetUint30();
+    range.end_offset = source_->GetUint30();
+    if (!post_process_ranges_->has_value()) post_process_ranges_->emplace();
+    (*post_process_ranges_)->push_back(range);
+  }
+
+  void DeserializeRoSpaceImageRuns() {
+    DCHECK_IMPLIES(v8_flags.ro_snapshot_remap,
+                   base::OS::IsRemapPageSupported());
+#ifdef V8_SNAPSHOT_COMPRESSION
+    CHECK(!v8_flags.ro_snapshot_remap);
+#endif
+
+    uint32_t num_runs = source_->GetUint32();
+    uint32_t blob_offset_from_end = source_->GetUint32();
+
+    // The blob is at the end of the payload.
+    CHECK_LE(blob_offset_from_end, source_->length());
+    const uint8_t* blob_start =
+        source_->data() + source_->length() - blob_offset_from_end;
+
+    const auto& pages = ro_space()->pages();
+    DCHECK(!pages.empty());
+
+    bool try_remap = false;
+    const StartupData* snapshot_blob = isolate_->snapshot_blob();
+    if (base::OS::IsRemapPageSupported() && v8_flags.ro_snapshot_remap &&
+        snapshot_blob && snapshot_blob->IsFileBacked()) {
+      [[maybe_unused]] const uint8_t* blob_data =
+          reinterpret_cast<const uint8_t*>(snapshot_blob->data);
+      DCHECK(blob_data <= blob_start &&
+             blob_start + blob_offset_from_end <=
+                 blob_data + snapshot_blob->raw_size);
+      try_remap = true;
+    }
+
+    [[maybe_unused]] size_t page_size = AllocatePageSize();
+
+    for (uint32_t k = 0; k < num_runs; ++k) {
+      uint32_t page_index = source_->GetUint32();
+      uint32_t dest_offset = source_->GetUint32();
+      uint32_t data_offset = source_->GetUint32();
+      uint32_t length = source_->GetUint32();
+
+      const uint8_t* src = blob_start + data_offset;
+      Address dest = pages[page_index]->ChunkAddress() + dest_offset;
+
+      bool do_memcpy = true;
+
+      if (try_remap) {
+        DCHECK(IsAlignedAddress(src, page_size) && IsAligned(dest, page_size) &&
+               IsAligned(length, page_size));
+        do_memcpy =
+            !base::OS::RemapPages(src, length, reinterpret_cast<void*>(dest),
+                                  base::OS::MemoryPermission::kReadWrite);
+      }
+
+      if (do_memcpy) {
+        DCHECK(!v8_flags.ro_snapshot_force_remap);
+        memcpy(reinterpret_cast<void*>(dest), src, length);
+      }
+    }
+
+#ifndef V8_ENABLE_SANDBOX
+    // The image has zeroed headers here (they may hold raw pointers), and the
+    // memcpy above clobbered the live headers, so rebuild them.
+    for (ReadOnlyPage* page : pages) {
+      void* chunk = reinterpret_cast<void*>(page->ChunkAddress());
+      new (chunk) MemoryChunk(page->InitialFlags(), page);
+    }
+#endif
+  }
+#endif
+
   ReadOnlySpace* ro_space() const {
     return isolate_->read_only_heap()->read_only_space();
   }
 
   SnapshotByteSource* const source_;
   Isolate* const isolate_;
+  std::optional<std::vector<PostProcessRange>>* const post_process_ranges_;
 };
 
 ReadOnlyDeserializer::ReadOnlyDeserializer(Isolate* isolate,
@@ -166,8 +323,11 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
       isolate()->counters()->snapshot_deserialize_rospace());
   HandleScope scope(isolate());
 
-  ReadOnlyHeapImageDeserializer::Deserialize(isolate(), source());
-  PostProcessNewObjects();
+  std::optional<std::vector<PostProcessRange>> post_process_ranges;
+  ReadOnlyHeapImageDeserializer::Deserialize(isolate(), source(),
+                                             &post_process_ranges);
+
+  PostProcessNewObjects(post_process_ranges);
 
   ReadOnlyRoots roots(isolate());
   roots.VerifyNameForProtectorsPages();
@@ -179,6 +339,9 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   if (should_rehash()) {
     HashSeed::InitializeRoots(isolate());
     Rehash();
+    // The read-only string table's slots depend on the old hashes. Drop it;
+    // SharedHeapDeserializer puts the strings in the mutable table instead.
+    isolate()->read_only_heap()->set_string_table(kNullAddress);
   }
 
   if (V8_UNLIKELY(v8_flags.profile_deserialization)) {
@@ -216,25 +379,18 @@ class ObjectPostProcessor final {
         std::move(registry));
 #endif  // V8_ENABLE_SANDBOX
   }
-#define POST_PROCESS_TYPE_LIST(V) \
-  V(AccessorInfo)                 \
-  V(InterceptorInfo)              \
-  V(JSExternalObject)             \
-  V(FunctionTemplateInfo)         \
-  V(Code)
-
   V8_INLINE void PostProcessIfNeeded(Tagged<HeapObject> o,
                                      InstanceType instance_type) {
     DCHECK_EQ(o->map()->instance_type(), instance_type);
 #define V(TYPE)                                       \
   if (InstanceTypeChecker::Is##TYPE(instance_type)) { \
-    return PostProcess##TYPE(TrustedCast<TYPE>(o));   \
+    PostProcess##TYPE(TrustedCast<TYPE>(o));          \
+    return;                                           \
   }
-    POST_PROCESS_TYPE_LIST(V)
+    RO_POST_PROCESS_TYPE_LIST(V)
 #undef V
     // If we reach here, no postprocessing is needed for this object.
   }
-#undef POST_PROCESS_TYPE_LIST
 
  private:
   Address GetAnyExternalReferenceAt(int index, bool is_api_reference) const {
@@ -420,10 +576,8 @@ class ObjectPostProcessor final {
 #endif  // V8_ENABLE_SANDBOX
 };
 
-void ReadOnlyDeserializer::PostProcessNewObjects() {
-  // Since we are not deserializing individual objects we need to scan the
-  // heap and search for objects that need post-processing.
-  //
+void ReadOnlyDeserializer::PostProcessNewObjects(
+    const std::optional<std::vector<PostProcessRange>>& ranges) {
   // See also Deserializer<IsolateT>::PostProcessNewObject.
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable::UnsealReadOnlySegmentScope unseal_scope(
@@ -434,24 +588,14 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       &isolate()->trusted_pointer_table());
 #endif  // V8_ENABLE_SANDBOX
   ObjectPostProcessor post_processor(isolate());
-  ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
+
 #ifdef V8_ENABLE_SANDBOX
   std::vector<ReadOnlyArtifacts::TrustedPointerRegistryEntry>
       trusted_pointer_entries;
 #endif  // V8_ENABLE_SANDBOX
-  for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-    if (IsInaccessible(o)) continue;
-    const InstanceType instance_type = o->map()->instance_type();
-    if (should_rehash()) {
-      if (InstanceTypeChecker::IsString(instance_type)) {
-        Tagged<String> str = Cast<String>(o);
-        str->set_raw_hash_field(Name::kEmptyHashField);
-        PushObjectToRehash(direct_handle(str, isolate()));
-      } else if (o->NeedsRehashing(instance_type)) {
-        PushObjectToRehash(direct_handle(o, isolate()));
-      }
-    }
 
+  auto post_process_object = [&](Tagged<HeapObject> o,
+                                 InstanceType instance_type) {
     post_processor.PostProcessIfNeeded(o, instance_type);
 
 #ifdef V8_ENABLE_SANDBOX
@@ -465,7 +609,41 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       trusted_pointer_entries.emplace_back(handle, exposed.ptr(), tag);
     }
 #endif  // V8_ENABLE_SANDBOX
+  };
+
+  if (ranges.has_value() && !should_rehash()) {
+    // Without rehashing, only iterate post-process ranges.
+    ReadOnlySpace* ro_space = isolate()->read_only_heap()->read_only_space();
+    for (const PostProcessRange& range : *ranges) {
+      const ReadOnlyPage* page = ro_space->pages()[range.page_index];
+      Address start = page->area_start() + range.first_offset;
+      Address end = page->area_start() + range.end_offset;
+      ReadOnlyPageObjectIterator it(page, start);
+      for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+        if (IsInaccessible(o)) continue;
+        if (o.address() >= end) break;
+        post_process_object(o, o->map()->instance_type());
+      }
+    }
+  } else {
+    // Full iteration over all RO heap objects.
+    ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
+    for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+      if (IsInaccessible(o)) continue;
+      const InstanceType instance_type = o->map()->instance_type();
+      if (should_rehash()) {
+        if (InstanceTypeChecker::IsString(instance_type)) {
+          Tagged<String> str = Cast<String>(o);
+          str->set_raw_hash_field(Name::kEmptyHashField);
+          PushObjectToRehash(direct_handle(str, isolate()));
+        } else if (o->NeedsRehashing(instance_type)) {
+          PushObjectToRehash(direct_handle(o, isolate()));
+        }
+      }
+      post_process_object(o, instance_type);
+    }
   }
+
   post_processor.Finalize();
 #ifdef V8_ENABLE_SANDBOX
   isolate()->read_only_artifacts()->set_trusted_pointer_registry(

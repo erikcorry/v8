@@ -4449,6 +4449,14 @@ void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
     // - If the string table is shared and this is not the shared heap,
     //   since all internalized strings are in the shared heap.
     isolate()->string_table()->IterateElements(v);
+    // The ReadOnlyStringTable directory is not reachable from any other root.
+    // Its strings are in read-only space, so no visitor has anything to do
+    // with them, but heap snapshots need to see the retainer.
+    Address* directory = isolate()->read_only_heap()->string_table_address();
+    if (*directory != kNullAddress) {
+      v->VisitRootPointer(Root::kStringTable, nullptr,
+                          FullObjectSlot(directory));
+    }
   }
   v->Synchronize(VisitorSynchronization::kStringTable);
   if (!options.contains(SkipRoot::kExternalStringTable) &&

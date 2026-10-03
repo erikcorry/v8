@@ -3420,6 +3420,13 @@ DEFINE_DEVELOPER_FLAG(profile_deserialization,
                       "Print the time it takes to deserialize the snapshot.")
 DEFINE_DEVELOPER_FLAG(trace_deserialization,
                       "Trace the snapshot deserialization.")
+DEFINE_BOOL(ro_snapshot_remap, false,
+            "remap read-only snapshot image pages when possible")
+DEFINE_BOOL(ro_snapshot_force_remap, false,
+            "fail if read-only snapshot image runs cannot be remapped")
+DEFINE_IMPLICATION(ro_snapshot_force_remap, ro_snapshot_remap)
+DEFINE_BOOL(ro_snapshot_page_chunked_processing, false,
+            "limit read-only snapshot post-processing to encoded ranges")
 DEFINE_DEVELOPER_FLAG(serialization_statistics,
                       "Collect statistics on serialized objects.")
 // Regexp

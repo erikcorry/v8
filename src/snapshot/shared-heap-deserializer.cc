@@ -5,6 +5,7 @@
 #include "src/snapshot/shared-heap-deserializer.h"
 
 #include "src/heap/heap-inl.h"
+#include "src/heap/read-only-heap.h"
 
 namespace v8 {
 namespace internal {
@@ -50,11 +51,22 @@ void SharedHeapDeserializer::DeserializeStringTable() {
     strings.emplace_back(Cast<InternalizedString>(ReadObject()));
   }
 
+  if (should_rehash()) {
+    // Rehashing invalidated the ReadOnlyStringTable, so the read-only strings
+    // go in the mutable table like any other.
+    DCHECK_EQ(isolate()->read_only_heap()->string_table(), kNullAddress);
+    ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
+    for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+      if (IsInaccessible(o) || !IsInternalizedString(o)) continue;
+      strings.emplace_back(Cast<InternalizedString>(o), isolate());
+    }
+  }
+
   StringTable* t = isolate()->string_table();
   DCHECK_EQ(t->NumberOfElements(), 0);
   t->InsertForIsolateDeserialization(
       isolate(), base::VectorOf(strings.data(), strings.size()));
-  DCHECK_EQ(t->NumberOfElements(), length);
+  DCHECK_EQ(t->NumberOfElements(), static_cast<int>(strings.size()));
 }
 
 }  // namespace internal

@@ -85,17 +85,23 @@ constexpr int kRegularPageSize = 1 << kPageSizeBits;
 // The minimal supported page size by the operation system. Any region aligned
 // to that size needs to be individually protectable via
 // {base::OS::SetPermission} and friends.
-#if (defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64)) ||         \
-    (defined(V8_OS_ANDROID) &&                                       \
-     (defined(V8_HOST_ARCH_ARM64) || defined(V8_HOST_ARCH_X64))) ||  \
-    defined(V8_HOST_ARCH_LOONG64) || defined(V8_HOST_ARCH_MIPS64) || \
-    defined(V8_OS_IOS)
+// NOLINTBEGIN(whitespace/indent)
+#define V8_MINIMUM_OS_PAGE_SIZE_IS_16K(OS, ARCH)       \
+  ((defined(OS##_MACOS) && defined(ARCH##_ARM64)) ||   \
+   (defined(OS##_ANDROID) &&                           \
+    (defined(ARCH##_ARM64) || defined(ARCH##_X64))) || \
+   defined(ARCH##_LOONG64) || defined(ARCH##_MIPS64) || defined(OS##_IOS))
+#define V8_MINIMUM_OS_PAGE_SIZE_IS_64K(OS, ARCH)    \
+  (defined(OS##_LINUX) && !defined(OS##_ANDROID) && \
+   (defined(ARCH##_ARM64) || defined(ARCH##_PPC64)))
+// NOLINTEND(whitespace/indent)
+
+#if V8_MINIMUM_OS_PAGE_SIZE_IS_16K(V8_OS, V8_HOST_ARCH)
 // Android 64 bit has experimental support for 16kB pages.
 // MacOS & iOS on arm64 uses 16kB pages.
 // LOONG64 and MIPS64 also use 16kB pages.
 constexpr int kMinimumOSPageSize = 16 * 1024;
-#elif defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID) && \
-    (defined(V8_HOST_ARCH_ARM64) || defined(V8_HOST_ARCH_PPC64))
+#elif V8_MINIMUM_OS_PAGE_SIZE_IS_64K(V8_OS, V8_HOST_ARCH)
 // Linux on arm64 (excluding android) and PPC64 can be configured for up to 64kB
 // pages.
 constexpr int kMinimumOSPageSize = 64 * 1024;
@@ -103,5 +109,21 @@ constexpr int kMinimumOSPageSize = 64 * 1024;
 // Everything else uses 4kB pages.
 constexpr int kMinimumOSPageSize = 4 * 1024;
 #endif
+
+// The minimal supported page size of the target OS. Same as kMinimumOSPageSize
+// for native builds. For cross-compilation (e.g. mksnapshot for a different
+// target), this uses the target's page size instead of the host's.
+// Used for aligning the snapshot blob so that the RO space image within it
+// is page-aligned on the target.
+#if V8_MINIMUM_OS_PAGE_SIZE_IS_16K(V8_TARGET_OS, V8_TARGET_ARCH)
+constexpr int kTargetMinimumOSPageSize = 16 * 1024;
+#elif V8_MINIMUM_OS_PAGE_SIZE_IS_64K(V8_TARGET_OS, V8_TARGET_ARCH)
+constexpr int kTargetMinimumOSPageSize = 64 * 1024;
+#else
+constexpr int kTargetMinimumOSPageSize = 4 * 1024;
+#endif
+
+#undef V8_MINIMUM_OS_PAGE_SIZE_IS_16K
+#undef V8_MINIMUM_OS_PAGE_SIZE_IS_64K
 
 #endif  // V8_BASE_BUILD_CONFIG_H_

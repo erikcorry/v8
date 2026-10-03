@@ -627,6 +627,13 @@ uint32_t ComputeFlagListHash() {
       continue;
     }
 
+    // These only affect how the read-only snapshot is mapped into memory, not
+    // its contents, so they do not affect code caching.
+    if (flag.PointsTo(&v8_flags.ro_snapshot_remap) ||
+        flag.PointsTo(&v8_flags.ro_snapshot_force_remap)) {
+      continue;
+    }
+
     // The following flags are implied by --predictable (some negated).
     if (flag.PointsTo(&v8_flags.concurrent_sparkplug) ||
         flag.PointsTo(&v8_flags.concurrent_recompilation) ||

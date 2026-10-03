@@ -197,6 +197,10 @@ declare_args() {
   # Use pre-generated static root pointer values from static-roots.h.
   v8_enable_static_roots = ""
 
+  # Serialize the read-only snapshot as a packed full-page image rather than
+  # as object-area segments.
+  v8_enable_ro_snapshot_full_page_format = false
+
   # Mode used by gen-static-roots.py to have a heap layout which is identical
   # to when v8_enable_static_roots is enabled.
   v8_enable_static_roots_generation = false
@@ -1644,6 +1648,9 @@ config("features") {
   }
   if (v8_enable_static_roots) {
     defines += [ "V8_STATIC_ROOTS" ]
+  }
+  if (v8_enable_ro_snapshot_full_page_format) {
+    defines += [ "V8_RO_SNAPSHOT_FULL_PAGE_FORMAT" ]
   }
   if (v8_enable_static_roots_generation) {
     defines += [ "V8_STATIC_ROOTS_GENERATION" ]
@@ -3165,6 +3172,12 @@ template("run_mksnapshot") {
     if (v8_verify_deterministic_mksnapshot) {
       # Flags that help debugging snapshot determinism.
       args += [ "--trace-read-only-promotion" ]
+    }
+
+    if (v8_enable_ro_snapshot_full_page_format) {
+      # Record which read-only objects need post-processing so that
+      # deserialization only visits those instead of the whole space.
+      args += [ "--ro-snapshot-page-chunked-processing" ]
     }
 
     if (v8_log_builtins_block_count_input != "") {
@@ -4836,6 +4849,8 @@ v8_header_set("v8_internal_headers") {
     "src/objects/prototype-info.h",
     "src/objects/prototype-inl.h",
     "src/objects/prototype.h",
+    "src/objects/read-only-string-table-inl.h",
+    "src/objects/read-only-string-table.h",
     "src/objects/regexp-match-info.h",
     "src/objects/scope-info-inl.h",
     "src/objects/scope-info.h",
@@ -6608,6 +6623,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/objects/ordered-hash-table.cc",
     "src/objects/property-descriptor.cc",
     "src/objects/property.cc",
+    "src/objects/read-only-string-table.cc",
     "src/objects/regexp-match-info.cc",
     "src/objects/scope-info.cc",
     "src/objects/script.cc",

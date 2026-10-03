@@ -88,6 +88,13 @@ class ReadOnlyHeap final {
   // only needs to happen once per read-only heap.
   void DecommitGuardRegions(Isolate* isolate);
 
+  // The ReadOnlyStringTable directory, or kNullAddress if there is none yet.
+  // Set by mksnapshot when it builds the table and by the read-only
+  // deserializer.
+  Address string_table() const { return string_table_; }
+  Address* string_table_address() { return &string_table_; }
+  void set_string_table(Address directory) { string_table_ = directory; }
+
  protected:
   friend class ReadOnlyArtifacts;
 
@@ -107,6 +114,7 @@ class ReadOnlyHeap final {
   void InitFromIsolate(Isolate* isolate);
 
   bool roots_init_complete_ = false;
+  Address string_table_ = kNullAddress;
   ReadOnlySpace* read_only_space_ = nullptr;
 
 #if V8_ENABLE_WEBASSEMBLY

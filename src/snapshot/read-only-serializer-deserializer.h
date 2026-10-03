@@ -24,22 +24,46 @@ enum Bytecode {
   //   Uint30 area_size_in_bytes
   //   Uint32 compressed_page_address
   kAllocatePageAt,
-  //
   // kSegment parameters:
   //   Uint30 page_index
   //   Uint30 offset
   //   Uint30 size_in_bytes
   //   ... segment byte stream
   kSegment,
-  //
+  // kRoSpaceImageRuns parameters:
+  //   Uint32 num_runs
+  //   Uint32 blob_offset_from_end
+  // For each run:
+  //   Uint32 page_index
+  //   Uint32 destination_offset
+  //   Uint32 data_offset
+  //   Uint32 length
+  // Run data is page-aligned and packed at the end of the payload. Runs never
+  // cross V8 page boundaries.
+  kRoSpaceImageRuns,
   // kRelocateSegment parameters:
+  //   Uint30 page_index
+  //   Uint30 offset
+  //   Uint30 size_in_bytes
   //   ... relocation byte stream
   kRelocateSegment,
-  //
   // kReadOnlyRootsTable parameters:
   //   IF_STATIC_ROOTS(... ro roots table slots)
   kReadOnlyRootsTable,
-  //
+  // kStringTable parameters:
+  //   Uint32 encoded address of the ReadOnlyStringTable directory
+  kStringTable,
+  // kPostProcessRange parameters:
+  //   Uint30 page_index
+  //   Uint30 first_offset (offset of first object needing post-processing)
+  //   Uint30 end_offset (offset past last object needing post-processing)
+  // Emitted for each page that has objects needing post-processing.
+  // If a page has no such objects, no kPostProcessRange is emitted for it.
+  kPostProcessRange,
+  // kPostProcessWholeHeap has no parameters. It indicates that the image does
+  // not encode post-processing ranges and that the deserializer has to scan the
+  // whole read-only heap instead.
+  kPostProcessWholeHeap,
   kFinalizeReadOnlySpace,
 };
 static constexpr int kNumberOfBytecodes =
@@ -150,6 +174,18 @@ struct EncodedExternalReference {
 };
 static_assert(EncodedExternalReference::kSize ==
               sizeof(EncodedExternalReference));
+
+// List of object types that require post-processing after deserialization.
+// These objects have external pointer slots or other fields that need to be
+// decoded/initialized at deserialization time. Used by both read-only-promotion
+// (to place these objects at the end of the snapshot) and
+// read-only-deserializer (to perform the actual post-processing).
+#define RO_POST_PROCESS_TYPE_LIST(V) \
+  V(AccessorInfo)                    \
+  V(InterceptorInfo)                 \
+  V(JSExternalObject)                \
+  V(FunctionTemplateInfo)            \
+  V(Code)
 
 }  // namespace ro
 }  // namespace internal

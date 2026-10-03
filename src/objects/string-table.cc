@@ -22,6 +22,7 @@
 #include "src/objects/internal-index.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/off-heap-hash-table-inl.h"
+#include "src/objects/read-only-string-table-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/objects/string-table-inl.h"
@@ -64,6 +65,16 @@ class StringTable::OffHeapStringHashSet
     slot(index).Release_Store(key);
   }
   void Set(InternalIndex index, Tagged<String> key) { SetKey(index, key); }
+
+  // Adds a string that is known not to be in the table.
+  void AddUnique(PtrComprCageBase cage_base, Tagged<String> string) {
+    InternalIndex entry = FindInsertionEntry(cage_base, string->hash());
+    if (GetKey(cage_base, entry) == deleted_element()) {
+      OverwriteDeletedAt(cage_base, entry, string);
+    } else {
+      AddAt(cage_base, entry, string);
+    }
+  }
 
   void CopyEntryExcludingKeyInto(PtrComprCageBase, InternalIndex,
                                  OffHeapStringHashSet*, InternalIndex) {
@@ -448,9 +459,19 @@ bool StringTable::HasString(Isolate* isolate, DirectHandle<String> string) {
   return TryLookupKey(isolate, &key).has_value();
 }
 
+Tagged<FixedArray> StringTable::read_only_table() const {
+  Address directory = isolate_->read_only_heap()->string_table();
+  if (directory == kNullAddress) return {};
+  return Cast<FixedArray>(Tagged<Object>(directory));
+}
+
 template <typename StringTableKey, typename IsolateT>
 std::optional<DirectHandle<InternalizedString>> StringTable::TryLookupKey(
     IsolateT* isolate, StringTableKey* key) {
+  Tagged<InternalizedString> read_only =
+      ReadOnlyStringTable::Lookup(read_only_table(), isolate, key);
+  if (!read_only.is_null()) return direct_handle(read_only, isolate);
+
   // See LookupKey for the concurrency safety argument.
   Data* const current_data = data_.load(std::memory_order_acquire);
   OffHeapStringHashSet& current_table = current_data->table();
@@ -741,19 +762,22 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
     return Smi::FromInt(ResultSentinel::kUnsupported).ptr();
   }
 
-  Data* string_table_data =
-      isolate->string_table()->data_.load(std::memory_order_acquire);
-
-  InternalIndex entry =
-      string_table_data->table().FindEntry(isolate, &key, key.hash());
-  if (entry.is_not_found()) {
-    // A string that's not an array index, and not in the string table,
-    // cannot have been used as a property name before.
-    return Smi::FromInt(ResultSentinel::kNotFound).ptr();
+  StringTable* string_table = isolate->string_table();
+  Tagged<InternalizedString> internalized = ReadOnlyStringTable::Lookup(
+      string_table->read_only_table(), isolate, &key);
+  if (internalized.is_null()) {
+    Data* string_table_data =
+        string_table->data_.load(std::memory_order_acquire);
+    InternalIndex entry =
+        string_table_data->table().FindEntry(isolate, &key, key.hash());
+    if (entry.is_not_found()) {
+      // A string that's not an array index, and not in the string table,
+      // cannot have been used as a property name before.
+      return Smi::FromInt(ResultSentinel::kNotFound).ptr();
+    }
+    internalized = Cast<InternalizedString>(
+        string_table_data->table().GetKey(isolate, entry));
   }
-
-  Tagged<InternalizedString> internalized = Cast<InternalizedString>(
-      string_table_data->table().GetKey(isolate, entry));
   // string can be internalized here, if another thread internalized it.
   // If we found and entry in the string table and string is not internalized,
   // there is no way that it can transition to internalized later on. So a last
@@ -811,27 +835,59 @@ Address StringTable::TryStringToIndexOrLookupExisting(Isolate* isolate,
 void StringTable::InsertForIsolateDeserialization(
     Isolate* isolate,
     const base::Vector<DirectHandle<InternalizedString>>& strings) {
-  DCHECK_EQ(NumberOfElements(), 0);
-
   const int length = static_cast<int>(strings.size());
+#ifdef DEBUG
+  const int number_of_elements_before = NumberOfElements();
+#endif
   {
     base::MutexGuard table_write_guard(&write_mutex_);
 
     Data* const data = EnsureCapacity(isolate, length);
 
     for (const DirectHandle<InternalizedString>& s : strings) {
-      StringTableInsertionKey key(
-          isolate, s, DeserializingUserCodeOption::kNotDeserializingUserCode);
-      InternalIndex entry =
-          data->table().FindEntryOrInsertionEntry(isolate, &key, key.hash());
-
-      DirectHandle<String> inserted_string = key.GetHandleForInsertion(isolate);
-      DCHECK_IMPLIES(v8_flags.shared_string_table, inserted_string->IsShared());
-      data->table().AddAt(isolate, entry, *inserted_string);
+      DCHECK_IMPLIES(v8_flags.shared_string_table, s->IsShared());
+      s->EnsureHash();
+      data->table().AddUnique(isolate, *s);
     }
   }
+  DCHECK_EQ(NumberOfElements(), number_of_elements_before + length);
+}
 
-  DCHECK_EQ(NumberOfElements(), length);
+void StringTable::MoveReadOnlyStringsToReadOnlyTable(Isolate* isolate) {
+  // The isolate is at a safepoint, so the table can be swapped without keeping
+  // the old one for concurrent readers.
+  isolate->heap()->safepoint()->AssertActive();
+  std::vector<Tagged<InternalizedString>> read_only_strings;
+  std::vector<Tagged<InternalizedString>> other_strings;
+  {
+    base::MutexGuard table_write_guard(&write_mutex_);
+    const OffHeapStringHashSet& table =
+        data_.load(std::memory_order_relaxed)->table();
+    for (InternalIndex i : InternalIndex::Range(table.capacity())) {
+      Tagged<Object> key = table.GetKey(isolate, i);
+      if (!OffHeapStringHashSet::IsKey(key)) continue;
+      Tagged<InternalizedString> string = Cast<InternalizedString>(key);
+      (ReadOnlyHeap::Contains(string) ? read_only_strings : other_strings)
+          .push_back(string);
+    }
+  }
+  if (read_only_strings.empty()) return;
+
+  // A custom snapshot extends the table it was deserialized with.
+  ReadOnlyStringTable::CollectEntries(read_only_table(), &read_only_strings);
+  Tagged<FixedArray> directory =
+      ReadOnlyStringTable::Build(isolate, read_only_strings);
+  isolate->read_only_heap()->set_string_table(directory.ptr());
+
+  base::MutexGuard table_write_guard(&write_mutex_);
+  delete data_.load(std::memory_order_relaxed);
+  data_.store(Data::New(OffHeapStringHashSet::kMinCapacity).release(),
+              std::memory_order_release);
+  Data* const data =
+      EnsureCapacity(isolate, static_cast<int>(other_strings.size()));
+  for (Tagged<InternalizedString> string : other_strings) {
+    data->table().AddUnique(isolate, string);
+  }
 }
 
 void StringTable::InsertEmptyStringForBootstrapping(Isolate* isolate) {
@@ -892,6 +948,26 @@ void StringTable::NotifyElementsRemoved(int count) {
   DCHECK_NE(isolate_->heap()->gc_state(), Heap::NOT_IN_GC);
   data_.load(std::memory_order_relaxed)->table().ElementsRemoved(count);
 }
+
+#ifdef VERIFY_HEAP
+void StringTable::VerifyConsistentCounts(Isolate* isolate) const {
+  Data* data = data_.load(std::memory_order_acquire);
+  const OffHeapStringHashSet& table = data->table();
+  int counted_elements = 0;
+  int counted_deleted = 0;
+  for (int i = 0; i < table.capacity(); i++) {
+    Tagged<Object> key = table.GetKey(isolate, InternalIndex(i));
+    if (key == OffHeapStringHashSet::empty_element()) continue;
+    if (key == OffHeapStringHashSet::deleted_element()) {
+      counted_deleted++;
+    } else {
+      counted_elements++;
+    }
+  }
+  CHECK_EQ(counted_elements, table.number_of_elements());
+  CHECK_EQ(counted_deleted, table.number_of_deleted_elements());
+}
+#endif  // VERIFY_HEAP
 
 }  // namespace internal
 }  // namespace v8

@@ -6,12 +6,14 @@
 
 #include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk-constants.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/visit-object.h"
 #include "src/objects/free-space-inl.h"
 #include "src/objects/heap-object-field-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer-deserializer.h"
 
@@ -26,24 +28,16 @@ class ObjectPreProcessor final {
   explicit ObjectPreProcessor(Isolate* isolate)
       : isolate_(isolate), extref_encoder_(isolate) {}
 
-#define PRE_PROCESS_TYPE_LIST(V) \
-  V(AccessorInfo)                \
-  V(InterceptorInfo)             \
-  V(JSExternalObject)            \
-  V(FunctionTemplateInfo)        \
-  V(Code)
-
   void PreProcessIfNeeded(Tagged<HeapObject> o) {
     const InstanceType itype = o->map()->instance_type();
 #define V(TYPE)                                    \
   if (InstanceTypeChecker::Is##TYPE(itype)) {      \
     return PreProcess##TYPE(TrustedCast<TYPE>(o)); \
   }
-    PRE_PROCESS_TYPE_LIST(V)
+    RO_POST_PROCESS_TYPE_LIST(V)
 #undef V
     // If we reach here, no preprocessing is needed for this object.
   }
-#undef PRE_PROCESS_TYPE_LIST
 
  private:
   void EncodeExternalPointerSlot(ExternalPointerSlot slot) {
@@ -167,6 +161,21 @@ class ObjectPreProcessor final {
   Isolate* const isolate_;
   ExternalReferenceEncoder extref_encoder_;
 };
+
+#ifdef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
+// Returns true if the object will need post-processing during deserialization.
+bool NeedsPostProcessing(Tagged<HeapObject> o) {
+  // WasmNull is entirely inaccessible, including its map, and never needs
+  // post-processing.
+  if (IsInaccessible(o)) return false;
+  const InstanceType itype = o->map()->instance_type();
+#define V(TYPE) \
+  if (InstanceTypeChecker::Is##TYPE(itype)) return true;
+  RO_POST_PROCESS_TYPE_LIST(V)
+#undef V
+  return false;
+}
+#endif
 
 struct ReadOnlySegmentForSerialization {
   ReadOnlySegmentForSerialization(Isolate* isolate, const ReadOnlyPage* page,
@@ -380,6 +389,33 @@ class ReadOnlyHeapImageSerializer {
  private:
   using Bytecode = ro::Bytecode;
 
+#ifdef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
+  struct Run {
+    // Serialized fields.
+    uint32_t page_index;
+    uint32_t dest_offset;
+    uint32_t data_offset;
+    uint32_t length;
+
+    // Offset within `Image::contents`.
+    uint32_t source_offset;
+  };
+
+  struct Relocation {
+    uint32_t page_index;
+    uint32_t offset;
+    uint32_t size;
+    std::vector<uint8_t> tagged_slots;
+  };
+
+  struct Image {
+    std::vector<uint8_t> contents;
+    std::vector<Run> runs;
+    std::vector<Relocation> relocations;
+    uint32_t packed_size = 0;
+  };
+#endif
+
   ReadOnlyHeapImageSerializer(Isolate* isolate, SnapshotByteSink* sink)
       : isolate_(isolate), sink_(sink), pre_processor_(isolate) {}
 
@@ -394,14 +430,59 @@ class ReadOnlyHeapImageSerializer {
       EmitAllocatePage(page);
     }
 
-    // Now write the page contents.
+#ifndef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
     for (const ReadOnlyPage* page : ro_space->pages()) {
-      SerializePage(page);
+      ForEachPageSegment(page,
+                         [this](const auto* segment) { EmitSegment(segment); });
     }
+#endif
 
     EmitReadOnlyRootsTable();
+    EmitStringTable();
+#ifdef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
+    if (v8_flags.ro_snapshot_page_chunked_processing) {
+      EmitPostProcessRanges();
+    } else {
+      sink_->Put(Bytecode::kPostProcessWholeHeap, "post-process whole heap");
+    }
+
+    Image image = BuildRoSpaceImage(ro_space);
+
+    sink_->Put(Bytecode::kRoSpaceImageRuns, "ro space image");
+    sink_->PutUint32(static_cast<uint32_t>(image.runs.size()), "num runs");
+    sink_->PutUint32(image.packed_size, "blob offset from end");
+    for (const Run& r : image.runs) {
+      sink_->PutUint32(r.page_index, "run page index");
+      sink_->PutUint32(r.dest_offset, "run dest offset");
+      sink_->PutUint32(r.data_offset, "run data offset");
+      sink_->PutUint32(r.length, "run length");
+    }
+
+    for (const Relocation& relocation : image.relocations) {
+      sink_->Put(Bytecode::kRelocateSegment, "relocate segment");
+      sink_->PutUint30(relocation.page_index, "page index");
+      sink_->PutUint30(relocation.offset, "segment start offset");
+      sink_->PutUint30(relocation.size, "segment byte size");
+      sink_->PutRaw(relocation.tagged_slots.data(),
+                    relocation.tagged_slots.size(), "tagged slots");
+    }
+#endif
+
     sink_->Put(Bytecode::kFinalizeReadOnlySpace, "space end");
     sink_->PutUint30(isolate_->next_unique_sfi_id(), "shared function info ID");
+
+#ifdef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
+    size_t aligned_end = RoundUp(sink_->Position(),
+                                 static_cast<size_t>(kTargetMinimumOSPageSize));
+    sink_->PutN(aligned_end - sink_->Position(), 0, "blob alignment padding");
+    size_t blob_base = sink_->Position();
+    for (const Run& r : image.runs) {
+      size_t target = blob_base + r.data_offset;
+      sink_->PutN(target - sink_->Position(), 0, "run blob alignment padding");
+      sink_->PutRaw(image.contents.data() + r.source_offset, r.length,
+                    "ro space image blob");
+    }
+#endif
   }
 
   uint32_t IndexOf(const ReadOnlyPage* page) {
@@ -425,6 +506,51 @@ class ReadOnlyHeapImageSerializer {
                        "page start offset");
     }
   }
+
+#ifdef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
+  void EmitPostProcessRanges() {
+    // Use page-sized granules to minimize scanning of non-post-process objects.
+    // Objects are attributed to the granule where they start.
+    static constexpr size_t kGranuleSize = kTargetMinimumOSPageSize;
+
+    ReadOnlySpace* ro_space = isolate_->read_only_heap()->read_only_space();
+    for (const ReadOnlyPage* page : ro_space->pages()) {
+      const size_t page_size = page->HighWaterMark() - page->area_start();
+      const size_t num_granules = (page_size + kGranuleSize - 1) / kGranuleSize;
+
+      // Track first/end for each granule.
+      std::vector<Address> granule_first(num_granules, kNullAddress);
+      std::vector<Address> granule_end(num_granules, kNullAddress);
+
+      ReadOnlyPageObjectIterator it(page, page->area_start());
+      for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
+        if (o.address() >= page->HighWaterMark()) break;
+        if (NeedsPostProcessing(o)) {
+          size_t idx = (o.address() - page->area_start()) / kGranuleSize;
+          DCHECK_LT(idx, num_granules);
+          if (granule_first[idx] == kNullAddress) {
+            granule_first[idx] = o.address();
+          }
+          granule_end[idx] = o.address() + o->Size();
+        }
+      }
+
+      // Emit a range for each granule that has post-process objects.
+      for (size_t i = 0; i < num_granules; i++) {
+        if (granule_first[i] != kNullAddress) {
+          sink_->Put(Bytecode::kPostProcessRange, "post-process range");
+          sink_->PutUint30(IndexOf(page), "page index");
+          sink_->PutUint30(
+              static_cast<uint32_t>(granule_first[i] - page->area_start()),
+              "first offset");
+          sink_->PutUint30(
+              static_cast<uint32_t>(granule_end[i] - page->area_start()),
+              "end offset");
+        }
+      }
+    }
+  }
+#endif
 
   struct UnmappedBody {
     Address start;
@@ -450,7 +576,8 @@ class ReadOnlyHeapImageSerializer {
     return {};
   }
 
-  void SerializePage(const ReadOnlyPage* page) {
+  template <typename Callback>
+  void ForEachPageSegment(const ReadOnlyPage* page, Callback callback) {
     Address pos = page->area_start();
     if (v8_flags.trace_serializer) {
       PrintF("[ro serializer] Serializing page %p -> %p\n",
@@ -482,7 +609,7 @@ class ReadOnlyHeapImageSerializer {
         if (segment_size > 0) {
           ReadOnlySegmentForSerialization segment(
               isolate_, page, pos, segment_size, &pre_processor_);
-          EmitSegment(&segment);
+          callback(&segment);
         }
         return;
       }
@@ -500,7 +627,7 @@ class ReadOnlyHeapImageSerializer {
       if (segment_size > 0) {
         ReadOnlySegmentForSerialization segment(isolate_, page, pos,
                                                 segment_size, &pre_processor_);
-        EmitSegment(&segment);
+        callback(&segment);
       }
 
       if (v8_flags.trace_serializer) {
@@ -515,6 +642,7 @@ class ReadOnlyHeapImageSerializer {
     }
   }
 
+#ifndef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
   void EmitSegment(const ReadOnlySegmentForSerialization* segment) {
     if (segment->segment_size == 0) return;
     if (v8_flags.trace_serializer) {
@@ -538,6 +666,116 @@ class ReadOnlyHeapImageSerializer {
                     "tagged_slots");
     }
   }
+#endif
+
+#ifdef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
+#ifdef V8_ENABLE_SANDBOX
+  // Write the MemoryChunk header for a page in the blob and verify it
+  // matches the live page's header.
+  // The layout is: [MainThreadFlags (uintptr_t)] [metadata_index (uint32_t)]
+  // For RO pages with contiguous compressed RO space:
+  //   flags = ReadOnlyPage::InitialFlags()
+  //   metadata_index = kMainCageMetadataOffset + (page_offset >> kPageSizeBits)
+  static void PopulatePageHeader(uint8_t* page_start, size_t page_cage_offset,
+                                 const ReadOnlyPage* page) {
+    static constexpr size_t kFlagsOffset = 0;
+    static constexpr size_t kFlagsSize = sizeof(uintptr_t);
+    static constexpr size_t kMetadataIndexOffset = kFlagsSize;
+
+    uintptr_t flags = page->InitialFlags();
+    memcpy(page_start + kFlagsOffset, &flags, kFlagsSize);
+
+    // Verify the initial flags match the live page's header.
+    MemoryChunk* live_chunk = MemoryChunk::FromAddress(page->ChunkAddress());
+    uintptr_t live_flags;
+    memcpy(&live_flags, reinterpret_cast<uint8_t*>(live_chunk) + kFlagsOffset,
+           kFlagsSize);
+    DCHECK_EQ(flags, live_flags);
+
+    // metadata_index immediately follows flags.
+    uint32_t metadata_index =
+        static_cast<uint32_t>(MemoryChunkConstants::kMainCageMetadataOffset +
+                              (page_cage_offset >> kPageSizeBits));
+    memcpy(page_start + kMetadataIndexOffset, &metadata_index,
+           sizeof(metadata_index));
+
+    // Verify our computed metadata_index matches the live page's.
+    uint32_t live_metadata_index;
+    memcpy(&live_metadata_index,
+           reinterpret_cast<uint8_t*>(live_chunk) + kMetadataIndexOffset,
+           sizeof(live_metadata_index));
+    DCHECK_EQ(metadata_index, live_metadata_index);
+  }
+#endif  // V8_ENABLE_SANDBOX
+
+  Image BuildRoSpaceImage(ReadOnlySpace* ro_space) {
+    const auto& pages = ro_space->pages();
+    DCHECK(!pages.empty());
+
+    Image image;
+    image.contents.resize(pages.size() * kRegularPageSize, 0);
+
+    for (size_t page_index = 0; page_index < pages.size(); ++page_index) {
+      const ReadOnlyPage* page = pages[page_index];
+      size_t image_page_offset = page_index * kRegularPageSize;
+
+#ifdef V8_ENABLE_SANDBOX
+      // Only emit the header when sandbox is enabled; otherwise it holds a
+      // raw metadata pointer that can't be predicted at serialization time.
+      size_t page_cage_offset =
+          page->ChunkAddress() - pages.front()->ChunkAddress();
+      PopulatePageHeader(image.contents.data() + image_page_offset,
+                         page_cage_offset, page);
+#endif
+
+      ForEachPageSegment(page, [&](const auto* segment) {
+        size_t dest_offset = segment->segment_start - page->ChunkAddress();
+        MemCopy(image.contents.data() + image_page_offset + dest_offset,
+                segment->contents.get(), segment->segment_size);
+
+        if (!V8_STATIC_ROOTS_BOOL) {
+          size_t bitmap_size = segment->tagged_slots.size_in_bytes();
+          image.relocations.push_back(
+              {static_cast<uint32_t>(page_index),
+               static_cast<uint32_t>(segment->segment_offset),
+               static_cast<uint32_t>(segment->segment_size),
+               std::vector<uint8_t>(
+                   segment->tagged_slots.data(),
+                   segment->tagged_slots.data() + bitmap_size)});
+        }
+      });
+
+      auto page_is_zeroed = [&](uint32_t offset) {
+        const uint8_t* begin =
+            image.contents.data() + image_page_offset + offset;
+        return std::all_of(begin, begin + kTargetMinimumOSPageSize,
+                           [](uint8_t value) { return value == 0; });
+      };
+
+      uint32_t i = 0;
+      while (i < kRegularPageSize) {
+        while (i < kRegularPageSize && page_is_zeroed(i)) {
+          i += kTargetMinimumOSPageSize;
+        }
+        if (i == kRegularPageSize) break;
+        uint32_t start = i;
+        while (i < kRegularPageSize && !page_is_zeroed(i)) {
+          i += kTargetMinimumOSPageSize;
+        }
+        uint32_t end = i;
+
+        image.packed_size =
+            RoundUp(image.packed_size, kTargetMinimumOSPageSize);
+        image.runs.push_back(
+            {static_cast<uint32_t>(page_index), start, image.packed_size,
+             end - start, static_cast<uint32_t>(image_page_offset + start)});
+        image.packed_size += end - start;
+      }
+    }
+
+    return image;
+  }
+#endif  // V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
 
   void EmitReadOnlyRootsTable() {
     sink_->Put(Bytecode::kReadOnlyRootsTable, "read only roots table");
@@ -550,6 +788,15 @@ class ReadOnlyHeapImageSerializer {
         sink_->PutUint32(encoded.ToUint32(), "read only roots entry");
       }
     }
+  }
+
+  void EmitStringTable() {
+    Address directory = isolate_->read_only_heap()->string_table();
+    if (directory == kNullAddress) return;
+    sink_->Put(Bytecode::kStringTable, "string table");
+    ro::EncodedTagged encoded =
+        Encode(isolate_, Cast<HeapObject>(Tagged<Object>(directory)));
+    sink_->PutUint32(encoded.ToUint32(), "string table directory");
   }
 
   Isolate* const isolate_;
@@ -579,7 +826,9 @@ void ReadOnlySerializer::Serialize() {
       CountAllocation(o->map(), o->Size(), SnapshotSpace::kReadOnlyHeap);
     }
   }
+#ifndef V8_RO_SNAPSHOT_FULL_PAGE_FORMAT
   Pad();
+#endif
 }
 
 }  // namespace internal
