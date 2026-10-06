@@ -10,7 +10,6 @@
 #include "src/heap/factory.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
-#include "src/objects/oddball-predicates-inl.h"
 #include "src/objects/read-only-string-table-inl.h"
 
 namespace v8 {
@@ -159,14 +158,11 @@ void ReadOnlyStringTable::Verify(Isolate* isolate,
     }
     CHECK(LoadIsAcceptable(count, segment_length));
   }
-  // Once read-only space is sealed no more read-only strings can be created,
-  // so every internalized string there must be in this table.
-  if (isolate->heap()->read_only_space()->writable()) return;
-  ReadOnlyHeapObjectIterator it(isolate->read_only_heap());
-  for (Tagged<HeapObject> o = it.Next(); !o.is_null(); o = it.Next()) {
-    if (IsInaccessible(o) || !IsInternalizedString(o)) continue;
-    CHECK(Contains(directory, Cast<String>(o)));
-  }
+  // The converse, that every internalized string in read-only space is in the
+  // table, does not hold: StringTable::LookupKey allocates the internalized
+  // copy before taking the lock and drops it if another thread inserted an
+  // equal string first, and such a copy allocated while read-only space was
+  // writable stays there.
 }
 #endif  // VERIFY_HEAP
 
